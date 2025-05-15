@@ -1,5 +1,4 @@
 
-import 'xhr_polyfill'; // Necesario para que fetch funcione correctamente en Deno Deploy
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 
 const YOUTUBE_API_KEY = Deno.env.get("YOUTUBE_API_KEY");
@@ -75,3 +74,4 @@ serve(async (req) => {
     });
   }
 });
+
