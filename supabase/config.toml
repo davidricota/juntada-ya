@@ -1,1 +1,5 @@
+
 project_id = "tzkqsdyijmsajjlaoqwg"
+
+[functions.youtube-search]
+// verify_jwt = false # Descomenta si la función no requiere autenticación de Supabase
