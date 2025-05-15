@@ -61,7 +61,13 @@ export default {
 					'accent-foreground': 'hsl(var(--sidebar-accent-foreground))',
 					border: 'hsl(var(--sidebar-border))',
 					ring: 'hsl(var(--sidebar-ring))'
-				}
+				},
+        // Colores personalizados inspirados en Spotify
+        'spotify-dark': 'hsl(var(--spotify-dark))',
+        'spotify-light-dark': 'hsl(var(--spotify-light-dark))',
+        'spotify-green': 'hsl(var(--spotify-green))',
+        'spotify-text': 'hsl(var(--spotify-text))',
+        'spotify-text-muted': 'hsl(var(--spotify-text-muted))',
 			},
 			borderRadius: {
 				lg: 'var(--radius)',
