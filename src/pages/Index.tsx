@@ -1,6 +1,7 @@
 
 import HeroSection from '@/components/HeroSection';
 import FeatureCard from '@/components/FeatureCard';
+import YouTubeSongSearch from '@/components/YouTubeSongSearch'; // Importar el nuevo componente
 import { CheckSquare, Users, ListMusic, DollarSign, MessageSquare, Image, MapPin, UserPlus } from 'lucide-react';
 
 const features = [
@@ -65,6 +66,10 @@ const Index = () => {
             />
           ))}
         </div>
+        {/* Componente de búsqueda de YouTube añadido aquí */}
+        <div className="mt-12 max-w-2xl mx-auto">
+          <YouTubeSongSearch />
+        </div>
       </section>
       <section className="py-16 text-center">
         <h3 className="text-2xl font-semibold mb-4 text-spotify-text">¿Listo para dar el siguiente paso?</h3>
@@ -86,3 +91,4 @@ const Index = () => {
 };
 
 export default Index;
+
