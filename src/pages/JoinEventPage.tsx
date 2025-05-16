@@ -1,18 +1,15 @@
 
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { supabase } from '@/integrations/supabase/client';
+// import { supabase } from '@/integrations/supabase/client'; // Comentado: Usaremos mock data
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/use-toast';
-// Ensure this path is exactly as the package name
-import PhoneInput, { isValidPhoneNumber } from 'react-phone-number-input'; 
-import 'react-phone-number-input/style.css'; // Estilos para el input de teléfono
+import PhoneInput, { isValidPhoneNumber } from 'react-phone-number-input';
+import 'react-phone-number-input/style.css';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 
-// Estilos para react-phone-number-input para que coincidan con ShadCN Input
-// Adaptado para que sea más similar a los inputs de ShadCN
 const phoneInputStyles = "flex h-10 w-full rounded-md border border-input bg-card px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50";
 
 type EventType = {
@@ -20,6 +17,12 @@ type EventType = {
   name: string;
   access_code: string;
 };
+
+// Mock Data
+const mockEvents: EventType[] = [
+  { id: 'mock1', name: 'Fiesta de Prueba', access_code: 'TEST123' },
+  { id: 'mock2', name: 'Concierto Simulado', access_code: 'MUSICGO' },
+];
 
 const JoinEventPage: React.FC = () => {
   const { accessCode: routeAccessCode } = useParams<{ accessCode?: string }>();
@@ -30,9 +33,18 @@ const JoinEventPage: React.FC = () => {
   const [event, setEvent] = useState<EventType | null>(null);
   const [isLoadingEvent, setIsLoadingEvent] = useState(false);
   const [name, setName] = useState('');
-  const [whatsapp, setWhatsapp] = useState<string | undefined>(undefined); // react-phone-number-input usa string | undefined
+  const [whatsapp, setWhatsapp] = useState<string | undefined>(undefined);
   const [isJoining, setIsJoining] = useState(false);
   const [showJoinForm, setShowJoinForm] = useState(false);
+
+  const findEventMock = async (codeToFind: string): Promise<EventType | null> => {
+    return new Promise((resolve) => {
+      setTimeout(() => { // Simular delay de red
+        const foundEvent = mockEvents.find(e => e.access_code === codeToFind.trim().toUpperCase());
+        resolve(foundEvent || null);
+      }, 500);
+    });
+  };
 
   const findEvent = async (codeToFind: string) => {
     if (!codeToFind.trim()) {
@@ -40,19 +52,22 @@ const JoinEventPage: React.FC = () => {
       return;
     }
     setIsLoadingEvent(true);
-    setShowJoinForm(false); // Reset join form visibility
-    setEvent(null); // Reset event state
+    setShowJoinForm(false);
+    setEvent(null);
 
-    const { data, error } = await supabase
-      .from('events')
-      .select('*')
-      .eq('access_code', codeToFind.trim().toUpperCase()) // Aseguramos que el código se busque en mayúsculas
-      .maybeSingle(); // Usar maybeSingle para evitar error si no se encuentra
+    // const { data, error } = await supabase // Comentado
+    //   .from('events')
+    //   .select('*')
+    //   .eq('access_code', codeToFind.trim().toUpperCase())
+    //   .maybeSingle();
 
-    if (error) {
-      console.error('Error finding event:', error);
-      toast({ title: 'Error', description: 'Error al buscar el evento. Intenta de nuevo.', variant: 'destructive' });
-    } else if (!data) {
+    const data = await findEventMock(codeToFind); // Usar mock function
+
+    // if (error) { // Comentado
+    //   console.error('Error finding event:', error);
+    //   toast({ title: 'Error', description: 'Error al buscar el evento. Intenta de nuevo.', variant: 'destructive' });
+    // } else 
+    if (!data) {
       toast({ title: 'Evento no encontrado', description: 'El código de acceso no es válido o el evento no existe.', variant: 'destructive' });
     } else {
       setEvent(data as EventType);
@@ -64,10 +79,12 @@ const JoinEventPage: React.FC = () => {
   
   useEffect(() => {
     if (routeAccessCode) {
-      setInputAccessCode(routeAccessCode.toUpperCase()); // Normalizar a mayúsculas
-      findEvent(routeAccessCode.toUpperCase());
+      const upperCaseAccessCode = routeAccessCode.toUpperCase();
+      setInputAccessCode(upperCaseAccessCode);
+      findEvent(upperCaseAccessCode);
     }
-  }, [routeAccessCode]); // No es necesario toast aquí porque findEvent lo maneja
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [routeAccessCode]);
 
 
   const handleJoinSubmit = async (e: React.FormEvent) => {
@@ -83,25 +100,40 @@ const JoinEventPage: React.FC = () => {
     }
 
     setIsJoining(true);
-    const { data: participantData, error: participantError } = await supabase
-      .from('event_participants')
-      .insert({ event_id: event.id, name: name.trim(), whatsapp_number: whatsapp })
-      .select()
-      .single();
+
+    // Simulación de unión a evento
+    await new Promise(resolve => setTimeout(resolve, 1000)); // Simular delay
+
+    // const { data: participantData, error: participantError } = await supabase // Comentado
+    //   .from('event_participants')
+    //   .insert({ event_id: event.id, name: name.trim(), whatsapp_number: whatsapp })
+    //   .select()
+    //   .single();
+
+    // Mock participant data
+    const participantData = {
+      id: `mock_participant_${Date.now()}`,
+      event_id: event.id,
+      name: name.trim(),
+      whatsapp_number: whatsapp,
+    };
+    const participantError = null; // Simular éxito
 
     if (participantError) {
-      console.error('Error joining event:', participantError);
+      console.error('Error joining event (mock):', participantError);
       // Comprobar si el error es por unique constraint (ej. mismo número de teléfono ya registrado para el evento)
-      if (participantError.code === '23505') { // Código de error de PostgreSQL para violación de unicidad
-        toast({ title: 'Error', description: 'Este número de WhatsApp ya está registrado en el evento.', variant: 'destructive' });
-      } else {
-        toast({ title: 'Error', description: 'No se pudo unir al evento. Inténtalo más tarde.', variant: 'destructive' });
-      }
+      // if (participantError.code === '23505') { // Código de error de PostgreSQL para violación de unicidad // Comentado
+      //   toast({ title: 'Error', description: 'Este número de WhatsApp ya está registrado en el evento.', variant: 'destructive' });
+      // } else {
+        toast({ title: 'Error (Mock)', description: 'No se pudo unir al evento. Inténtalo más tarde.', variant: 'destructive' });
+      // }
     } else if (participantData) {
-      toast({ title: '¡Te has unido!', description: `Bienvenido/a ${name} al evento ${event.name}!` });
+      toast({ title: '¡Te has unido! (Mock)', description: `Bienvenido/a ${name} al evento ${event.name}!` });
       localStorage.setItem(`event_${event.id}_participant_id`, participantData.id);
       localStorage.setItem(`event_${event.id}_participant_name`, participantData.name);
-      navigate(`/event/${event.id}`);
+      // Guardamos también el número de WhatsApp, podría ser útil
+      localStorage.setItem(`event_${event.id}_participant_whatsapp`, participantData.whatsapp_number);
+      navigate(`/event/${event.id}`); // Navegar a la página del evento (que también deberá usar mock data)
     }
     setIsJoining(false);
   };
@@ -124,9 +156,9 @@ const JoinEventPage: React.FC = () => {
                     type="text"
                     value={inputAccessCode}
                     onChange={(e) => setInputAccessCode(e.target.value.toUpperCase())}
-                    placeholder="EJ: ABC123"
+                    placeholder="EJ: TEST123 o MUSICGO"
                     className="bg-card border-input text-foreground placeholder:text-muted-foreground"
-                    maxLength={6}
+                    maxLength={10} // Aumentado por si acaso los códigos mock son más largos
                   />
                 </div>
               </CardContent>
@@ -164,13 +196,11 @@ const JoinEventPage: React.FC = () => {
                   id="whatsapp"
                   placeholder="Ingresa tu número de WhatsApp"
                   value={whatsapp}
-                  onChange={setWhatsapp} // setWhatsapp espera string | undefined
+                  onChange={setWhatsapp}
                   international
                   countryCallingCodeEditable={false}
                   defaultCountry="AR" 
-                  className={phoneInputStyles} // Aplicamos los estilos aquí
-                  // El input interno de react-phone-number-input usará estas clases
-                  // La clase 'PhoneInputInput' se puede usar para estilizar el input más específicamente si es necesario
+                  className={phoneInputStyles}
                 />
                 {whatsapp && !isValidPhoneNumber(whatsapp) && (
                   <p className="text-xs text-destructive mt-1">Número de WhatsApp inválido.</p>
@@ -190,3 +220,4 @@ const JoinEventPage: React.FC = () => {
 };
 
 export default JoinEventPage;
+
