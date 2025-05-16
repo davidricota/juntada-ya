@@ -9,7 +9,107 @@ export type Json =
 export type Database = {
   public: {
     Tables: {
-      [_ in never]: never
+      event_participants: {
+        Row: {
+          created_at: string
+          event_id: string
+          id: string
+          name: string
+          whatsapp_number: string
+        }
+        Insert: {
+          created_at?: string
+          event_id: string
+          id?: string
+          name: string
+          whatsapp_number: string
+        }
+        Update: {
+          created_at?: string
+          event_id?: string
+          id?: string
+          name?: string
+          whatsapp_number?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "event_participants_event_id_fkey"
+            columns: ["event_id"]
+            isOneToOne: false
+            referencedRelation: "events"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      events: {
+        Row: {
+          access_code: string
+          created_at: string
+          id: string
+          name: string
+        }
+        Insert: {
+          access_code: string
+          created_at?: string
+          id?: string
+          name: string
+        }
+        Update: {
+          access_code?: string
+          created_at?: string
+          id?: string
+          name?: string
+        }
+        Relationships: []
+      }
+      playlist_items: {
+        Row: {
+          added_at: string
+          added_by_participant_id: string
+          channel_title: string | null
+          event_id: string
+          id: string
+          thumbnail_url: string | null
+          title: string
+          youtube_video_id: string
+        }
+        Insert: {
+          added_at?: string
+          added_by_participant_id: string
+          channel_title?: string | null
+          event_id: string
+          id?: string
+          thumbnail_url?: string | null
+          title: string
+          youtube_video_id: string
+        }
+        Update: {
+          added_at?: string
+          added_by_participant_id?: string
+          channel_title?: string | null
+          event_id?: string
+          id?: string
+          thumbnail_url?: string | null
+          title?: string
+          youtube_video_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "playlist_items_added_by_participant_id_fkey"
+            columns: ["added_by_participant_id"]
+            isOneToOne: false
+            referencedRelation: "event_participants"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "playlist_items_event_id_fkey"
+            columns: ["event_id"]
+            isOneToOne: false
+            referencedRelation: "events"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Views: {
       [_ in never]: never

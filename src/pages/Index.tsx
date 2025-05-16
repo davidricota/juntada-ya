@@ -1,94 +1,63 @@
 
-import HeroSection from '@/components/HeroSection';
-import FeatureCard from '@/components/FeatureCard';
-import YouTubeSongSearch from '@/components/YouTubeSongSearch'; // Importar el nuevo componente
-import { CheckSquare, Users, ListMusic, DollarSign, MessageSquare, Image, MapPin, UserPlus } from 'lucide-react';
+import React from 'react';
+import { Link } from 'react-router-dom';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Plus, LogIn } from 'lucide-react';
 
-const features = [
-  {
-    icon: CheckSquare,
-    title: "Encuestas Dinámicas",
-    description: "¿Qué comemos? ¿Qué día nos juntamos? Decide en grupo con encuestas simples, múltiples o de fechas."
-  },
-  {
-    icon: DollarSign,
-    title: "Gastos Compartidos Claros",
-    description: "Registra quién pagó qué, divide equitativamente y olvídate de las deudas pendientes."
-  },
-  {
-    icon: ListMusic,
-    title: "Playlists Colaborativas",
-    description: "Integra Spotify o YouTube. Todos suman canciones, votan y disfrutan la música del evento."
-  },
-  {
-    icon: Users,
-    title: "Checklist de Tareas",
-    description: "Organiza quién trae qué. Asigna tareas y sigue el progreso para que nada falte."
-  },
-  {
-    icon: MessageSquare,
-    title: "Chat Integrado",
-    description: "Comunícate sobre el evento, comparte ideas y mantén a todos al tanto en un solo lugar."
-  },
-  {
-    icon: Image,
-    title: "Álbum de Recuerdos",
-    description: "Sube y comparte las fotos del evento. Etiqueta, descarga y revive los mejores momentos."
-  },
-  {
-    icon: MapPin,
-    title: "Ubicación y Hora",
-    description: "Define el lugar y la hora fácilmente. Comparte la dirección y agrega al calendario."
-  },
-  {
-    icon: UserPlus,
-    title: "Invitaciones Simplificadas",
-    description: "Envía invitaciones, gestiona confirmaciones de asistencia y ten una lista clara de participantes."
-  }
-];
-
-const Index = () => {
+const HomePage: React.FC = () => {
   return (
-    <>
-      <HeroSection />
-      <section id="features" className="py-16 md:py-24 bg-spotify-dark">
-        <div className="text-center mb-12">
-          <h2 className="text-3xl md:text-4xl font-bold text-spotify-text">Todo lo que necesitas para tu evento</h2>
-          <p className="text-lg text-spotify-text-muted mt-2">Funcionalidades pensadas para una organización sin estrés.</p>
-        </div>
-        <div className="grid md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-          {features.map((feature) => (
-            <FeatureCard 
-              key={feature.title}
-              icon={feature.icon}
-              title={feature.title}
-              description={feature.description}
-            />
-          ))}
-        </div>
-        {/* Componente de búsqueda de YouTube añadido aquí */}
-        <div className="mt-12 max-w-2xl mx-auto">
-          <YouTubeSongSearch />
-        </div>
-      </section>
-      <section className="py-16 text-center">
-        <h3 className="text-2xl font-semibold mb-4 text-spotify-text">¿Listo para dar el siguiente paso?</h3>
-        <p className="text-spotify-text-muted mb-6 max-w-lg mx-auto">
-          Para habilitar la creación de eventos, colaboración en tiempo real y almacenamiento de datos,
-          necesitaremos integrar Supabase. ¡Es el motor que potenciará tu app!
-        </p>
-        <a 
-            href="https://supabase.com/docs/guides/getting-started/quickstarts/react" 
-            target="_blank" 
-            rel="noopener noreferrer"
-            className="inline-block bg-spotify-green text-spotify-dark font-semibold px-6 py-3 rounded-full hover:bg-opacity-80 transition-opacity text-lg"
-        >
-            Aprende más sobre Supabase
-        </a>
-      </section>
-    </>
+    <div className="min-h-screen bg-spotify-dark flex flex-col items-center justify-center p-4">
+      <header className="text-center mb-12">
+        <h1 className="text-5xl font-bold text-spotify-green mb-4">EventoVibes</h1>
+        <p className="text-xl text-spotify-text-muted">Tu plataforma para organizar eventos y playlists colaborativas.</p>
+      </header>
+
+      <div className="grid md:grid-cols-2 gap-8 w-full max-w-2xl">
+        <Card className="bg-spotify-light-dark text-spotify-text hover:shadow-xl transition-shadow">
+          <CardHeader>
+            <CardTitle className="flex items-center text-2xl">
+              <Plus className="mr-2 h-6 w-6 text-spotify-green" />
+              Crear Nuevo Evento
+            </CardTitle>
+            <CardDescription className="text-spotify-text-muted">
+              Inicia un nuevo evento y obtén un código para compartir.
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <Link to="/create-event">
+              <Button className="w-full bg-spotify-green hover:bg-spotify-green/90 text-spotify-dark font-semibold">
+                Crear Evento
+              </Button>
+            </Link>
+          </CardContent>
+        </Card>
+
+        <Card className="bg-spotify-light-dark text-spotify-text hover:shadow-xl transition-shadow">
+          <CardHeader>
+            <CardTitle className="flex items-center text-2xl">
+              <LogIn className="mr-2 h-6 w-6 text-spotify-green" />
+              Unirse a un Evento
+            </CardTitle>
+            <CardDescription className="text-spotify-text-muted">
+              Ingresa con un código de acceso a un evento existente.
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <Link to="/join">
+              <Button className="w-full bg-spotify-blue hover:bg-spotify-blue/90 text-white font-semibold"> {/* Usando un color azul para diferenciar */}
+                Unirse a Evento
+              </Button>
+            </Link>
+          </CardContent>
+        </Card>
+      </div>
+
+      <footer className="mt-16 text-center text-spotify-text-muted text-sm">
+        <p>&copy; {new Date().getFullYear()} EventoVibes. Creado con Lovable.</p>
+      </footer>
+    </div>
   );
 };
 
-export default Index;
-
+export default HomePage;
