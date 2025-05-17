@@ -1,5 +1,6 @@
 
-import 'geist/dist/fonts/geist-sans.css';
+/* Las importaciones directas de geist-sans.css y geist-mono.css se eliminan */
+/* import 'geist/dist/fonts/geist-sans.css'; */
 /* import 'geist/dist/fonts/geist-mono.css'; */
 
 @tailwind base;
@@ -46,9 +47,10 @@ import 'geist/dist/fonts/geist-sans.css';
     --spotify-text: 0 0% 98%; /* #FAFAFA */
     --spotify-text-muted: 240 5% 64.9%; /* #A0A0A0 */
 
-    /* Variables para la fuente Geist */
-    --font-geist-sans: 'GeistSans', system-ui, sans-serif;
-    /* --font-geist-mono: 'GeistMono', monospace; */ /* Comentado porque la fuente no se importa */
+    /* Las variables --font-geist-sans y --font-geist-mono se eliminan de aquí, */
+    /* ya que se espera que GeistSans.variable y GeistMono.variable las definan. */
+    /* --font-geist-sans: 'GeistSans', system-ui, sans-serif; */
+    /* --font-geist-mono: 'GeistMono', monospace; */
   }
 
   /* No necesitamos .dark ya que será el tema por defecto */
@@ -59,6 +61,8 @@ import 'geist/dist/fonts/geist-sans.css';
     @apply border-border;
   }
   body {
-    @apply bg-background text-foreground font-sans; /* Aplicamos font-sans aquí */
+    /* font-sans ahora debería usar var(--font-geist-sans) definido por GeistSans.variable */
+    /* font-mono ahora debería usar var(--font-geist-mono) definido por GeistMono.variable */
+    @apply bg-background text-foreground font-sans; 
   }
 }
