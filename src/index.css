@@ -1,6 +1,6 @@
 
 import 'geist/dist/fonts/geist-sans.css';
-import 'geist/dist/fonts/geist-mono.css';
+/* import 'geist/dist/fonts/geist-mono.css'; */
 
 @tailwind base;
 @tailwind components;
@@ -48,7 +48,7 @@ import 'geist/dist/fonts/geist-mono.css';
 
     /* Variables para la fuente Geist */
     --font-geist-sans: 'GeistSans', system-ui, sans-serif;
-    --font-geist-mono: 'GeistMono', monospace;
+    /* --font-geist-mono: 'GeistMono', monospace; */ /* Comentado porque la fuente no se importa */
   }
 
   /* No necesitamos .dark ya que será el tema por defecto */
@@ -62,4 +62,3 @@ import 'geist/dist/fonts/geist-mono.css';
     @apply bg-background text-foreground font-sans; /* Aplicamos font-sans aquí */
   }
 }
-
