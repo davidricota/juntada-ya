@@ -20,8 +20,9 @@ export default {
 		},
 		extend: {
       fontFamily: {
-        sans: ['var(--font-geist-sans)', 'system-ui', 'sans-serif'],
-        mono: ['var(--font-geist-mono)', 'monospace'],
+        // Reverted to system fonts, removing Geist variables
+        sans: ['system-ui', 'sans-serif'],
+        mono: ['monospace'],
       },
 			colors: {
 				border: 'hsl(var(--border))',
@@ -105,4 +106,3 @@ export default {
 	},
 	plugins: [require("tailwindcss-animate")],
 } satisfies Config;
-
