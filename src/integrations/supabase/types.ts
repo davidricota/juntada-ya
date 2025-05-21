@@ -38,7 +38,7 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "events"
             referencedColumns: ["id"]
-          },
+          }
         ]
       }
       events: {
@@ -107,7 +107,130 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "events"
             referencedColumns: ["id"]
+          }
+        ]
+      }
+      polls: {
+        Row: {
+          id: string
+          event_id: string
+          title: string
+          description: string | null
+          created_by_participant_id: string
+          created_at: string
+          closed_at: string | null
+          allow_multiple_votes: boolean
+        }
+        Insert: {
+          id?: string
+          event_id: string
+          title: string
+          description?: string | null
+          created_by_participant_id: string
+          created_at?: string
+          closed_at?: string | null
+          allow_multiple_votes?: boolean
+        }
+        Update: {
+          id?: string
+          event_id?: string
+          title?: string
+          description?: string | null
+          created_by_participant_id?: string
+          created_at?: string
+          closed_at?: string | null
+          allow_multiple_votes?: boolean
+        }
+        Relationships: [
+          {
+            foreignKeyName: "polls_event_id_fkey"
+            columns: ["event_id"]
+            isOneToOne: false
+            referencedRelation: "events"
+            referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "polls_created_by_participant_id_fkey"
+            columns: ["created_by_participant_id"]
+            isOneToOne: false
+            referencedRelation: "event_participants"
+            referencedColumns: ["id"]
+          }
+        ]
+      }
+      poll_options: {
+        Row: {
+          id: string
+          poll_id: string
+          title: string
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          poll_id: string
+          title: string
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          poll_id?: string
+          title?: string
+          created_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "poll_options_poll_id_fkey"
+            columns: ["poll_id"]
+            isOneToOne: false
+            referencedRelation: "polls"
+            referencedColumns: ["id"]
+          }
+        ]
+      }
+      poll_votes: {
+        Row: {
+          id: string
+          poll_id: string
+          option_id: string
+          participant_id: string
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          poll_id: string
+          option_id: string
+          participant_id: string
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          poll_id?: string
+          option_id?: string
+          participant_id?: string
+          created_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "poll_votes_poll_id_fkey"
+            columns: ["poll_id"]
+            isOneToOne: false
+            referencedRelation: "polls"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "poll_votes_option_id_fkey"
+            columns: ["option_id"]
+            isOneToOne: false
+            referencedRelation: "poll_options"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "poll_votes_participant_id_fkey"
+            columns: ["participant_id"]
+            isOneToOne: false
+            referencedRelation: "event_participants"
+            referencedColumns: ["id"]
+          }
         ]
       }
     }
