@@ -86,7 +86,7 @@ const JoinEventPage: React.FC = () => {
 
     setIsJoining(true);
 
-    const participantData = {
+    let participantData: { event_id: string; name: string; whatsapp_number: string; id?: string } = {
       event_id: event.id,
       name: name.trim(),
       whatsapp_number: whatsapp, // Guardamos el string del input
@@ -97,7 +97,8 @@ const JoinEventPage: React.FC = () => {
     if (participantError) {
       console.error("Error joining event :", participantError);
       toast({ title: "Error ", description: "No se pudo unir al evento. Inténtalo más tarde.", variant: "destructive" });
-    } else if (participantData) {
+    } else if (data) {
+      participantData = { ...participantData, id: data[0].id }; // Asignamos el ID del participante
       toast({ title: "¡Te has unido! ", description: `Bienvenido/a ${name} al evento ${event.name}!` });
       localStorage.setItem(`event_${event.id}_participant_id`, participantData.id);
       localStorage.setItem(`event_${event.id}_participant_name`, participantData.name);

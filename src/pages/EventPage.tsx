@@ -6,7 +6,9 @@ import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { User, ListMusic, Youtube, Users } from "lucide-react";
+import PlaylistTab from "@/components/PlaylistTab";
 
 type EventType = {
   id: string;
@@ -222,62 +224,36 @@ const EventPage: React.FC = () => {
         </div>
 
         <div className="md:col-span-2 space-y-6">
-          <Card className="bg-spotify-light-dark text-spotify-text shadow-lg">
-            <CardHeader>
-              <CardTitle className="text-xl flex items-center">
-                <ListMusic className="mr-2 h-5 w-5 text-spotify-green" /> Playlist Colaborativa
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              {playlistItems.length > 0 ? (
-                <ul className="space-y-3 max-h-[500px] overflow-y-auto pr-2">
-                  {playlistItems.map((item) => (
-                    <li key={item.id} className="flex items-center gap-3 p-3 bg-spotify-dark rounded-md shadow hover:bg-opacity-80 transition-colors">
-                      <img
-                        src={item.thumbnail_url || `https://via.placeholder.com/48x36?text=${item.title.charAt(0)}`}
-                        alt={item.title}
-                        className="w-16 h-12 rounded object-cover shadow-sm"
-                      />
-                      <div className="flex-grow">
-                        <p className="font-semibold text-base leading-tight">{item.title}</p>
-                        <p className="text-sm text-spotify-text-muted">{item.channel_title}</p>
-                        <p className="text-xs text-spotify-text-muted/80">Añadido por: {item.participant_name}</p>
-                      </div>
-                      <a
-                        href={`https://www.youtube.com/watch?v=${item.youtube_video_id}`}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        title="Ver en YouTube"
-                        className="ml-auto p-2 rounded-full hover:bg-spotify-gray transition-colors"
-                      >
-                        <Youtube className="h-6 w-6 text-red-500 hover:text-red-400" />
-                      </a>
-                    </li>
-                  ))}
-                </ul>
-              ) : (
-                <p className="text-spotify-text-muted text-center py-6 italic">¡La playlist está vacía! Agrega la primera canción.</p>
-              )}
-            </CardContent>
-          </Card>
+          <Tabs defaultValue="playlist" className="w-full">
+            <TabsList>
+              <TabsTrigger value="playlist">Playlist</TabsTrigger>
+              <TabsTrigger value="encuentas">Encuestas</TabsTrigger>
+              <TabsTrigger value="gastos">Gastos</TabsTrigger>
+            </TabsList>
+            <TabsContent value="playlist">
+              <PlaylistTab playlistItems={playlistItems} />
 
-          {currentParticipantId ? (
-            <YouTubeSongSearch onSongSelected={handleSongSelected} />
-          ) : (
-            <Card className="bg-spotify-light-dark text-spotify-text p-6 text-center shadow-lg">
-              <p className="text-spotify-text-muted">
-                Debes{" "}
-                <Button
-                  variant="link"
-                  onClick={() => navigate(`/join/${eventDetails?.access_code}`)}
-                  className="p-0 h-auto text-spotify-green hover:underline"
-                >
-                  unirte al evento
-                </Button>{" "}
-                para agregar canciones.
-              </p>
-            </Card>
-          )}
+              {currentParticipantId ? (
+                <YouTubeSongSearch onSongSelected={handleSongSelected} />
+              ) : (
+                <Card className="bg-spotify-light-dark text-spotify-text p-6 text-center shadow-lg">
+                  <p className="text-spotify-text-muted">
+                    Debes{" "}
+                    <Button
+                      variant="link"
+                      onClick={() => navigate(`/join/${eventDetails?.access_code}`)}
+                      className="p-0 h-auto text-spotify-green hover:underline"
+                    >
+                      unirte al evento
+                    </Button>{" "}
+                    para agregar canciones.
+                  </p>
+                </Card>
+              )}
+            </TabsContent>
+            <TabsContent value="encuentas">Change your password here.</TabsContent>
+            <TabsContent value="gastos">Change your password here.</TabsContent>
+          </Tabs>
         </div>
       </div>
 
