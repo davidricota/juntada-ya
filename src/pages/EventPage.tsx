@@ -9,6 +9,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { User, ListMusic, Youtube, Users } from "lucide-react";
 import PlaylistTab from "@/components/PlaylistTab";
+import PollsTab from "@/components/PollsTab";
 
 type EventType = {
   id: string;
@@ -227,7 +228,7 @@ const EventPage: React.FC = () => {
           <Tabs defaultValue="playlist" className="w-full">
             <TabsList>
               <TabsTrigger value="playlist">Playlist</TabsTrigger>
-              <TabsTrigger value="encuentas">Encuestas</TabsTrigger>
+              <TabsTrigger value="polls">Encuestas</TabsTrigger>
               <TabsTrigger value="gastos">Gastos</TabsTrigger>
             </TabsList>
             <TabsContent value="playlist">
@@ -251,7 +252,9 @@ const EventPage: React.FC = () => {
                 </Card>
               )}
             </TabsContent>
-            <TabsContent value="encuentas">Change your password here.</TabsContent>
+            <TabsContent value="polls">
+              <PollsTab eventId={eventId} currentParticipantId={currentParticipantId} />
+            </TabsContent>
             <TabsContent value="gastos">Change your password here.</TabsContent>
           </Tabs>
         </div>
