@@ -55,7 +55,8 @@ const PollsTab: React.FC<PollsTabProps> = ({ eventId, currentParticipantId }) =>
       // Fetch polls with creator names
       const { data: pollsData, error: pollsError } = await supabase
         .from("polls")
-        .select(`
+        .select(
+          `
           *,
           event_participants (name),
           poll_options (
@@ -63,7 +64,8 @@ const PollsTab: React.FC<PollsTabProps> = ({ eventId, currentParticipantId }) =>
             title,
             poll_votes (count)
           )
-        `)
+        `
+        )
         .eq("event_id", eventId)
         .order("created_at", { ascending: false });
 
@@ -78,23 +80,45 @@ const PollsTab: React.FC<PollsTabProps> = ({ eventId, currentParticipantId }) =>
       if (votesError) throw votesError;
 
       // Process and format the data
-      const processedPolls = pollsData.map((poll: any) => {
-        const options = poll.poll_options.map((option: any) => ({
-          id: option.id,
-          title: option.title,
-          votes_count: option.poll_votes[0]?.count || 0,
-          has_voted: votesData?.some((vote: any) => vote.option_id === option.id) || false,
-        }));
+      const processedPolls: Poll[] = pollsData.map(
+        (poll: {
+          id: string;
+          title: string;
+          description: string | null;
+          created_by_participant_id: string;
+          created_at: string;
+          closed_at: string | null;
+          allow_multiple_votes: boolean;
+          event_participants?: { name?: string };
+          poll_options: Array<{
+            id: string;
+            title: string;
+            poll_votes: Array<{ count: number }>;
+          }>;
+        }) => {
+          const options: PollOption[] = poll.poll_options.map((option) => ({
+            id: option.id,
+            title: option.title,
+            votes_count: option.poll_votes[0]?.count || 0,
+            has_voted: votesData?.some((vote: { option_id: string }) => vote.option_id === option.id) || false,
+          }));
 
-        const totalVotes = options.reduce((sum: number, option: PollOption) => sum + (option.votes_count || 0), 0);
+          const totalVotes = options.reduce((sum: number, option: PollOption) => sum + (option.votes_count || 0), 0);
 
-        return {
-          ...poll,
-          creator_name: poll.event_participants?.name || "Unknown",
-          options,
-          total_votes: totalVotes,
-        };
-      });
+          return {
+            id: poll.id,
+            title: poll.title,
+            description: poll.description,
+            created_by_participant_id: poll.created_by_participant_id,
+            created_at: poll.created_at,
+            closed_at: poll.closed_at,
+            allow_multiple_votes: poll.allow_multiple_votes,
+            creator_name: poll.event_participants?.name || "Unknown",
+            options,
+            total_votes: totalVotes,
+          };
+        }
+      );
 
       setPolls(processedPolls);
     } catch (error) {
@@ -205,11 +229,7 @@ const PollsTab: React.FC<PollsTabProps> = ({ eventId, currentParticipantId }) =>
     try {
       if (!allowMultiple) {
         // Remove existing votes for this poll if multiple votes aren't allowed
-        await supabase
-          .from("poll_votes")
-          .delete()
-          .eq("poll_id", pollId)
-          .eq("participant_id", currentParticipantId);
+        await supabase.from("poll_votes").delete().eq("poll_id", pollId).eq("participant_id", currentParticipantId);
       }
 
       // Add new vote
@@ -270,7 +290,7 @@ const PollsTab: React.FC<PollsTabProps> = ({ eventId, currentParticipantId }) =>
   if (isLoading) {
     return (
       <div className="flex items-center justify-center p-8">
-        <Loader2 className="h-8 w-8 animate-spin text-spotify-green" />
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
       </div>
     );
   }
@@ -278,39 +298,45 @@ const PollsTab: React.FC<PollsTabProps> = ({ eventId, currentParticipantId }) =>
   return (
     <div className="space-y-6">
       <div className="flex justify-between items-center">
-        <h2 className="text-2xl font-bold text-spotify-text">Encuestas</h2>
+        <h2 className="text-2xl font-bold text-primary">Encuestas</h2>
         <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
           <DialogTrigger asChild>
-            <Button className="bg-spotify-green hover:bg-spotify-green/90 text-spotify-dark">
+            <Button className="bg-card/80 hover:bg-card text-primary">
               <Plus className="mr-2 h-4 w-4" /> Nueva Encuesta
             </Button>
           </DialogTrigger>
-          <DialogContent>
+          <DialogContent className="bg-primary text-primary-foreground">
             <DialogHeader>
-              <DialogTitle>Crear Nueva Encuesta</DialogTitle>
-              <DialogDescription>Crea una nueva encuesta para que los participantes voten.</DialogDescription>
+              <DialogTitle className="text-primary-foreground">Crear Nueva Encuesta</DialogTitle>
+              <DialogDescription className="text-primary-foreground/80">Crea una nueva encuesta para que los participantes voten.</DialogDescription>
             </DialogHeader>
             <div className="space-y-4 py-4">
               <div className="space-y-2">
-                <Label htmlFor="title">Título</Label>
+                <Label htmlFor="title" className="text-primary-foreground">
+                  Título
+                </Label>
                 <Input
                   id="title"
                   value={newPollTitle}
                   onChange={(e) => setNewPollTitle(e.target.value)}
                   placeholder="¿Qué quieres preguntar?"
+                  className="bg-primary border-primary-foreground text-primary-foreground placeholder:text-primary-foreground/50"
                 />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="description">Descripción (opcional)</Label>
+                <Label htmlFor="description" className="text-primary-foreground">
+                  Descripción (opcional)
+                </Label>
                 <Textarea
                   id="description"
                   value={newPollDescription}
                   onChange={(e) => setNewPollDescription(e.target.value)}
                   placeholder="Agrega más detalles sobre tu pregunta..."
+                  className="bg-primary border-primary-foreground text-primary-foreground placeholder:text-primary-foreground/50"
                 />
               </div>
               <div className="space-y-2">
-                <Label>Opciones</Label>
+                <Label className="text-primary-foreground">Opciones</Label>
                 {options.map((option, index) => (
                   <div key={index} className="flex gap-2">
                     <Input
@@ -321,12 +347,14 @@ const PollsTab: React.FC<PollsTabProps> = ({ eventId, currentParticipantId }) =>
                         setOptions(newOptions);
                       }}
                       placeholder={`Opción ${index + 1}`}
+                      className="bg-primary border-primary-foreground text-primary-foreground placeholder:text-primary-foreground/50"
                     />
                     {index > 0 && (
                       <Button
-                        variant="ghost"
+                        variant="outline"
                         size="icon"
                         onClick={() => setOptions(options.filter((_, i) => i !== index))}
+                        className="border-primary-foreground text-primary-foreground hover:bg-primary-foreground/10"
                       >
                         <X className="h-4 w-4" />
                       </Button>
@@ -337,7 +365,7 @@ const PollsTab: React.FC<PollsTabProps> = ({ eventId, currentParticipantId }) =>
                   type="button"
                   variant="outline"
                   onClick={() => setOptions([...options, ""])}
-                  className="w-full mt-2"
+                  className="w-full mt-2 border-primary-foreground text-primary-foreground hover:bg-primary-foreground hover:text-white"
                 >
                   <Plus className="mr-2 h-4 w-4" /> Agregar Opción
                 </Button>
@@ -347,8 +375,11 @@ const PollsTab: React.FC<PollsTabProps> = ({ eventId, currentParticipantId }) =>
                   id="multiple-votes"
                   checked={allowMultipleVotes}
                   onCheckedChange={setAllowMultipleVotes}
+                  className="data-[state=checked]:bg-white data-[state=unchecked]:bg-white"
                 />
-                <Label htmlFor="multiple-votes">Permitir votos múltiples</Label>
+                <Label htmlFor="multiple-votes" className="text-primary-foreground">
+                  Permitir votos múltiples
+                </Label>
               </div>
             </div>
             <DialogFooter>
@@ -356,7 +387,7 @@ const PollsTab: React.FC<PollsTabProps> = ({ eventId, currentParticipantId }) =>
                 type="submit"
                 onClick={handleCreatePoll}
                 disabled={isCreatingPoll}
-                className="bg-spotify-green hover:bg-spotify-green/90 text-spotify-dark"
+                className="bg-primary-foreground text-primary hover:bg-primary-foreground/90"
               >
                 {isCreatingPoll ? (
                   <>
@@ -373,13 +404,11 @@ const PollsTab: React.FC<PollsTabProps> = ({ eventId, currentParticipantId }) =>
 
       <div className="grid gap-6">
         {polls.map((poll) => (
-          <Card key={poll.id} className="bg-spotify-light-dark">
+          <Card key={poll.id} className="bg-card text-card-foreground">
             <CardHeader>
-              <CardTitle className="text-xl text-spotify-text">{poll.title}</CardTitle>
-              {poll.description && (
-                <CardDescription className="text-spotify-text-muted">{poll.description}</CardDescription>
-              )}
-              <div className="text-sm text-spotify-text-muted">
+              <CardTitle className="text-xl text-primary">{poll.title}</CardTitle>
+              {poll.description && <CardDescription className="text-muted-foreground">{poll.description}</CardDescription>}
+              <div className="text-sm text-muted-foreground">
                 Creada por {poll.creator_name} · {new Date(poll.created_at).toLocaleDateString()}
               </div>
             </CardHeader>
@@ -395,34 +424,25 @@ const PollsTab: React.FC<PollsTabProps> = ({ eventId, currentParticipantId }) =>
                             variant={option.has_voted ? "default" : "outline"}
                             size="sm"
                             onClick={() =>
-                              option.has_voted
-                                ? removeVote(poll.id, option.id)
-                                : handleVote(poll.id, option.id, poll.allow_multiple_votes)
+                              option.has_voted ? removeVote(poll.id, option.id) : handleVote(poll.id, option.id, poll.allow_multiple_votes)
                             }
-                            className={option.has_voted ? "bg-spotify-green text-spotify-dark" : ""}
+                            className={option.has_voted ? "bg-primary text-primary-foreground" : "bg-card text-primary"}
                           >
-                            {option.has_voted ? (
-                              <Check className="h-4 w-4 mr-2" />
-                            ) : (
-                              <Vote className="h-4 w-4 mr-2" />
-                            )}
+                            {option.has_voted ? <Check className="h-4 w-4 mr-2" /> : <Vote className="h-4 w-4 mr-2" />}
                             {option.title}
                           </Button>
                         </div>
-                        <span className="text-sm text-spotify-text-muted">
+                        <span className="text-sm text-muted-foreground">
                           {option.votes_count || 0} votos ({percentage.toFixed(1)}%)
                         </span>
                       </div>
-                      <div className="h-2 bg-spotify-dark rounded-full overflow-hidden">
-                        <div
-                          className="h-full bg-spotify-green transition-all duration-500 ease-in-out"
-                          style={{ width: `${percentage}%` }}
-                        />
+                      <div className="h-2 bg-secondary rounded-full overflow-hidden">
+                        <div className="h-full bg-primary transition-all duration-500 ease-in-out" style={{ width: `${percentage}%` }} />
                       </div>
                     </div>
                   );
                 })}
-                <p className="text-sm text-spotify-text-muted text-right">
+                <p className="text-sm text-muted-foreground text-right">
                   Total: {poll.total_votes} {poll.total_votes === 1 ? "voto" : "votos"}
                 </p>
               </div>
@@ -430,10 +450,8 @@ const PollsTab: React.FC<PollsTabProps> = ({ eventId, currentParticipantId }) =>
           </Card>
         ))}
         {polls.length === 0 && (
-          <Card className="bg-spotify-light-dark">
-            <CardContent className="p-8 text-center text-spotify-text-muted">
-              No hay encuestas creadas aún. ¡Sé el primero en crear una!
-            </CardContent>
+          <Card className="bg-card text-card-foreground">
+            <CardContent className="p-8 text-center text-muted-foreground">No hay encuestas creadas aún. ¡Sé el primero en crear una!</CardContent>
           </Card>
         )}
       </div>

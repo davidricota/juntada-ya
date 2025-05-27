@@ -1,4 +1,3 @@
-
 /* Las importaciones directas de geist-sans.css y geist-mono.css se eliminan */
 /* import 'geist/dist/fonts/geist-sans.css'; */
 /* import 'geist/dist/fonts/geist-mono.css'; */
@@ -9,34 +8,33 @@
 
 @layer base {
   :root {
-    /* Colores base de ShadCN (los ajustaremos para el tema oscuro) */
-    --background: 240 10% 3.9%; /* Negro Spotify */
-    --foreground: 0 0% 98%; /* Blanco Spotify Texto */
+    --background: 348 82% 56%; /* Rojo principal HSL (aprox #ee2233) */
+    --foreground: 36 77% 91%; /* Blanco HSL (aprox #fae3cf) */
 
-    --card: 240 4.8% 12%; /* Gris oscuro Spotify para tarjetas */
-    --card-foreground: 0 0% 98%;
+    --card: 36 77% 91%; /* Blanco para tarjetas */
+    --card-foreground: 348 82% 56%; /* Rojo para texto en tarjetas */
 
-    --popover: 240 10% 3.9%;
-    --popover-foreground: 0 0% 98%;
+    --popover: 36 77% 91%;
+    --popover-foreground: 348 82% 56%;
 
-    --primary: 142.1 76.2% 36.3%; /* Verde Spotify */
-    --primary-foreground: 142.1 76.2% 96.3%; /* Un texto claro para el primario */
+    --primary: 348 82% 56%; /* Rojo */
+    --primary-foreground: 36 77% 91%; /* Blanco */
 
-    --secondary: 240 3.7% 15.9%;
-    --secondary-foreground: 0 0% 98%;
+    --secondary: 36 77% 91%; /* Blanco */
+    --secondary-foreground: 348 82% 56%; /* Rojo */
 
-    --muted: 240 3.7% 15.9%;
-    --muted-foreground: 240 5% 64.9%; /* Gris claro Spotify texto tenue */
+    --muted: 36 77% 91%;
+    --muted-foreground: 348 82% 56%;
 
-    --accent: 240 3.7% 15.9%;
-    --accent-foreground: 0 0% 98%;
+    --accent: 36 77% 91%;
+    --accent-foreground: 348 82% 56%;
 
-    --destructive: 0 62.8% 30.6%;
-    --destructive-foreground: 0 0% 98%;
+    --destructive: 0 80% 60%;
+    --destructive-foreground: 36 77% 91%;
 
-    --border: 240 3.7% 15.9%;
-    --input: 240 3.7% 15.9%;
-    --ring: 142.1 76.2% 36.3%; /* Verde Spotify para el anillo */
+    --border: 348 82% 56%;
+    --input: 348 82% 56%;
+    --ring: 348 82% 56%;
 
     --radius: 0.5rem;
 
@@ -63,6 +61,6 @@
   body {
     /* font-sans ahora debería usar var(--font-geist-sans) definido por GeistSans.variable */
     /* font-mono ahora debería usar var(--font-geist-mono) definido por GeistMono.variable */
-    @apply bg-background text-foreground font-sans; 
+    @apply bg-background text-foreground font-sans;
   }
 }

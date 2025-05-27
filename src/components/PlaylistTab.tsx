@@ -3,6 +3,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "./ui/card";
 import { ListMusic, Play, Youtube } from "lucide-react";
 import YouTubePlayer from "./YoutubePlayer";
 import Playlist from "./Playlist";
+import { ScrollArea } from "@/components/ui/scroll-area";
 interface PlaylistTabProps {
   playlistItems: Array<{
     id: string;
@@ -38,10 +39,10 @@ const PlaylistTab: React.FC<PlaylistTabProps> = ({ playlistItems }) => {
   };
 
   return (
-    <Card className="bg-spotify-light-dark text-spotify-text shadow-lg">
+    <Card className="bg-card text-card-foreground shadow-lg">
       <CardHeader>
         <CardTitle className="text-xl flex items-center">
-          <ListMusic className="mr-2 h-5 w-5 text-spotify-green" /> Playlist Colaborativa
+          <ListMusic className="mr-2 h-5 w-5 text-primary" /> Playlist Colaborativa
         </CardTitle>
       </CardHeader>
       <CardContent className="space-y-4">
@@ -54,10 +55,12 @@ const PlaylistTab: React.FC<PlaylistTabProps> = ({ playlistItems }) => {
               onPreviousVideo={handlePreviousVideo}
               onNextVideo={handleNextVideo}
             />
-            <Playlist playlistItems={playlistItems} currentVideoIndex={currentVideoIndex} onVideoSelect={handleVideoSelect} />
+            <ScrollArea className="h-screen max-h-96 rounded-lg pr-4">
+              <Playlist playlistItems={playlistItems} currentVideoIndex={currentVideoIndex} onVideoSelect={handleVideoSelect} />
+            </ScrollArea>
           </>
         ) : (
-          <p className="text-spotify-text-muted text-center py-6 italic">¡La playlist está vacía! Agrega la primera canción.</p>
+          <p className="text-muted-foreground text-center py-6 italic">¡La playlist está vacía! Agrega la primera canción.</p>
         )}
       </CardContent>
     </Card>

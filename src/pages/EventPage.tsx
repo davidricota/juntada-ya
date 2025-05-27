@@ -10,7 +10,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { User, ListMusic, Youtube, Users } from "lucide-react";
 import PlaylistTab from "@/components/PlaylistTab";
 import PollsTab from "@/components/PollsTab";
-
+import { ScrollArea } from "@/components/ui/scroll-area";
 type EventType = {
   id: string;
   name: string;
@@ -181,45 +181,46 @@ const EventPage: React.FC = () => {
   }
 
   return (
-    <div className="container mx-auto p-4 space-y-8 bg-spotify-dark min-h-screen text-spotify-text">
-      <Card className="bg-spotify-light-dark text-spotify-text shadow-xl">
-        <CardHeader>
-          <CardTitle className="text-3xl md:text-4xl font-bold text-spotify-green">{eventDetails.name}</CardTitle>
-          <CardDescription className="text-spotify-text-muted">
-            Código de Acceso: <span className="font-semibold text-spotify-green">{eventDetails.access_code}</span>
-          </CardDescription>
-          {currentParticipantName && (
-            <p className="text-sm text-spotify-text-muted">
-              Conectado como: <span className="font-medium text-spotify-text">{currentParticipantName}</span>
-            </p>
-          )}
-        </CardHeader>
-      </Card>
-
+    <div className="container mx-auto p-4 space-y-8 bg-background min-h-screen text-foreground">
       <div className="grid md:grid-cols-3 gap-6">
         <div className="md:col-span-1 space-y-4">
-          <Card className="bg-spotify-light-dark text-spotify-text shadow-lg">
-            <CardHeader>
-              <CardTitle className="text-xl flex items-center">
-                <Users className="mr-2 h-5 w-5 text-spotify-green" /> Participantes ({participants.length})
+          <Card className="bg-card text-card-foreground shadow-xl rounded-lg overflow-hidden">
+            <CardHeader className="bg-card">
+              <CardTitle className="text-3xl md:text-4xl font-bold text-primary">{eventDetails.name}</CardTitle>
+              <CardDescription className="text-muted-foreground">
+                Código de Acceso: <span className="font-semibold text-primary">{eventDetails.access_code}</span>
+              </CardDescription>
+              {currentParticipantName && (
+                <p className="text-sm text-muted-foreground">
+                  Conectado como: <span className="font-medium text-card-foreground">{currentParticipantName}</span>
+                </p>
+              )}
+            </CardHeader>
+          </Card>
+          <Card className="bg-card text-card-foreground shadow-lg rounded-lg overflow-hidden">
+            <CardHeader className="bg-card">
+              <CardTitle className="text-xl flex items-center text-primary">
+                <Users className="mr-2 h-5 w-5 text-primary" /> Participantes ({participants.length})
               </CardTitle>
             </CardHeader>
             <CardContent>
-              {participants.length > 0 ? (
-                <ul className="space-y-3 max-h-96 overflow-y-auto pr-2">
-                  {participants.map((p) => (
-                    <li key={p.id} className="flex items-center gap-3 p-3 bg-spotify-dark rounded-md shadow hover:bg-opacity-80 transition-colors">
-                      <Avatar className="h-10 w-10">
-                        <AvatarImage src={`https://avatar.vercel.sh/${p.name}.png?size=40`} alt={p.name} />
-                        <AvatarFallback>{p.name.substring(0, 2).toUpperCase()}</AvatarFallback>
-                      </Avatar>
-                      <span className="font-medium text-sm">{p.name}</span>
-                    </li>
-                  ))}
-                </ul>
-              ) : (
-                <p className="text-spotify-text-muted italic">Aún no hay participantes.</p>
-              )}
+              <ScrollArea className="h-screen max-h-screen rounded-lg pr-4">
+                {participants.length > 0 ? (
+                  <ul className="space-y-3">
+                    {participants.map((p) => (
+                      <li key={p.id} className="flex items-center gap-3 p-3 bg-primary text-primary-foreground rounded-md shadow">
+                        <Avatar className="h-10 w-10">
+                          <AvatarImage src={`https://avatar.vercel.sh/${p.name}.png?size=40`} alt={p.name} />
+                          <AvatarFallback>{p.name.substring(0, 2).toUpperCase()}</AvatarFallback>
+                        </Avatar>
+                        <span className="font-medium text-sm">{p.name}</span>
+                      </li>
+                    ))}
+                  </ul>
+                ) : (
+                  <p className="text-muted-foreground italic">Aún no hay participantes.</p>
+                )}
+              </ScrollArea>
             </CardContent>
           </Card>
         </div>
@@ -237,13 +238,13 @@ const EventPage: React.FC = () => {
               {currentParticipantId ? (
                 <YouTubeSongSearch onSongSelected={handleSongSelected} />
               ) : (
-                <Card className="bg-spotify-light-dark text-spotify-text p-6 text-center shadow-lg">
-                  <p className="text-spotify-text-muted">
+                <Card className="bg-card text-card-foreground p-6 text-center shadow-lg">
+                  <p className="text-muted-foreground">
                     Debes{" "}
                     <Button
                       variant="link"
                       onClick={() => navigate(`/join/${eventDetails?.access_code}`)}
-                      className="p-0 h-auto text-spotify-green hover:underline"
+                      className="p-0 h-auto text-primary hover:underline"
                     >
                       unirte al evento
                     </Button>{" "}
@@ -264,7 +265,7 @@ const EventPage: React.FC = () => {
         <Button
           onClick={() => navigate("/")}
           variant="outline"
-          className="border-spotify-text-muted text-spotify-text-muted hover:bg-spotify-gray hover:text-spotify-text"
+          className="border-muted-foreground text-muted-foreground hover:bg-muted hover:text-card-foreground"
         >
           Volver al Inicio
         </Button>

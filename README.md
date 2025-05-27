@@ -1,73 +1,86 @@
-# Welcome to your Lovable project
+# juntadaYa! 🎵
 
-## Project info
+Plataforma web para crear playlists colaborativas en tiempo real para eventos y juntadas. Permite a los participantes agregar canciones de YouTube, votar por ellas y disfrutar de una experiencia musical compartida.
 
-**URL**: https://lovable.dev/projects/8a636431-fcb3-4f7e-ade5-af05641fd0a3
+**URL**: https://juntadaya.netlify.app/
 
-## How can I edit this code?
+## 🚀 Stack Tecnológico
 
-There are several ways of editing your application.
+### Frontend
+- **Framework Principal**: React 18 con TypeScript
+- **Bundler**: Vite - Para un desarrollo rápido y optimizado
+- **Estilos**:
+  - Tailwind CSS - Framework de utilidades CSS
+  - shadcn/ui - Componentes de UI reutilizables y accesibles
+  - Lucide Icons - Iconografía moderna y consistente
 
-**Use Lovable**
+### Backend & Base de Datos
+- **Supabase**:
+  - PostgreSQL - Base de datos relacional
+  - Realtime - Suscripciones en tiempo real para actualizaciones instantáneas
+  - Edge Functions - Funciones serverless para la API de YouTube
+  - Row Level Security (RLS) - Seguridad a nivel de fila para datos sensibles
 
-Simply visit the [Lovable Project](https://lovable.dev/projects/8a636431-fcb3-4f7e-ade5-af05641fd0a3) and start prompting.
+### APIs & Integraciones
+- **YouTube Data API v3**:
+  - Búsqueda de videos
+  - Embedding de reproductor
+  - Manejo de playlists
 
-Changes made via Lovable will be committed automatically to this repo.
+### Características Técnicas Destacadas
+- **Tiempo Real**:
+  - Actualizaciones instantáneas de la playlist
+  - Sincronización de estado entre usuarios
+  - Manejo de eventos en tiempo real con Supabase Realtime
 
-**Use your preferred IDE**
+- **Seguridad**:
+  - Autenticación y autorización con Supabase Auth
+  - Protección de rutas y recursos
+  - Validación de datos en cliente y servidor
 
-If you want to work locally using your own IDE, you can clone this repo and push changes. Pushed changes will also be reflected in Lovable.
+- **UX/UI**:
+  - Diseño responsive
+  - Modo oscuro
+  - Accesibilidad (WCAG)
+  - Feedback visual inmediato
+  - Transiciones y animaciones suaves
 
-The only requirement is having Node.js & npm installed - [install with nvm](https://github.com/nvm-sh/nvm#installing-and-updating)
+- **Performance**:
+  - Code splitting
+  - Lazy loading de componentes
+  - Optimización de imágenes
+  - Caching eficiente
 
-Follow these steps:
+## 🛠️ Desarrollo Local
 
 ```sh
-# Step 1: Clone the repository using the project's Git URL.
-git clone <YOUR_GIT_URL>
+# Clonar el repositorio
+git clone https://github.com/davidricota/evento-vibes-social.git
 
-# Step 2: Navigate to the project directory.
-cd <YOUR_PROJECT_NAME>
+# Instalar dependencias
+npm install
 
-# Step 3: Install the necessary dependencies.
-npm i
-
-# Step 4: Start the development server with auto-reloading and an instant preview.
+# Iniciar servidor de desarrollo
 npm run dev
 ```
 
-**Edit a file directly in GitHub**
+## 🔧 Variables de Entorno
 
-- Navigate to the desired file(s).
-- Click the "Edit" button (pencil icon) at the top right of the file view.
-- Make your changes and commit the changes.
+Crea un archivo `.env` en la raíz del proyecto:
 
-**Use GitHub Codespaces**
+```env
+VITE_SUPABASE_URL=tu_url_de_supabase
+VITE_SUPABASE_PUBLISHABLE_KEY=tu_clave_publica
+```
 
-- Navigate to the main page of your repository.
-- Click on the "Code" button (green button) near the top right.
-- Select the "Codespaces" tab.
-- Click on "New codespace" to launch a new Codespace environment.
-- Edit files directly within the Codespace and commit and push your changes once you're done.
+## 📦 Despliegue
 
-## What technologies are used for this project?
+El proyecto está configurado para despliegue automático en Netlify. Cada push a la rama `main` desencadena un nuevo despliegue.
 
-This project is built with:
+## 🤝 Contribución
 
-- Vite
-- TypeScript
-- React
-- shadcn-ui
-- Tailwind CSS
+Las contribuciones son bienvenidas. Por favor, abre un issue primero para discutir los cambios que te gustaría hacer.
 
-## How can I deploy this project?
+## 📝 Licencia
 
-Simply open [Lovable](https://lovable.dev/projects/8a636431-fcb3-4f7e-ade5-af05641fd0a3) and click on Share -> Publish.
-
-## Can I connect a custom domain to my Lovable project?
-
-Yes, you can!
-
-To connect a domain, navigate to Project > Settings > Domains and click Connect Domain.
-
-Read more here: [Setting up a custom domain](https://docs.lovable.dev/tips-tricks/custom-domain#step-by-step-guide)
+MIT

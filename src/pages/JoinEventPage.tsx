@@ -127,13 +127,13 @@ const JoinEventPage: React.FC = () => {
   };
 
   return (
-    <div className="container mx-auto p-4 flex flex-col items-center justify-center min-h-screen bg-spotify-dark">
-      <Card className="w-full max-w-md bg-spotify-light-dark text-spotify-text shadow-xl">
+    <div className="container mx-auto p-4 flex flex-col items-center justify-center min-h-screen bg-background">
+      <Card className="w-full max-w-md bg-card text-card-foreground shadow-xl">
         {!showJoinForm && (
           <>
             <CardHeader>
-              <CardTitle className="text-2xl text-spotify-green">Unirse a un Evento</CardTitle>
-              <CardDescription className="text-spotify-text-muted">Ingresa el código de acceso del evento.</CardDescription>
+              <CardTitle className="text-2xl text-primary">Unirse a un Evento</CardTitle>
+              <CardDescription className="text-muted-foreground">Ingresa el código de acceso del evento.</CardDescription>
             </CardHeader>
             <form
               onSubmit={(e) => {
@@ -143,7 +143,7 @@ const JoinEventPage: React.FC = () => {
             >
               <CardContent className="space-y-4">
                 <div className="space-y-1">
-                  <Label htmlFor="accessCode" className="text-spotify-text-muted">
+                  <Label htmlFor="accessCode" className="text-muted-foreground">
                     Código de Acceso
                   </Label>
                   <Input
@@ -161,7 +161,7 @@ const JoinEventPage: React.FC = () => {
                 <Button
                   type="submit"
                   disabled={isLoadingEvent}
-                  className="w-full bg-spotify-green hover:bg-spotify-green/90 text-spotify-dark font-semibold"
+                  className="w-full bg-primary hover:bg-primary/90 text-primary-foreground font-semibold"
                 >
                   {isLoadingEvent ? "Buscando..." : "Buscar Evento"}
                 </Button>
@@ -173,12 +173,12 @@ const JoinEventPage: React.FC = () => {
         {showJoinForm && event && !attendee && (
           <form onSubmit={handleJoinSubmit}>
             <CardHeader>
-              <CardTitle className="text-2xl text-spotify-green">Unirse a: {event.name}</CardTitle>
-              <CardDescription className="text-spotify-text-muted">Completa tus datos para unirte.</CardDescription>
+              <CardTitle className="text-2xl text-primary">Unirse a: {event.name}</CardTitle>
+              <CardDescription className="text-muted-foreground">Completa tus datos para unirte.</CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="space-y-1">
-                <Label htmlFor="name" className="text-spotify-text-muted">
+                <Label htmlFor="name" className="text-muted-foreground">
                   Tu Nombre
                 </Label>
                 <Input
@@ -192,7 +192,7 @@ const JoinEventPage: React.FC = () => {
                 />
               </div>
               <div className="space-y-1">
-                <Label htmlFor="whatsapp" className="text-spotify-text-muted">
+                <Label htmlFor="whatsapp" className="text-muted-foreground">
                   Número de WhatsApp
                 </Label>
                 {/* PhoneInput comentado y reemplazado por Input normal temporalmente */}
@@ -212,11 +212,7 @@ const JoinEventPage: React.FC = () => {
               </div>
             </CardContent>
             <CardFooter>
-              <Button
-                type="submit"
-                disabled={isJoining}
-                className="w-full bg-spotify-green hover:bg-spotify-green/90 text-spotify-dark font-semibold"
-              >
+              <Button type="submit" disabled={isJoining} className="w-full bg-primary hover:bg-primary/90 text-primary-foreground font-semibold">
                 {isJoining ? "Uniéndote..." : "Unirme al Evento"}
               </Button>
             </CardFooter>
