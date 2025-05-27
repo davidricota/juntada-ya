@@ -24,7 +24,7 @@
     --secondary-foreground: 348 82% 56%; /* Rojo */
 
     --muted: 36 77% 91%;
-    --muted-foreground: 348 82% 56%;
+    --muted-foreground: 0 0% 100% / 0.7;
 
     --accent: 36 77% 91%;
     --accent-foreground: 348 82% 56%;
@@ -49,6 +49,8 @@
     /* ya que se espera que GeistSans.variable y GeistMono.variable las definan. */
     /* --font-geist-sans: 'GeistSans', system-ui, sans-serif; */
     /* --font-geist-mono: 'GeistMono', monospace; */
+
+    --card-muted-foreground: 348 82% 56% / 0.7;
   }
 
   /* No necesitamos .dark ya que será el tema por defecto */
@@ -63,4 +65,11 @@
     /* font-mono ahora debería usar var(--font-geist-mono) definido por GeistMono.variable */
     @apply bg-background text-foreground font-sans;
   }
+}
+
+/* En las cards, el muted-foreground es rojo translúcido */
+.bg-card,
+.card,
+[class*="bg-card"] {
+  --muted-foreground: var(--card-muted-foreground);
 }

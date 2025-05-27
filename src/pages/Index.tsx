@@ -6,9 +6,9 @@ import { Plus, LogIn } from "lucide-react";
 
 const HomePage: React.FC = () => {
   return (
-    <div className="min-h-screen bg-background flex flex-col items-center justify-center p-4">
+    <div className="bg-background flex flex-col items-center justify-center p-4">
       <header className="text-center mb-12">
-        <h1 className="text-5xl font-bold text-primary mb-4">juntadaYa!</h1>
+        <h1 className="text-5xl font-bold text-foreground mb-4">juntadaYa!</h1>
         <p className="text-xl text-muted-foreground">Tu plataforma para organizar eventos y playlists colaborativas.</p>
       </header>
 
@@ -44,7 +44,7 @@ const HomePage: React.FC = () => {
         </Card>
       </div>
 
-      <footer className="mt-16 text-center text-muted-foreground text-sm">
+      <footer className="text-center text-muted-foreground text-sm py-4">
         <p>&copy; {new Date().getFullYear()} juntadaYa!. Creado con amor.</p>
       </footer>
     </div>
