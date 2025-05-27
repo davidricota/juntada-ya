@@ -1,10 +1,12 @@
 import React, { useState, useEffect } from "react";
+import { useEventSessionStore } from "@/stores/useEventSessionStore";
 import { useParams, useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client"; // Importamos el cliente de Supabase
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
+
 // import PhoneInput, { isValidPhoneNumber } from 'react-phone-number-input'; // Comentado temporalmente
 // import 'react-phone-number-input/style.css'; // Comentado temporalmente
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
@@ -29,6 +31,19 @@ const JoinEventPage: React.FC = () => {
   const [whatsapp, setWhatsapp] = useState<string | undefined>(undefined); // Mantenemos el tipo, pero la entrada será un Input normal
   const [isJoining, setIsJoining] = useState(false);
   const [showJoinForm, setShowJoinForm] = useState(false);
+
+  const getSession = useEventSessionStore((s) => s.getSession);
+  const setSession = useEventSessionStore((s) => s.setSession);
+  const [attendee, setAttendee] = useState<{ name: string; whatsapp_number: string } | null>(null);
+
+  useEffect(() => {
+    if (!event) return;
+    const existing = getSession(event.id);
+    if (existing) {
+      setAttendee(existing);
+      navigate(`/event/${event.id}`);
+    }
+  }, [event, getSession]);
 
   const fetchEventById = async (accessCode: string): Promise<EventType | null> => {
     const { data, error } = await supabase.from("events").select("*").eq("access_code", accessCode).single();
@@ -103,6 +118,9 @@ const JoinEventPage: React.FC = () => {
       localStorage.setItem(`event_${event.id}_participant_id`, participantData.id);
       localStorage.setItem(`event_${event.id}_participant_name`, participantData.name);
       localStorage.setItem(`event_${event.id}_participant_whatsapp`, participantData.whatsapp_number);
+
+      setSession(event.id, { name: participantData.name, whatsapp_number: participantData.whatsapp_number });
+      setAttendee({ name: participantData.name, whatsapp_number: participantData.whatsapp_number });
       navigate(`/event/${event.id}`);
     }
     setIsJoining(false);
@@ -152,7 +170,7 @@ const JoinEventPage: React.FC = () => {
           </>
         )}
 
-        {showJoinForm && event && (
+        {showJoinForm && event && !attendee && (
           <form onSubmit={handleJoinSubmit}>
             <CardHeader>
               <CardTitle className="text-2xl text-spotify-green">Unirse a: {event.name}</CardTitle>
