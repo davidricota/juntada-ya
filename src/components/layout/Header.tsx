@@ -1,12 +1,10 @@
 import React from "react";
-import { Music } from "lucide-react"; // Icono de ejemplo
 
 const Header: React.FC = () => {
   return (
     <header className="bg-card/80 backdrop-blur-md sticky top-0 z-50">
       <div className="container mx-auto px-4 h-16 flex items-center justify-between">
         <a href="/" className="flex items-center space-x-2 text-2xl font-bold text-primary hover:opacity-80 transition-opacity">
-          <Music size={28} />
           <span>juntadaYa!</span>
         </a>
         <nav className="space-x-4">

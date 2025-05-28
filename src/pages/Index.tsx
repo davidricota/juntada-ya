@@ -43,10 +43,6 @@ const HomePage: React.FC = () => {
           </CardContent>
         </Card>
       </div>
-
-      <footer className="text-center text-muted-foreground text-sm py-4">
-        <p>&copy; {new Date().getFullYear()} juntadaYa!. Creado con amor.</p>
-      </footer>
     </div>
   );
 };
