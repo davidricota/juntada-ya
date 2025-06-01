@@ -1,42 +1,60 @@
-import React, { useState } from "react";
+import React, { useState, Dispatch, SetStateAction, useCallback, memo } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "./ui/card";
-import { ListMusic, Play, Youtube } from "lucide-react";
+import { ListMusic } from "lucide-react";
 import YouTubePlayer from "./YoutubePlayer";
 import Playlist from "./Playlist";
 import { ScrollArea } from "@/components/ui/scroll-area";
-interface PlaylistTabProps {
-  playlistItems: Array<{
-    id: string;
-    youtube_video_id: string;
-    title: string;
-    thumbnail_url: string | null;
-    channel_title: string | null;
-    added_by_participant_id: string;
-    participant_name?: string; // Para mostrar quién la añadió
-  }>;
+import { PlaylistService } from "@/services/playlistService";
+import { toast } from "@/hooks/use-toast";
+import { Participant } from "@/services/eventService";
+import { PlaylistItem } from "@/services/playlistService";
+
+export interface PlaylistTabProps {
+  eventId: string;
+  participants: Participant[];
+  playlist: PlaylistItem[];
+  onPlaylistChange: Dispatch<SetStateAction<PlaylistItem[]>>;
 }
-const PlaylistTab: React.FC<PlaylistTabProps> = ({ playlistItems }) => {
+
+const PlaylistTab: React.FC<PlaylistTabProps> = memo(({ eventId, participants, playlist, onPlaylistChange }) => {
   const [currentVideoIndex, setCurrentVideoIndex] = useState(0);
-  const handleVideoSelect = (index) => {
+
+  const handleVideoSelect = useCallback((index: number) => {
     setCurrentVideoIndex(index);
-  };
+  }, []);
 
-  // Funciones para navegación entre videos
-  const handlePreviousVideo = () => {
-    if (currentVideoIndex > 0) {
-      setCurrentVideoIndex(currentVideoIndex - 1);
-    } else {
-      setCurrentVideoIndex(playlistItems.length - 1);
-    }
-  };
+  const handlePreviousVideo = useCallback(() => {
+    setCurrentVideoIndex((prevIndex) => (prevIndex > 0 ? prevIndex - 1 : playlist.length - 1));
+  }, [playlist.length]);
 
-  const handleNextVideo = () => {
-    if (currentVideoIndex < playlistItems.length - 1) {
-      setCurrentVideoIndex(currentVideoIndex + 1);
-    } else {
-      setCurrentVideoIndex(0);
-    }
-  };
+  const handleNextVideo = useCallback(() => {
+    setCurrentVideoIndex((prevIndex) => (prevIndex < playlist.length - 1 ? prevIndex + 1 : 0));
+  }, [playlist.length]);
+
+  const handleVideoDelete = useCallback(
+    async (id: string, title: string) => {
+      try {
+        await PlaylistService.deleteSong(id);
+        onPlaylistChange((prevItems) => prevItems.filter((item) => item.id !== id));
+        setCurrentVideoIndex((prevIndex) => {
+          const newIndex = playlist.findIndex((item) => item.id === id);
+          if (newIndex === -1) return prevIndex;
+          if (newIndex === prevIndex) return 0;
+          if (newIndex < prevIndex) return prevIndex - 1;
+          return prevIndex;
+        });
+        toast({ title: "Canción Eliminada", description: `${title}` });
+      } catch (error) {
+        console.error("Error deleting song:", error);
+        toast({
+          title: "Error",
+          description: "No se pudo eliminar la canción. Inténtalo de nuevo.",
+          variant: "destructive",
+        });
+      }
+    },
+    [onPlaylistChange, playlist]
+  );
 
   return (
     <Card className="bg-card text-card-foreground shadow-lg">
@@ -46,17 +64,22 @@ const PlaylistTab: React.FC<PlaylistTabProps> = ({ playlistItems }) => {
         </CardTitle>
       </CardHeader>
       <CardContent className="space-y-4">
-        {playlistItems.length > 0 ? (
+        {playlist.length > 0 ? (
           <>
             <YouTubePlayer
-              playlistItems={playlistItems}
+              playlistItems={playlist}
               currentVideoIndex={currentVideoIndex}
               onVideoEnd={handleNextVideo}
               onPreviousVideo={handlePreviousVideo}
               onNextVideo={handleNextVideo}
             />
             <ScrollArea className="h-screen max-h-96 rounded-lg pr-4">
-              <Playlist playlistItems={playlistItems} currentVideoIndex={currentVideoIndex} onVideoSelect={handleVideoSelect} />
+              <Playlist
+                playlistItems={playlist}
+                currentVideoIndex={currentVideoIndex}
+                onVideoSelect={handleVideoSelect}
+                onVideoDelete={handleVideoDelete}
+              />
             </ScrollArea>
           </>
         ) : (
@@ -65,5 +88,8 @@ const PlaylistTab: React.FC<PlaylistTabProps> = ({ playlistItems }) => {
       </CardContent>
     </Card>
   );
-};
+});
+
+PlaylistTab.displayName = "PlaylistTab";
+
 export default PlaylistTab;

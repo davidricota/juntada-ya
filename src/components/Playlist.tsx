@@ -1,5 +1,5 @@
 import React from "react";
-import { Youtube } from "lucide-react";
+import { Trash, Youtube } from "lucide-react";
 interface PlayListProps {
   playlistItems: Array<{
     id: string;
@@ -12,9 +12,10 @@ interface PlayListProps {
   }> | null;
   currentVideoIndex: number;
   onVideoSelect: (index: number) => void;
+  onVideoDelete: (index: string, title: string) => void;
 }
 
-const Playlist: React.FC<PlayListProps> = ({ playlistItems, currentVideoIndex, onVideoSelect }) => {
+const Playlist: React.FC<PlayListProps> = ({ playlistItems, currentVideoIndex, onVideoSelect, onVideoDelete }) => {
   const handleVideoSelect = (index) => {
     onVideoSelect(index);
   };
@@ -23,7 +24,7 @@ const Playlist: React.FC<PlayListProps> = ({ playlistItems, currentVideoIndex, o
       {playlistItems.map((item) => (
         <li
           key={item.id}
-          className="flex items-center gap-3 p-3 bg-background text-foreground rounded-md shadow transition-colors hover:bg-card hover:text-card-foreground"
+          className="flex items-center gap-3 p-3 bg-background text-foreground rounded-md shadow transition-colors hover:bg-card hover:text-card-foreground group"
         >
           <img
             src={item.thumbnail_url || `https://via.placeholder.com/48x36?text=${item.title.charAt(0)}`}
@@ -35,12 +36,20 @@ const Playlist: React.FC<PlayListProps> = ({ playlistItems, currentVideoIndex, o
             <p className="text-sm opacity-80">{item.channel_title}</p>
             <p className="text-xs opacity-60">Añadido por: {item.participant_name}</p>
           </div>
+
           <a
             onClick={() => handleVideoSelect(playlistItems.indexOf(item))}
             title="Ver en YouTube"
-            className="ml-auto p-2 rounded-full hover:bg-muted transition-colors"
+            className="ml-auto p-2 rounded-full  hover:bg-muted transition-colors "
           >
-            <Youtube className="h-6 w-6 text-red-500 hover:text-red-400" />
+            <Youtube className="h-6 w-6 text-muted group-hover:text-red-400" />
+          </a>
+          <a
+            onClick={() => onVideoDelete(item.id, item.title)}
+            title="Eliminar"
+            className="ml-auto p-2 rounded-full  hover:bg-muted transition-colors "
+          >
+            <Trash className="h-4 w-4 text-muted group-hover:text-red-400" />
           </a>
         </li>
       ))}

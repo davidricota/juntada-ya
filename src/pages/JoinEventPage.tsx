@@ -127,7 +127,7 @@ const JoinEventPage: React.FC = () => {
   };
 
   return (
-    <div className="container mx-auto p-4 flex flex-col items-center justify-center min-h-screen bg-background">
+    <div className="flex flex-col items-center justify-center p-4">
       <Card className="w-full max-w-md bg-card text-card-foreground shadow-xl">
         {!showJoinForm && (
           <>

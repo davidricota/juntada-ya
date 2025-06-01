@@ -65,7 +65,7 @@ const CreateEventPage: React.FC = () => {
 
   if (accessCode && eventId) {
     return (
-      <div className="container mx-auto p-4 flex flex-col items-center justify-center min-h-screen">
+      <div className="flex flex-col items-center justify-center p-4">
         <Card className="w-full max-w-md bg-card text-card-foreground">
           <CardHeader>
             <CardTitle className="text-2xl">¡Evento Creado Exitosamente!</CardTitle>
@@ -98,7 +98,7 @@ const CreateEventPage: React.FC = () => {
   }
 
   return (
-    <div className="container mx-auto p-4 flex flex-col items-center justify-center min-h-screen">
+    <div className="flex flex-col items-center justify-center p-4">
       <Card className="w-full max-w-md bg-card text-card-foreground">
         <CardHeader>
           <CardTitle className="text-2xl">Crear Nuevo Evento</CardTitle>

@@ -1,38 +1,19 @@
 import React, { useEffect, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { supabase } from "@/integrations/supabase/client";
-import YouTubeSongSearch from "@/components/YouTubeSongSearch";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { User, ListMusic, Youtube, Users } from "lucide-react";
+import { Users } from "lucide-react";
 import PlaylistTab from "@/components/PlaylistTab";
 import PollsTab from "@/components/PollsTab";
 import { ScrollArea } from "@/components/ui/scroll-area";
-type EventType = {
-  id: string;
-  name: string;
-  access_code: string;
-  created_at: string;
-};
-
-type Participant = {
-  id: string;
-  name: string;
-  whatsapp_number: string;
-};
-
-type PlaylistItem = {
-  id: string;
-  youtube_video_id: string;
-  title: string;
-  thumbnail_url: string | null;
-  channel_title: string | null;
-  added_by_participant_id: string;
-  participant_name?: string; // Para mostrar quién la añadió
-};
+import { EventService, EventType, Participant, ParticipantChangePayload } from "@/services/eventService";
+import { PlaylistService, PlaylistItem, PlaylistChangePayload } from "@/services/playlistService";
+import { YouTubeService, YouTubeVideo } from "@/services/youtubeService";
+import YouTubeSongSearch from "@/components/YouTubeSongSearch";
+import { RealtimeChannel } from "@supabase/supabase-js";
 
 const EventPage: React.FC = () => {
   const { eventId } = useParams<{ eventId: string }>();
@@ -45,6 +26,7 @@ const EventPage: React.FC = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [currentParticipantId, setCurrentParticipantId] = useState<string | null>(null);
   const [currentParticipantName, setCurrentParticipantName] = useState<string | null>(null);
+  const [subscriptions, setSubscriptions] = useState<RealtimeChannel[]>([]);
 
   useEffect(() => {
     if (!eventId) {
@@ -67,108 +49,85 @@ const EventPage: React.FC = () => {
 
     const fetchEventData = async () => {
       setIsLoading(true);
-      // Fetch event details
-      const { data: eventData, error: eventError } = await supabase.from("events").select("*").eq("id", eventId).single();
+      try {
+        // Fetch event details
+        const eventData = await EventService.getEventById(eventId);
+        if (!eventData) {
+          toast({ title: "Error", description: "Evento no encontrado.", variant: "destructive" });
+          navigate("/");
+          return;
+        }
+        setEventDetails(eventData);
 
-      if (eventError || !eventData) {
-        toast({ title: "Error", description: "Evento no encontrado.", variant: "destructive" });
-        navigate("/");
-        return;
+        // Fetch participants
+        const participantsData = await EventService.getEventParticipants(eventId);
+        setParticipants(participantsData);
+
+        // Fetch playlist items
+        const playlistData = await PlaylistService.getPlaylistItems(eventId);
+        setPlaylistItems(playlistData);
+      } catch (error) {
+        console.error("Error fetching event data:", error);
+        toast({ title: "Error", description: "Error al cargar los datos del evento.", variant: "destructive" });
+      } finally {
+        setIsLoading(false);
       }
-      setEventDetails(eventData as EventType); // Cast to EventType
-
-      // Fetch participants
-      const { data: participantsData, error: participantsError } = await supabase.from("event_participants").select("*").eq("event_id", eventId);
-
-      if (participantsData) setParticipants(participantsData as Participant[]); // Cast to Participant[]
-
-      // Fetch playlist items and map participant names
-      const { data: playlistData, error: playlistError } = await supabase
-        .from("playlist_items")
-        .select(
-          `
-          *,
-          event_participants ( name )
-        `
-        )
-        .eq("event_id", eventId)
-        .order("added_at", { ascending: true });
-
-      if (playlistData) {
-        const itemsWithNames = playlistData.map((item: any) => ({
-          ...item,
-          participant_name: item.event_participants?.name || "Desconocido",
-        })) as PlaylistItem[]; // Cast to PlaylistItem[]
-        setPlaylistItems(itemsWithNames);
-      }
-
-      setIsLoading(false);
     };
 
     fetchEventData();
 
-    // Suscripción a cambios en la playlist (realtime)
-    const playlistSubscription = supabase
-      .channel(`playlist_items_event_${eventId}`)
-      .on("postgres_changes", { event: "INSERT", schema: "public", table: "playlist_items", filter: `event_id=eq.${eventId}` }, async (payload) => {
-        console.log("Playlist change received!", payload);
-        // Fetch the new item with participant name
-        const { data: newItemWithParticipant, error } = await supabase
-          .from("playlist_items")
-          .select("*, event_participants (name)")
-          .eq("id", (payload.new as PlaylistItem).id)
-          .single();
+    // Subscribe to participants changes
+    const participantsSubscription = EventService.subscribeToParticipants(eventId, (payload: ParticipantChangePayload) => {
+      if (payload.eventType === "INSERT") {
+        fetchEventData();
+      }
+    });
 
-        if (error) {
-          console.error("Error fetching new item with participant", error);
-          // Fallback: add without participant name or re-fetch all
-          setPlaylistItems((prevItems) => [...prevItems, payload.new as PlaylistItem]);
-        } else if (newItemWithParticipant) {
-          const formattedNewItem = {
-            ...(newItemWithParticipant as any), // Cast to any to access event_participants
-            participant_name: (newItemWithParticipant as any).event_participants?.name || "Desconocido",
-          } as PlaylistItem; // Cast to PlaylistItem
-          setPlaylistItems((prevItems) => [...prevItems, formattedNewItem]);
-        }
-      })
-      .subscribe();
+    // Subscribe to playlist changes
+    const playlistSubscription = PlaylistService.subscribeToPlaylist(eventId, (payload: PlaylistChangePayload) => {
+      if (payload.eventType === "DELETE") {
+        setPlaylistItems((prevItems) => prevItems.filter((item) => item.id !== payload.old.id));
+      } else if (payload.eventType === "INSERT") {
+        // En lugar de recargar todo, solo agregamos el nuevo item
+        const newItem: PlaylistItem = {
+          id: payload.new.id,
+          youtube_video_id: payload.new.youtube_video_id,
+          title: payload.new.title,
+          thumbnail_url: payload.new.thumbnail_url,
+          channel_title: payload.new.channel_title,
+          added_by_participant_id: payload.new.added_by_participant_id,
+          participant_name: participants.find((p) => p.id === payload.new.added_by_participant_id)?.name || "Desconocido",
+        };
+        setPlaylistItems((prevItems) => [...prevItems, newItem]);
+      }
+    });
 
-    // Suscripción a cambios en participantes (realtime)
-    const participantsSubscription = supabase
-      .channel(`event_participants_event_${eventId}`)
-      .on("postgres_changes", { event: "INSERT", schema: "public", table: "event_participants", filter: `event_id=eq.${eventId}` }, (payload) => {
-        console.log("Participant change received!", payload);
-        setParticipants((prevParticipants) => [...prevParticipants, payload.new as Participant]);
-      })
-      .subscribe();
+    setSubscriptions([participantsSubscription, playlistSubscription]);
 
     return () => {
-      supabase.removeChannel(playlistSubscription);
-      supabase.removeChannel(participantsSubscription);
+      // Cleanup subscriptions
+      subscriptions.forEach((subscription) => {
+        if (subscription) {
+          EventService.unsubscribeFromParticipants(subscription);
+          PlaylistService.unsubscribeFromPlaylist(subscription);
+        }
+      });
     };
   }, [eventId, navigate, toast]);
 
-  const handleSongSelected = async (song: { id: string; title: string; thumbnail: string; channelTitle: string }) => {
+  const handleSongSelected = async (song: YouTubeVideo) => {
     if (!currentParticipantId) {
       toast({ title: "Acción Requerida", description: "Debes unirte al evento para agregar canciones.", variant: "destructive" });
       return;
     }
     if (!eventDetails) return;
-    console.log("Event details:", eventDetails);
-    const { error } = await supabase.from("playlist_items").insert({
-      event_id: eventDetails.id,
-      added_by_participant_id: currentParticipantId,
-      youtube_video_id: song.id,
-      title: song.title,
-      thumbnail_url: song.thumbnail,
-      channel_title: song.channelTitle,
-    });
 
-    if (error) {
-      toast({ title: "Error", description: "No se pudo agregar la canción. Inténtalo de nuevo.", variant: "destructive" });
-      console.error("Error adding song:", error);
-    } else {
+    try {
+      await PlaylistService.addSong(eventDetails.id, currentParticipantId, song);
       toast({ title: "¡Canción Agregada!", description: `${song.title} se añadió a la playlist.` });
+    } catch (error) {
+      console.error("Error adding song:", error);
+      toast({ title: "Error", description: "No se pudo agregar la canción. Inténtalo de nuevo.", variant: "destructive" });
     }
   };
 
@@ -181,9 +140,9 @@ const EventPage: React.FC = () => {
   }
 
   return (
-    <div className="container mx-auto p-4 space-y-8 bg-background min-h-screen text-foreground">
-      <div className="grid md:grid-cols-3 gap-6">
-        <div className="md:col-span-1 space-y-4">
+    <div className="flex flex-col items-center justify-center p-4 w-full">
+      <div className="grid md:grid-cols-3 gap-6 w-full">
+        <div className="md:col-span-1 space-y-6">
           <Card className="bg-card text-card-foreground shadow-xl rounded-lg overflow-hidden">
             <CardHeader className="bg-card">
               <CardTitle className="text-3xl md:text-4xl font-bold text-primary">{eventDetails.name}</CardTitle>
@@ -228,12 +187,18 @@ const EventPage: React.FC = () => {
         <div className="md:col-span-2 space-y-6">
           <Tabs defaultValue="playlist" className="w-full">
             <TabsList>
-              <TabsTrigger value="playlist">Playlist</TabsTrigger>
-              <TabsTrigger value="polls">Encuestas</TabsTrigger>
-              <TabsTrigger value="gastos">Gastos</TabsTrigger>
+              <TabsTrigger value="playlist" className="data-[state=inactive]:text-destructive">
+                Playlist
+              </TabsTrigger>
+              <TabsTrigger value="polls" className="data-[state=inactive]:text-destructive">
+                Encuestas
+              </TabsTrigger>
+              <TabsTrigger value="gastos" className="data-[state=inactive]:text-destructive">
+                Gastos
+              </TabsTrigger>
             </TabsList>
             <TabsContent value="playlist">
-              <PlaylistTab playlistItems={playlistItems} />
+              <PlaylistTab eventId={eventId} participants={participants} playlist={playlistItems} onPlaylistChange={setPlaylistItems} />
 
               {currentParticipantId ? (
                 <YouTubeSongSearch onSongSelected={handleSongSelected} />

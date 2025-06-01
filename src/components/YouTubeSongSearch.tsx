@@ -2,19 +2,12 @@ import React, { useState } from "react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Search, Loader2, AlertTriangle } from "lucide-react";
-import { supabase } from "@/integrations/supabase/client"; // Asegúrate que la ruta es correcta
-import { useToast } from "@/hooks/use-toast"; // Para notificaciones
+import { useToast } from "@/hooks/use-toast";
 import { ScrollArea } from "@/components/ui/scroll-area";
-
-interface YouTubeVideo {
-  id: string;
-  title: string;
-  thumbnail: string;
-  channelTitle: string;
-}
+import { YouTubeService, YouTubeVideo } from "@/services/youtubeService";
 
 interface YouTubeSongSearchProps {
-  onSongSelected?: (song: YouTubeVideo) => void; // Nueva prop
+  onSongSelected?: (song: YouTubeVideo) => void;
 }
 
 const YouTubeSongSearch: React.FC<YouTubeSongSearchProps> = ({ onSongSelected }) => {
@@ -37,46 +30,24 @@ const YouTubeSongSearch: React.FC<YouTubeSongSearchProps> = ({ onSongSelected })
 
     setIsLoading(true);
     setError(null);
-    setSearchResults([]); // Limpiar resultados anteriores
+    setSearchResults([]);
 
     try {
-      const { data, error: functionError } = await supabase.functions.invoke("youtube-search", {
-        body: { searchTerm },
-      });
+      const results = await YouTubeService.searchVideos(searchTerm);
+      setSearchResults(results);
 
-      if (functionError) {
-        console.error("Error invoking Supabase function:", functionError);
-        throw new Error(functionError.message || "Error al contactar la función de búsqueda.");
-      }
-
-      if (data && data.error) {
-        console.error("Error from youtube-search function:", data.details || data.error);
-        throw new Error(data.details?.message || data.error || "Error en la búsqueda de YouTube.");
-      }
-
-      if (data && data.results) {
-        setSearchResults(data.results);
-        if (data.results.length === 0) {
-          toast({
-            title: "Sin Resultados",
-            description: "No se encontraron canciones para tu búsqueda.",
-          });
-        }
-      } else {
-        // Esto podría indicar un problema inesperado con la respuesta de la función
-        setSearchResults([]);
+      if (results.length === 0) {
         toast({
-          title: "Respuesta Inesperada",
-          description: "La búsqueda no devolvió el formato esperado.",
-          variant: "default",
+          title: "Sin Resultados",
+          description: "No se encontraron canciones para tu búsqueda.",
         });
       }
-    } catch (err: any) {
-      console.error("Catch block error:", err);
-      setError(err.message || "Ocurrió un error desconocido durante la búsqueda.");
+    } catch (err) {
+      console.error("Search error:", err);
+      setError(err instanceof Error ? err.message : "Ocurrió un error desconocido durante la búsqueda.");
       toast({
         title: "Error de Búsqueda",
-        description: err.message || "No se pudieron obtener los resultados. Inténtalo de nuevo.",
+        description: err instanceof Error ? err.message : "No se pudieron obtener los resultados. Inténtalo de nuevo.",
         variant: "destructive",
       });
     } finally {
@@ -87,12 +58,8 @@ const YouTubeSongSearch: React.FC<YouTubeSongSearchProps> = ({ onSongSelected })
   const handleSelectSong = (song: YouTubeVideo) => {
     if (onSongSelected) {
       onSongSelected(song);
-      // Opcional: limpiar búsqueda o dar feedback
-      // setSearchTerm('');
-      // setSearchResults([]);
       toast({ title: "Canción Pre-seleccionada", description: `${song.title} lista para ser añadida.` });
     } else {
-      // Comportamiento por defecto si no hay onSongSelected (ej. solo mostrar en consola)
       console.log("Song selected:", song);
       toast({ title: "Canción Seleccionada (dev)", description: `${song.title}` });
     }
@@ -130,7 +97,7 @@ const YouTubeSongSearch: React.FC<YouTubeSongSearchProps> = ({ onSongSelected })
       )}
 
       {searchResults.length > 0 && (
-        <div className="mt-4 space-y-3 ">
+        <div className="mt-4 space-y-3">
           <h4 className="text-md font-semibold text-muted-foreground">Resultados:</h4>
 
           <ScrollArea className="h-screen max-h-96 rounded-lg pr-4">
@@ -138,7 +105,7 @@ const YouTubeSongSearch: React.FC<YouTubeSongSearchProps> = ({ onSongSelected })
               {searchResults.map((video) => (
                 <li
                   key={video.id}
-                  className="flex items-center gap-3 p-2.5 bg-background  rounded-md hover:bg-opacity-80 transition-colors cursor-pointer"
+                  className="flex items-center gap-3 p-2.5 bg-background rounded-md hover:bg-opacity-80 transition-colors cursor-pointer"
                   onClick={() => handleSelectSong(video)}
                   tabIndex={0}
                   onKeyPress={(e) => e.key === "Enter" && handleSelectSong(video)}
@@ -155,7 +122,7 @@ const YouTubeSongSearch: React.FC<YouTubeSongSearchProps> = ({ onSongSelected })
                     </p>
                   </div>
                   {onSongSelected && (
-                    <Button size="sm" variant="ghost" className="ml-auto border-foreground border  text-foreground hover:text-primary/80 shrink-0">
+                    <Button size="sm" variant="ghost" className="ml-auto border-foreground border text-foreground hover:text-primary/80 shrink-0">
                       Agregar
                     </Button>
                   )}

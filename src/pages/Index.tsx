@@ -6,7 +6,7 @@ import { Plus, LogIn } from "lucide-react";
 
 const HomePage: React.FC = () => {
   return (
-    <div className="bg-background flex flex-col items-center justify-center p-4">
+    <div className="flex flex-col items-center justify-center p-4">
       <header className="text-center mb-12">
         <h1 className="text-5xl font-bold text-foreground mb-4">juntadaYa!</h1>
         <p className="text-xl text-muted-foreground">Tu plataforma para organizar eventos y playlists colaborativas.</p>
