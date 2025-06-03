@@ -8,6 +8,8 @@ import { Button } from "@/components/ui/button";
 import { Slider } from "@/components/ui/slider";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import MusicVisualization from "@/components/music-visualization";
+import MiniPlayer from "@/components/MiniPlayer";
+import { usePlayer } from "@/contexts/PlayerContext";
 
 // YouTube API types
 declare global {
@@ -76,6 +78,7 @@ interface VideoItem {
   added_by_participant_id: string;
   added_at: string;
   participant_name?: string;
+  event_id: string;
 }
 
 interface YouTubePlayerProps {
@@ -84,15 +87,28 @@ interface YouTubePlayerProps {
 }
 
 export default function YouTubePlayer({ playlistItems, initialVideoIndex = 0 }: YouTubePlayerProps) {
+  const {
+    isMinimized,
+    currentVideo: contextVideo,
+    setCurrentVideo,
+    isPlaying,
+    setIsPlaying,
+    progress,
+    setProgress,
+    duration,
+    setDuration,
+    volume,
+    setVolume,
+    isMuted,
+    setIsMuted,
+    setIsMinimized,
+  } = usePlayer();
+
   const [currentVideoIndex, setCurrentVideoIndex] = useState(initialVideoIndex);
-  const [isPlaying, setIsPlaying] = useState(false);
   const [isBuffering, setIsBuffering] = useState(false);
-  const [progress, setProgress] = useState(0);
-  const [duration, setDuration] = useState(0);
-  const [volume, setVolume] = useState(0.7);
-  const [isMuted, setIsMuted] = useState(false);
   const [isVisualizationActive, setIsVisualizationActive] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [isRepeatEnabled, setIsRepeatEnabled] = useState(false);
 
   const playerRef = useRef<YouTubePlayer | null>(null);
   const playerContainerRef = useRef<HTMLDivElement>(null);
@@ -106,7 +122,27 @@ export default function YouTubePlayer({ playlistItems, initialVideoIndex = 0 }: 
     thumbnail_url: null,
     added_by_participant_id: "",
     added_at: "",
+    event_id: "",
   };
+
+  // Update context when video changes
+  useEffect(() => {
+    setCurrentVideo(currentVideo);
+  }, [currentVideo, setCurrentVideo]);
+
+  // Handle tab visibility change
+  useEffect(() => {
+    const handleVisibilityChange = () => {
+      if (document.hidden && isPlaying) {
+        setIsMinimized(true);
+      }
+    };
+
+    document.addEventListener("visibilitychange", handleVisibilityChange);
+    return () => {
+      document.removeEventListener("visibilitychange", handleVisibilityChange);
+    };
+  }, [isPlaying, setIsMinimized]);
 
   // Load YouTube API
   useEffect(() => {
@@ -194,8 +230,22 @@ export default function YouTubePlayer({ playlistItems, initialVideoIndex = 0 }: 
 
     // Handle video end
     if (playerState === window.YT.PlayerState.ENDED) {
-      const nextIndex = currentVideoIndex === playlistItems.length - 1 ? 0 : currentVideoIndex + 1;
-      setCurrentVideoIndex(nextIndex);
+      if (isRepeatEnabled) {
+        // If repeat is enabled, restart the current video
+        if (playerRef.current) {
+          playerRef.current.seekTo(0, true);
+          playerRef.current.playVideo();
+        }
+      } else {
+        // If not the last video, play next
+        if (currentVideoIndex < playlistItems.length - 1) {
+          const nextIndex = currentVideoIndex + 1;
+          setCurrentVideoIndex(nextIndex);
+        } else {
+          // If it's the last video, stop
+          setIsPlaying(false);
+        }
+      }
     }
 
     // Update duration when it becomes available
@@ -337,6 +387,26 @@ export default function YouTubePlayer({ playlistItems, initialVideoIndex = 0 }: 
     );
   }
 
+  if (isMinimized) {
+    return (
+      <MiniPlayer
+        currentVideo={currentVideo}
+        isPlaying={isPlaying}
+        progress={progress}
+        duration={duration}
+        volume={volume}
+        isMuted={isMuted}
+        onPlayPause={handlePlayPause}
+        onPrevious={handlePrevious}
+        onNext={handleNext}
+        onVolumeChange={handleVolumeChange}
+        onMuteToggle={handleMuteToggle}
+        onProgressChange={handleProgressChange}
+        onMaximize={() => setIsMinimized(false)}
+      />
+    );
+  }
+
   return (
     <div className="w-full bg-zinc-800/90 backdrop-blur-md rounded-xl overflow-hidden shadow-2xl">
       {error && (
@@ -414,7 +484,7 @@ export default function YouTubePlayer({ playlistItems, initialVideoIndex = 0 }: 
               variant="default"
               size="icon"
               className={cn(
-                "rounded-full h-12 w-12 bg-emerald-500 hover:bg-emerald-600 text-white",
+                "rounded-full h-12 w-12 bg-red-500 hover:bg-red-600 text-white",
                 "transition-all duration-300 ease-out transform hover:scale-105",
                 isPlaying && "animate-pulse"
               )}
@@ -430,7 +500,12 @@ export default function YouTubePlayer({ playlistItems, initialVideoIndex = 0 }: 
             </Button>
           </div>
 
-          <Button variant="ghost" size="icon" className="text-zinc-400 hover:text-white hover:bg-zinc-700">
+          <Button
+            variant="ghost"
+            size="icon"
+            className={cn("text-zinc-400 hover:text-white hover:bg-zinc-700", isRepeatEnabled && "text-red-500")}
+            onClick={() => setIsRepeatEnabled(!isRepeatEnabled)}
+          >
             <Repeat className="h-5 w-5" />
             <span className="sr-only">Repeat</span>
           </Button>

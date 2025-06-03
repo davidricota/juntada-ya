@@ -30,7 +30,7 @@ const EventPage: React.FC = () => {
   const [currentParticipantId, setCurrentParticipantId] = useState<string | null>(null);
   const [currentParticipantName, setCurrentParticipantName] = useState<string | null>(null);
   const [subscriptions, setSubscriptions] = useState<RealtimeChannel[]>([]);
-
+  const [currentTab, setCurrentTab] = useState<string>("playlist");
   useEffect(() => {
     if (!eventId) {
       navigate("/");
@@ -163,8 +163,8 @@ const EventPage: React.FC = () => {
   }
 
   return (
-    <div className="flex flex-col items-center justify-center p-4 w-full">
-      <div className="grid md:grid-cols-3 gap-6 w-full">
+    <div className="container mx-auto p-6">
+      <div className="grid md:grid-cols-3 gap-6">
         <div className="md:col-span-1 space-y-6">
           <Card className="bg-card text-card-foreground shadow-xl rounded-lg overflow-hidden">
             <CardHeader className="bg-card">
@@ -213,7 +213,7 @@ const EventPage: React.FC = () => {
         </div>
 
         <div className="md:col-span-2 space-y-6">
-          <Tabs defaultValue="playlist" className="w-full">
+          <Tabs defaultValue="playlist" className="w-full" onValueChange={(value) => setCurrentTab(value)}>
             <TabsList>
               <TabsTrigger value="playlist" className="data-[state=inactive]:text-destructive">
                 Playlist
@@ -225,7 +225,7 @@ const EventPage: React.FC = () => {
                 Gastos
               </TabsTrigger>
             </TabsList>
-            <TabsContent value="playlist">
+            <TabsContent value="playlist" forceMount>
               <PlaylistTab
                 eventId={eventId}
                 participants={participants}
@@ -234,6 +234,8 @@ const EventPage: React.FC = () => {
                 currentParticipantId={currentParticipantId}
                 accessCode={eventDetails?.access_code || ""}
                 isHost={isHost}
+                isLoading={isLoading}
+                currentTab={currentTab}
               />
             </TabsContent>
             <TabsContent value="polls">

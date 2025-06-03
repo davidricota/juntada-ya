@@ -97,41 +97,8 @@ const ExpensesTab: React.FC<ExpensesTabProps> = ({ eventId, participants, curren
 
   if (isLoading) {
     return (
-      <div className="space-y-4">
-        <div className="flex justify-end">
-          <Skeleton className="h-9 w-36" />
-        </div>
-        <div className="grid gap-4">
-          <SkeletonCard
-            header={{
-              title: true,
-              description: true,
-              meta: false,
-              actions: 0,
-            }}
-            content={{
-              items: 4,
-              itemHeight: "h-12",
-              itemWidth: "w-full",
-            }}
-          />
-          {[1, 2].map((i) => (
-            <SkeletonCard
-              key={i}
-              header={{
-                title: true,
-                description: true,
-                meta: true,
-                actions: 1,
-              }}
-              content={{
-                items: 1,
-                itemHeight: "h-8",
-                itemWidth: "w-full",
-              }}
-            />
-          ))}
-        </div>
+      <div className="flex items-center justify-center min-h-[400px]">
+        <Loader2 className="h-8 w-8 animate-spin text-primary-foreground" />
       </div>
     );
   }
