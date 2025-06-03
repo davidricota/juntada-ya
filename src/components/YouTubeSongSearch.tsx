@@ -100,8 +100,8 @@ const YouTubeSongSearch: React.FC<YouTubeSongSearchProps> = ({ onSongSelected })
         <div className="mt-4 space-y-3">
           <h4 className="text-md font-semibold text-muted-foreground">Resultados:</h4>
 
-          <ScrollArea className="h-screen max-h-96 rounded-lg pr-4">
-            <ul className="space-y-3">
+          <ScrollArea className="max-h-96 rounded-lg">
+            <ul className="space-y-3  max-h-96 px-4">
               {searchResults.map((video) => (
                 <li
                   key={video.id}

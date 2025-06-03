@@ -1,33 +1,123 @@
-import React, { useState, useEffect, useRef } from "react";
+"use client";
 
-// Declaración de tipos para la API de YouTube
+import { useState, useEffect, useRef } from "react";
+import { Play, Pause, SkipBack, SkipForward, Volume2, VolumeX, Repeat, Shuffle, AlertTriangle } from "lucide-react";
+
+import { cn } from "@/lib/utils";
+import { Button } from "@/components/ui/button";
+import { Slider } from "@/components/ui/slider";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import MusicVisualization from "@/components/music-visualization";
+
+// YouTube API types
 declare global {
   interface Window {
     YT: {
-      Player: any;
+      Player: new (elementId: string | HTMLElement, options: YouTubePlayerOptions) => YouTubePlayer;
       PlayerState: {
         ENDED: number;
         PLAYING: number;
+        PAUSED: number;
+        BUFFERING: number;
+        CUED: number;
       };
     };
     onYouTubeIframeAPIReady: () => void;
   }
 }
 
-const YouTubePlayer = ({ playlistItems, currentVideoIndex, onVideoEnd, onPreviousVideo, onNextVideo }) => {
-  const [isPlaying, setIsPlaying] = useState(false);
-  const [player, setPlayer] = useState(null);
-  const playerContainerRef = useRef(null);
+interface YouTubePlayerOptions {
+  height: string;
+  width: string;
+  videoId: string;
+  playerVars: {
+    autoplay: number;
+    controls: number;
+    rel: number;
+    showinfo: number;
+    modestbranding: number;
+    iv_load_policy: number;
+  };
+  events: {
+    onReady: (event: YouTubePlayerEvent) => void;
+    onStateChange: (event: YouTubePlayerEvent) => void;
+    onError: (event: YouTubeErrorEvent) => void;
+  };
+}
 
-  // Cargar la API de YouTube
+interface YouTubePlayer {
+  playVideo: () => void;
+  pauseVideo: () => void;
+  loadVideoById: (videoId: string) => void;
+  destroy: () => void;
+  setVolume: (volume: number) => void;
+  mute: () => void;
+  unMute: () => void;
+  getDuration: () => number;
+  getCurrentTime: () => number;
+  seekTo: (seconds: number, allowSeekAhead: boolean) => void;
+}
+
+interface YouTubePlayerEvent {
+  target: YouTubePlayer;
+  data: number;
+}
+
+interface YouTubeErrorEvent {
+  data: number;
+}
+
+interface VideoItem {
+  id: string;
+  youtube_video_id: string;
+  title: string;
+  channel_title: string | null;
+  thumbnail_url: string | null;
+  added_by_participant_id: string;
+  added_at: string;
+  participant_name?: string;
+}
+
+interface YouTubePlayerProps {
+  playlistItems: VideoItem[];
+  initialVideoIndex?: number;
+}
+
+export default function YouTubePlayer({ playlistItems, initialVideoIndex = 0 }: YouTubePlayerProps) {
+  const [currentVideoIndex, setCurrentVideoIndex] = useState(initialVideoIndex);
+  const [isPlaying, setIsPlaying] = useState(false);
+  const [isBuffering, setIsBuffering] = useState(false);
+  const [progress, setProgress] = useState(0);
+  const [duration, setDuration] = useState(0);
+  const [volume, setVolume] = useState(0.7);
+  const [isMuted, setIsMuted] = useState(false);
+  const [isVisualizationActive, setIsVisualizationActive] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const playerRef = useRef<YouTubePlayer | null>(null);
+  const playerContainerRef = useRef<HTMLDivElement>(null);
+  const progressIntervalRef = useRef<NodeJS.Timeout | null>(null);
+
+  const currentVideo = playlistItems[currentVideoIndex] || {
+    id: "",
+    youtube_video_id: "",
+    title: "No video available",
+    channel_title: null,
+    thumbnail_url: null,
+    added_by_participant_id: "",
+    added_at: "",
+  };
+
+  // Load YouTube API
   useEffect(() => {
-    // Cargar la API de YouTube solo una vez
     if (!window.YT) {
       const tag = document.createElement("script");
       tag.src = "https://www.youtube.com/iframe_api";
 
       const firstScriptTag = document.getElementsByTagName("script")[0];
-      firstScriptTag.parentNode.insertBefore(tag, firstScriptTag);
+      if (firstScriptTag.parentNode) {
+        firstScriptTag.parentNode.insertBefore(tag, firstScriptTag);
+      }
 
       window.onYouTubeIframeAPIReady = initializePlayer;
     } else {
@@ -35,124 +125,326 @@ const YouTubePlayer = ({ playlistItems, currentVideoIndex, onVideoEnd, onPreviou
     }
 
     return () => {
-      // Limpiar el reproductor al desmontar
-      if (player) {
-        player.destroy();
+      if (playerRef.current) {
+        playerRef.current.destroy();
+      }
+      if (progressIntervalRef.current) {
+        clearInterval(progressIntervalRef.current);
       }
     };
   }, []);
 
-  // Efectos para manejar cambios en el índice del video actual
-  useEffect(() => {
-    if (player && playlistItems.length > 0) {
-      // Cargar el nuevo video cuando cambia el índice
-      const videoId = playlistItems[currentVideoIndex]?.youtube_video_id;
-      if (videoId) {
-        player.loadVideoById(videoId);
-        // No establecer isPlaying en true para evitar autoplay
-      }
-    }
-  }, [currentVideoIndex, player, playlistItems]);
-
+  // Initialize YouTube player
   const initializePlayer = () => {
     if (!window.YT || !window.YT.Player || !playerContainerRef.current) {
-      // Si la API de YouTube no está lista, intentar de nuevo en 100ms
       setTimeout(initializePlayer, 100);
       return;
     }
 
     if (playlistItems.length === 0) return;
 
-    const newPlayer = new window.YT.Player(playerContainerRef.current, {
-      height: "360",
-      width: "640",
-      videoId: playlistItems[currentVideoIndex]?.youtube_video_id || "",
-      playerVars: {
-        autoplay: 0,
-        controls: 1,
-        rel: 0,
-        mute: 0, // Asegurar que no esté muteado por defecto
-      },
-      events: {
-        onReady: (event) => {
-          setPlayer(event.target);
-          // No establecer isPlaying en true para evitar autoplay
+    try {
+      playerRef.current = new window.YT.Player(playerContainerRef.current, {
+        height: "0",
+        width: "0",
+        videoId: playlistItems[currentVideoIndex]?.youtube_video_id || "",
+        playerVars: {
+          autoplay: 0,
+          controls: 0,
+          rel: 0,
+          showinfo: 0,
+          modestbranding: 1,
+          iv_load_policy: 3,
         },
-        onStateChange: (event) => {
-          // Si el video termina, reproducir el siguiente
-          if (event.data === window.YT.PlayerState.ENDED) {
-            onVideoEnd();
-          }
-
-          // Actualizar el estado de reproducción
-          setIsPlaying(event.data === window.YT.PlayerState.PLAYING);
+        events: {
+          onReady: (event) => {
+            console.log("Player ready");
+            onPlayerReady(event);
+            // Load initial video after player is ready but don't play
+            const videoId = playlistItems[currentVideoIndex]?.youtube_video_id;
+            if (videoId) {
+              event.target.loadVideoById(videoId);
+            }
+          },
+          onStateChange: onPlayerStateChange,
+          onError: onPlayerError,
         },
-        onError: (event) => {
-          console.error("Error del reproductor de YouTube:", event.data);
-          // Si hay un error, intentar con el siguiente video
-          onNextVideo();
-        },
-      },
-    });
-  };
-
-  // Manejar reproducción de videos
-  const handlePlayPause = () => {
-    if (!player) return;
-
-    if (isPlaying) {
-      player.pauseVideo();
-    } else {
-      player.playVideo();
+      });
+    } catch (err) {
+      setError("Failed to initialize YouTube player");
+      console.error("YouTube player initialization error:", err);
     }
   };
 
+  const onPlayerReady = (event: YouTubePlayerEvent) => {
+    // Set initial volume
+    event.target.setVolume(volume * 100);
+    setDuration(event.target.getDuration() || 30);
+  };
+
+  const onPlayerStateChange = (event: YouTubePlayerEvent) => {
+    const playerState = event.data;
+
+    // Update playing state
+    setIsPlaying(playerState === window.YT.PlayerState.PLAYING);
+    setIsBuffering(playerState === window.YT.PlayerState.BUFFERING);
+
+    // Update visualization state
+    setIsVisualizationActive(playerState === window.YT.PlayerState.PLAYING);
+
+    // Handle video end
+    if (playerState === window.YT.PlayerState.ENDED) {
+      const nextIndex = currentVideoIndex === playlistItems.length - 1 ? 0 : currentVideoIndex + 1;
+      setCurrentVideoIndex(nextIndex);
+    }
+
+    // Update duration when it becomes available
+    if (playerState === window.YT.PlayerState.PLAYING) {
+      setDuration(playerRef.current?.getDuration() || 30);
+
+      // Start progress tracking
+      if (progressIntervalRef.current) {
+        clearInterval(progressIntervalRef.current);
+      }
+
+      progressIntervalRef.current = setInterval(() => {
+        if (playerRef.current && typeof playerRef.current.getCurrentTime === "function") {
+          setProgress(playerRef.current.getCurrentTime());
+        }
+      }, 1000);
+    } else if (playerState === window.YT.PlayerState.PAUSED) {
+      // Stop progress tracking
+      if (progressIntervalRef.current) {
+        clearInterval(progressIntervalRef.current);
+      }
+    }
+  };
+
+  const onPlayerError = (event: YouTubeErrorEvent) => {
+    console.error("YouTube player error:", event.data);
+    setError(`Error playing video (code: ${event.data})`);
+
+    // Try to play next video on error
+    setTimeout(() => {
+      handleNext();
+    }, 3000);
+  };
+
+  // Load new video when currentVideoIndex changes
+  useEffect(() => {
+    if (playerRef.current && typeof playerRef.current.loadVideoById === "function" && playlistItems.length > 0) {
+      const videoId = playlistItems[currentVideoIndex]?.youtube_video_id;
+      if (videoId) {
+        try {
+          console.log("Loading and playing video:", videoId);
+          playerRef.current.loadVideoById(videoId);
+          // Add a small delay before playing to ensure the video is loaded
+          setTimeout(() => {
+            if (playerRef.current) {
+              playerRef.current.playVideo();
+            }
+          }, 100);
+          setError(null);
+        } catch (err) {
+          setError("Failed to load video");
+          console.error("Error loading video:", err);
+        }
+      }
+    }
+  }, [currentVideoIndex, playlistItems]);
+
+  const handlePlayPause = () => {
+    if (!playerRef.current) return;
+
+    try {
+      if (isPlaying) {
+        playerRef.current.pauseVideo();
+      } else {
+        playerRef.current.playVideo();
+      }
+    } catch (err) {
+      setError("Failed to control playback");
+      console.error("Playback control error:", err);
+    }
+  };
+
+  const handlePrevious = () => {
+    const prevIndex = currentVideoIndex === 0 ? playlistItems.length - 1 : currentVideoIndex - 1;
+    setCurrentVideoIndex(prevIndex);
+  };
+
+  const handleNext = () => {
+    const nextIndex = currentVideoIndex === playlistItems.length - 1 ? 0 : currentVideoIndex + 1;
+    setCurrentVideoIndex(nextIndex);
+  };
+
+  const handleVolumeChange = (value: number[]) => {
+    const newVolume = value[0];
+    setVolume(newVolume);
+
+    if (playerRef.current) {
+      playerRef.current.setVolume(newVolume * 100);
+    }
+
+    if (newVolume === 0) {
+      setIsMuted(true);
+      if (playerRef.current) playerRef.current.mute();
+    } else {
+      setIsMuted(false);
+      if (playerRef.current) playerRef.current.unMute();
+    }
+  };
+
+  const handleMuteToggle = () => {
+    if (!playerRef.current) return;
+
+    if (isMuted) {
+      playerRef.current.unMute();
+      setIsMuted(false);
+    } else {
+      playerRef.current.mute();
+      setIsMuted(true);
+    }
+  };
+
+  const handleProgressChange = (value: number[]) => {
+    const newProgress = value[0];
+    setProgress(newProgress);
+
+    if (playerRef.current) {
+      playerRef.current.seekTo(newProgress, true);
+    }
+  };
+
+  const formatTime = (seconds: number) => {
+    const mins = Math.floor(seconds / 60);
+    const secs = Math.floor(seconds % 60);
+    return `${mins}:${secs < 10 ? "0" : ""}${secs}`;
+  };
+
+  // Update currentVideoIndex when initialVideoIndex changes
+  useEffect(() => {
+    setCurrentVideoIndex(initialVideoIndex);
+  }, [initialVideoIndex]);
+
   if (playlistItems.length === 0) {
     return (
-      <div className="flex flex-col items-center p-4 rounded-lg bg-gray-100">
-        <p className="text-gray-500">No hay videos en la playlist</p>
+      <div className="w-full max-w-md bg-zinc-800/90 backdrop-blur-md rounded-xl overflow-hidden shadow-2xl p-8 text-center">
+        <AlertTriangle className="h-12 w-12 text-yellow-500 mx-auto mb-4" />
+        <h2 className="text-white text-xl font-bold">No videos available</h2>
+        <p className="text-zinc-400 mt-2">Please add videos to your playlist</p>
       </div>
     );
   }
 
-  const currentVideo = playlistItems[currentVideoIndex];
-
   return (
-    <div className="flex flex-col bg-gray-100 rounded-lg overflow-hidden shadow-lg">
+    <div className="w-full bg-zinc-800/90 backdrop-blur-md rounded-xl overflow-hidden shadow-2xl">
+      {error && (
+        <Alert variant="destructive" className="rounded-none border-x-0 border-t-0 border-b border-red-500/50">
+          <AlertTriangle className="h-4 w-4" />
+          <AlertDescription className="text-sm">{error}</AlertDescription>
+        </Alert>
+      )}
+
       <div className="relative">
-        {/* Contenedor del reproductor */}
-        <div className="aspect-w-16 aspect-h-9 w-full bg-black">
-          <div ref={playerContainerRef} id="youtube-player" className="w-full h-full" />
+        {/* Hidden YouTube player container */}
+        <div ref={playerContainerRef} className="hidden" />
+
+        <div className="aspect-video overflow-hidden bg-zinc-900 relative">
+          <img
+            src={currentVideo.thumbnail_url || `https://img.youtube.com/vi/${currentVideo.youtube_video_id}/maxresdefault.jpg`}
+            alt={`${currentVideo.title} thumbnail`}
+            className={cn("w-full h-full object-cover transition-all duration-1000", isPlaying ? "scale-105" : "scale-100")}
+            onError={(e) => {
+              // Fallback to a lower quality thumbnail if maxresdefault fails
+              const target = e.target as HTMLImageElement;
+              target.src = `https://img.youtube.com/vi/${currentVideo.youtube_video_id}/hqdefault.jpg`;
+            }}
+          />
+
+          {isVisualizationActive && (
+            <div className="absolute inset-0 z-10">
+              <MusicVisualization />
+            </div>
+          )}
+
+          {isBuffering && (
+            <div className="absolute inset-0 flex items-center justify-center bg-black/40 z-20">
+              <div className="w-16 h-16 border-4 border-emerald-500 border-t-transparent rounded-full animate-spin" />
+            </div>
+          )}
+
+          <div
+            className={cn(
+              "absolute inset-0 bg-gradient-to-t from-zinc-900/90 via-transparent to-transparent",
+              isPlaying ? "opacity-70" : "opacity-90",
+              "transition-opacity duration-1000"
+            )}
+          ></div>
         </div>
 
-        {/* Controles del reproductor */}
-        <div className="bg-gray-800 text-white p-4">
-          <div className="flex items-center justify-between mb-2">
-            <h3 className="text-xl font-bold truncate">{currentVideo?.title || "Sin título"}</h3>
-            <p className="text-sm text-gray-300">{currentVideo?.channel_title || "Canal desconocido"}</p>
+        <div className="absolute bottom-0 left-0 right-0 p-4">
+          <h2 className="text-white text-xl font-bold truncate">{currentVideo.title}</h2>
+          <p className="text-zinc-400 truncate">{currentVideo.channel_title}</p>
+        </div>
+      </div>
+
+      <div className="p-4 space-y-4">
+        <div className="space-y-2">
+          <Slider value={[progress]} min={0} max={duration || 1} step={1} onValueChange={handleProgressChange} className="cursor-pointer" />
+          <div className="flex justify-between text-xs text-zinc-400">
+            <span>{formatTime(progress)}</span>
+            <span>{formatTime(duration)}</span>
+          </div>
+        </div>
+
+        <div className="flex items-center justify-between">
+          <Button variant="ghost" size="icon" className="text-zinc-400 hover:text-white hover:bg-zinc-700">
+            <Shuffle className="h-5 w-5" />
+            <span className="sr-only">Shuffle</span>
+          </Button>
+
+          <div className="flex items-center space-x-2">
+            <Button variant="ghost" size="icon" className="text-zinc-400 hover:text-white hover:bg-zinc-700" onClick={handlePrevious}>
+              <SkipBack className="h-6 w-6" />
+              <span className="sr-only">Previous</span>
+            </Button>
+
+            <Button
+              variant="default"
+              size="icon"
+              className={cn(
+                "rounded-full h-12 w-12 bg-emerald-500 hover:bg-emerald-600 text-white",
+                "transition-all duration-300 ease-out transform hover:scale-105",
+                isPlaying && "animate-pulse"
+              )}
+              onClick={handlePlayPause}
+            >
+              {isPlaying ? <Pause className="h-6 w-6" /> : <Play className="h-6 w-6 ml-0.5" />}
+              <span className="sr-only">{isPlaying ? "Pause" : "Play"}</span>
+            </Button>
+
+            <Button variant="ghost" size="icon" className="text-zinc-400 hover:text-white hover:bg-zinc-700" onClick={handleNext}>
+              <SkipForward className="h-6 w-6" />
+              <span className="sr-only">Next</span>
+            </Button>
           </div>
 
-          <div className="flex justify-center space-x-4 py-2">
-            <button onClick={onPreviousVideo} className="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded">
-              Anterior
-            </button>
+          <Button variant="ghost" size="icon" className="text-zinc-400 hover:text-white hover:bg-zinc-700">
+            <Repeat className="h-5 w-5" />
+            <span className="sr-only">Repeat</span>
+          </Button>
+        </div>
 
-            <button onClick={handlePlayPause} className="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded">
-              {isPlaying ? "Pausar" : "Reproducir"}
-            </button>
+        <div className="flex items-center space-x-2">
+          <Button variant="ghost" size="icon" className="text-zinc-400 hover:text-white hover:bg-zinc-700" onClick={handleMuteToggle}>
+            {isMuted ? <VolumeX className="h-5 w-5" /> : <Volume2 className="h-5 w-5" />}
+            <span className="sr-only">{isMuted ? "Unmute" : "Mute"}</span>
+          </Button>
 
-            <button onClick={onNextVideo} className="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded">
-              Siguiente
-            </button>
-          </div>
-
-          <div className="text-sm text-gray-300 text-center mt-2">
-            Video {currentVideoIndex + 1} de {playlistItems.length}
-          </div>
+          <Slider value={[isMuted ? 0 : volume]} min={0} max={1} step={0.01} onValueChange={handleVolumeChange} className="w-24 cursor-pointer" />
         </div>
       </div>
     </div>
   );
-};
-
-export default YouTubePlayer;
+}

@@ -6,7 +6,7 @@ import Playlist from "./Playlist";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { PlaylistService } from "@/services/playlistService";
 import { toast } from "@/hooks/use-toast";
-import { Participant, PlaylistItem } from "@/types";
+import { Participant, PlaylistItem, PlaylistChangePayload } from "@/types";
 import YouTubeSongSearch from "./YouTubeSongSearch";
 import { YouTubeVideo } from "@/services/youtubeService";
 import JoinEventCard from "./JoinEventCard";
@@ -35,37 +35,68 @@ const PlaylistTab: React.FC<PlaylistTabProps> = ({
   isLoading,
 }) => {
   const [currentVideoIndex, setCurrentVideoIndex] = useState(0);
+  const [isPlayerReady, setIsPlayerReady] = useState(false);
 
-  const handleVideoSelect = (index) => {
+  // Subscribe to playlist changes
+  useEffect(() => {
+    const subscription = PlaylistService.subscribeToPlaylist(eventId, (payload: PlaylistChangePayload) => {
+      if (payload.eventType === "DELETE") {
+        onPlaylistChange((prevItems) => {
+          const newItems = prevItems.filter((item) => item.id !== payload.old.id);
+          // If the deleted item was the current video, move to the next one
+          if (currentVideoIndex >= newItems.length) {
+            setCurrentVideoIndex(Math.max(0, newItems.length - 1));
+          }
+          return newItems;
+        });
+      } else if (payload.eventType === "INSERT") {
+        const participant = participants.find((p) => p.id === payload.new.added_by_participant_id);
+        const newItem: PlaylistItem = {
+          id: payload.new.id,
+          youtube_video_id: payload.new.youtube_video_id,
+          title: payload.new.title,
+          thumbnail_url: payload.new.thumbnail_url,
+          channel_title: payload.new.channel_title,
+          added_by_participant_id: payload.new.added_by_participant_id,
+          event_id: payload.new.event_id,
+          added_at: payload.new.added_at,
+          participant_name: participant?.name || "Desconocido",
+        };
+        onPlaylistChange((prevItems) => [...prevItems, newItem]);
+      }
+    });
+
+    return () => {
+      PlaylistService.unsubscribeFromPlaylist(subscription);
+    };
+  }, [eventId, participants, onPlaylistChange, currentVideoIndex]);
+
+  const handleVideoSelect = (index: number) => {
+    console.log("Selecting video at index:", index);
     setCurrentVideoIndex(index);
   };
 
-  // Funciones para navegación entre videos
-  const handlePreviousVideo = () => {
-    if (currentVideoIndex > 0) {
-      setCurrentVideoIndex(currentVideoIndex - 1);
-    } else {
-      setCurrentVideoIndex(playlist.length - 1);
+  const handleVideoDelete = async (id: string, title: string) => {
+    try {
+      await PlaylistService.removeFromPlaylist(id);
+      toast({ title: "Canción Eliminada", description: `${title}` });
+    } catch (error) {
+      console.error("Error deleting video:", error);
+      toast({
+        title: "Error",
+        description: "No se pudo eliminar la canción. Inténtalo de nuevo.",
+        variant: "destructive",
+      });
     }
-  };
-
-  const handleNextVideo = () => {
-    if (currentVideoIndex < playlist.length - 1) {
-      setCurrentVideoIndex(currentVideoIndex + 1);
-    } else {
-      setCurrentVideoIndex(0);
-    }
-  };
-
-  const handleVideoDelete = (index: string, title: string) => {
-    console.log("Eliminar video en el índice:", index);
-    PlaylistService.removeFromPlaylist(index);
-    toast({ title: "Canción Eliminada", description: `${title}` });
   };
 
   const handleSongSelected = async (song: YouTubeVideo) => {
     if (!currentParticipantId) {
-      toast({ title: "Acción Requerida", description: "Debes unirte al evento para agregar canciones.", variant: "destructive" });
+      toast({
+        title: "Acción Requerida",
+        description: "Debes unirte al evento para agregar canciones.",
+        variant: "destructive",
+      });
       return;
     }
 
@@ -80,7 +111,11 @@ const PlaylistTab: React.FC<PlaylistTabProps> = ({
       toast({ title: "¡Canción Agregada!", description: `${song.title} se añadió a la playlist.` });
     } catch (error) {
       console.error("Error adding song:", error);
-      toast({ title: "Error", description: "No se pudo agregar la canción. Inténtalo de nuevo.", variant: "destructive" });
+      toast({
+        title: "Error",
+        description: "No se pudo agregar la canción. Inténtalo de nuevo.",
+        variant: "destructive",
+      });
     }
   };
 
@@ -117,14 +152,8 @@ const PlaylistTab: React.FC<PlaylistTabProps> = ({
         <CardContent className="space-y-4">
           {playlist.length > 0 ? (
             <>
-              <YouTubePlayer
-                playlistItems={playlist}
-                currentVideoIndex={currentVideoIndex}
-                onVideoEnd={handleNextVideo}
-                onPreviousVideo={handlePreviousVideo}
-                onNextVideo={handleNextVideo}
-              />
-              <ScrollArea className="max-h-96 rounded-lg pr-4">
+              <YouTubePlayer playlistItems={playlist} initialVideoIndex={currentVideoIndex} />
+              <ScrollArea className="max-h-96 rounded-lg">
                 <Playlist
                   playlistItems={playlist}
                   currentVideoIndex={currentVideoIndex}
