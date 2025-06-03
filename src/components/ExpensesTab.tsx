@@ -1,42 +1,36 @@
 import React, { useState, useEffect } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { ScrollArea } from "@/components/ui/scroll-area";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Plus, Loader2 } from "lucide-react";
 import { ExpenseService } from "@/services/expenseService";
-import { Expense, ExpenseSummary, Participant } from "@/types";
-import { toast } from "@/hooks/use-toast";
-import { RealtimeChannel } from "@supabase/supabase-js";
+import { useToast } from "@/hooks/use-toast";
+import { Participant, Expense, ExpenseSummary, ExpenseChangePayload } from "@/types";
 import { formatCurrency } from "@/lib/utils";
-import { Plus, Trash2 } from "lucide-react";
+import { Trash } from "lucide-react";
+import ExpenseForm from "./ExpenseForm";
+import { SkeletonCard } from "@/components/ui/skeleton-card";
+import { Skeleton } from "@/components/ui/skeleton";
+import { ScrollArea } from "@/components/ui/scroll-area";
 
 interface ExpensesTabProps {
   eventId: string;
   participants: Participant[];
-  currentParticipantId: string | null;
+  currentParticipantId: string;
   isHost: boolean;
 }
 
-export default function ExpensesTab({ eventId, participants, currentParticipantId, isHost }: ExpensesTabProps) {
+const ExpensesTab: React.FC<ExpensesTabProps> = ({ eventId, participants, currentParticipantId, isHost }) => {
   const [expenses, setExpenses] = useState<Expense[]>([]);
   const [summary, setSummary] = useState<ExpenseSummary | null>(null);
-  const [newExpenseTitle, setNewExpenseTitle] = useState("");
-  const [newExpenseAmount, setNewExpenseAmount] = useState("");
-  const [selectedParticipantId, setSelectedParticipantId] = useState<string>("");
-  const [subscription, setSubscription] = useState<RealtimeChannel | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const { toast } = useToast();
 
   useEffect(() => {
     loadExpenses();
-    const sub = ExpenseService.subscribeToExpenses(eventId, handleExpenseChange);
-    setSubscription(sub);
-
+    const subscription = ExpenseService.subscribeToExpenses(eventId, handleExpenseChange);
     return () => {
-      if (sub) {
-        ExpenseService.unsubscribeFromExpenses(sub);
-      }
+      ExpenseService.unsubscribeFromExpenses(subscription);
     };
   }, [eventId]);
 
@@ -49,37 +43,31 @@ export default function ExpensesTab({ eventId, participants, currentParticipantI
       console.error("Error loading expenses:", error);
       toast({
         title: "Error",
-        description: "No se pudieron cargar los gastos. Inténtalo de nuevo.",
+        description: "No se pudieron cargar los gastos.",
         variant: "destructive",
       });
+    } finally {
+      setIsLoading(false);
     }
   };
 
-  const handleExpenseChange = async () => {
-    await loadExpenses();
+  const handleExpenseChange = (payload: ExpenseChangePayload) => {
+    if (payload.eventType === "INSERT" && payload.new) {
+      setExpenses((prev) => [...prev, payload.new]);
+    } else if (payload.eventType === "DELETE" && payload.old) {
+      setExpenses((prev) => prev.filter((expense) => expense.id !== payload.old?.id));
+    }
+    loadExpenses(); // Recargar el resumen
   };
 
-  const handleAddExpense = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!currentParticipantId) return;
-
-    const amount = parseFloat(newExpenseAmount);
-    if (isNaN(amount) || amount <= 0) {
-      toast({
-        title: "Error",
-        description: "El monto debe ser un número positivo.",
-        variant: "destructive",
-      });
-      return;
-    }
-
+  const handleAddExpense = async (title: string, amount: number, paidBy: string) => {
     try {
-      await ExpenseService.addExpense(eventId, isHost ? selectedParticipantId : currentParticipantId, newExpenseTitle, amount);
-      setNewExpenseTitle("");
-      setNewExpenseAmount("");
-      setSelectedParticipantId("");
+      await ExpenseService.addExpense(eventId, paidBy, title, amount);
       setIsDialogOpen(false);
-      toast({ title: "Gasto Agregado", description: "El gasto se ha agregado correctamente." });
+      toast({
+        title: "¡Gasto Agregado!",
+        description: "El gasto se ha agregado correctamente.",
+      });
     } catch (error) {
       console.error("Error adding expense:", error);
       toast({
@@ -90,12 +78,15 @@ export default function ExpensesTab({ eventId, participants, currentParticipantI
     }
   };
 
-  const handleRemoveExpense = async (expenseId: string) => {
+  const handleDeleteExpense = async (expenseId: string) => {
     try {
       await ExpenseService.removeExpense(expenseId);
-      toast({ title: "Gasto Eliminado", description: "El gasto se ha eliminado correctamente." });
+      toast({
+        title: "Gasto Eliminado",
+        description: "El gasto se ha eliminado correctamente.",
+      });
     } catch (error) {
-      console.error("Error removing expense:", error);
+      console.error("Error deleting expense:", error);
       toast({
         title: "Error",
         description: "No se pudo eliminar el gasto. Inténtalo de nuevo.",
@@ -104,119 +95,126 @@ export default function ExpensesTab({ eventId, participants, currentParticipantI
     }
   };
 
+  if (isLoading) {
+    return (
+      <div className="space-y-4">
+        <div className="flex justify-end">
+          <Skeleton className="h-9 w-36" />
+        </div>
+        <div className="grid gap-4">
+          <SkeletonCard
+            header={{
+              title: true,
+              description: true,
+              meta: false,
+              actions: 0,
+            }}
+            content={{
+              items: 4,
+              itemHeight: "h-12",
+              itemWidth: "w-full",
+            }}
+          />
+          {[1, 2].map((i) => (
+            <SkeletonCard
+              key={i}
+              header={{
+                title: true,
+                description: true,
+                meta: true,
+                actions: 1,
+              }}
+              content={{
+                items: 1,
+                itemHeight: "h-8",
+                itemWidth: "w-full",
+              }}
+            />
+          ))}
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-6">
       <div className="flex justify-end">
-        <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-          <DialogTrigger asChild>
-            <Button className="bg-primary text-primary-foreground hover:bg-primary/90">
-              <Plus className="mr-2 h-4 w-4" /> Nuevo Gasto
-            </Button>
-          </DialogTrigger>
-          <DialogContent>
-            <DialogHeader>
-              <DialogTitle>Nuevo Gasto</DialogTitle>
-              <DialogDescription>Ingresa los detalles del gasto que deseas agregar.</DialogDescription>
-            </DialogHeader>
-            <form onSubmit={handleAddExpense} className="space-y-4">
-              <div className="grid gap-4">
-                <Input placeholder="Descripción del gasto" value={newExpenseTitle} onChange={(e) => setNewExpenseTitle(e.target.value)} required />
-                <Input
-                  type="number"
-                  step="0.01"
-                  placeholder="Monto"
-                  value={newExpenseAmount}
-                  onChange={(e) => setNewExpenseAmount(e.target.value)}
-                  required
-                />
-                {isHost && (
-                  <Select value={selectedParticipantId} onValueChange={setSelectedParticipantId} required>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Seleccionar participante" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {participants.map((participant) => (
-                        <SelectItem key={participant.id} value={participant.id}>
-                          {participant.name}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                )}
-              </div>
-              <DialogFooter>
-                <Button type="submit">Agregar Gasto</Button>
-              </DialogFooter>
-            </form>
-          </DialogContent>
-        </Dialog>
+        <ExpenseForm
+          isOpen={isDialogOpen}
+          onOpenChange={setIsDialogOpen}
+          onSubmit={handleAddExpense}
+          isLoading={false}
+          participants={participants}
+          isHost={isHost}
+          currentParticipantId={currentParticipantId}
+        />
       </div>
 
-      <Card>
+      {summary && (
+        <Card className="bg-card text-card-foreground">
+          <CardHeader>
+            <CardTitle className="text-xl">Resumen de Gastos</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-4">
+              <div className="flex justify-between items-center">
+                <span className="text-muted-foreground">Total Gastado:</span>
+                <span className="font-semibold">{formatCurrency(summary.total)}</span>
+              </div>
+              <div className="flex justify-between items-center">
+                <span className="text-muted-foreground">Por Persona:</span>
+                <span className="font-semibold">{formatCurrency(summary.perPerson)}</span>
+              </div>
+              <div className="space-y-2">
+                <h3 className="font-semibold">Balance por Participante:</h3>
+                {summary.participants.map((participant) => (
+                  <div key={participant.id} className="flex justify-between items-center">
+                    <span className="text-muted-foreground">{participant.name}:</span>
+                    <span className={participant.receives > 0 ? "text-green-500" : participant.receives < 0 ? "text-red-500" : ""}>
+                      {participant.receives > 0
+                        ? `Recibe ${formatCurrency(participant.receives)}`
+                        : participant.receives < 0
+                        ? `Debe ${formatCurrency(Math.abs(participant.receives))}`
+                        : "Balanceado"}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      <Card className="bg-card text-card-foreground">
         <CardHeader>
-          <CardTitle>Gastos</CardTitle>
+          <CardTitle className="text-xl">Historial de Gastos</CardTitle>
         </CardHeader>
         <CardContent>
-          <ScrollArea className="h-[400px] rounded-md border p-4">
+          <ScrollArea className="max-h-[400px] rounded-lg pr-4">
             {expenses.length === 0 ? (
-              <div className="text-center text-muted-foreground py-8">No hay gastos registrados</div>
+              <p className="text-muted-foreground text-center py-6 italic">No hay gastos registrados.</p>
             ) : (
               <div className="space-y-4">
                 {expenses.map((expense) => (
-                  <Card key={expense.id} className="bg-card">
-                    <CardContent className="p-4">
-                      <div className="flex items-center justify-between">
-                        <div className="space-y-1">
-                          <h4 className="font-medium">{expense.title}</h4>
-                          <p className="text-sm text-muted-foreground">
-                            {formatCurrency(expense.amount)} • Pagado por {expense.participant_name}
-                          </p>
-                        </div>
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          onClick={() => handleRemoveExpense(expense.id)}
-                          className="text-destructive hover:text-destructive/90"
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
-                      </div>
-                    </CardContent>
-                  </Card>
+                  <div key={expense.id} className="flex items-center justify-between p-4 bg-foreground border border-primary rounded-lg">
+                    <div>
+                      <h3 className="font-semibold">{expense.title}</h3>
+                      <p className="text-sm text-muted-foreground">
+                        {formatCurrency(expense.amount)} - Pagado por: {expense.participant_name}
+                      </p>
+                    </div>
+                    <button onClick={() => handleDeleteExpense(expense.id)} className="p-2 hover:bg-destructive/10 rounded-full transition-colors">
+                      <Trash className="h-4 w-4 text-destructive" />
+                    </button>
+                  </div>
                 ))}
               </div>
             )}
           </ScrollArea>
         </CardContent>
       </Card>
-
-      <Card>
-        <CardHeader>
-          <CardTitle>Resumen de Gastos</CardTitle>
-          {summary && (
-            <CardDescription>
-              Total: {formatCurrency(summary.total)} • Por persona: {formatCurrency(summary.perPerson)}
-            </CardDescription>
-          )}
-        </CardHeader>
-        <CardContent>
-          <ScrollArea className="h-[200px] rounded-md border p-4">
-            {summary?.participants.map((participant) => (
-              <div key={participant.id} className="mb-4 last:mb-0">
-                <h4 className="font-medium">{participant.name}</h4>
-                <div className="text-sm text-muted-foreground">
-                  <p>Pagó: {formatCurrency(participant.paid)}</p>
-                  {participant.receives > 0 ? (
-                    <p className="text-green-600">Recibe: {formatCurrency(participant.receives)}</p>
-                  ) : participant.receives < 0 ? (
-                    <p className="text-red-600">Debe: {formatCurrency(Math.abs(participant.receives))}</p>
-                  ) : null}
-                </div>
-              </div>
-            ))}
-          </ScrollArea>
-        </CardContent>
-      </Card>
     </div>
   );
-}
+};
+
+export default ExpensesTab;

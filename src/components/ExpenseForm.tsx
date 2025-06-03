@@ -1,0 +1,86 @@
+import React, { useState } from "react";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Participant } from "@/types";
+import FormDialog from "./FormDialog";
+
+interface ExpenseFormProps {
+  isOpen: boolean;
+  onOpenChange: (open: boolean) => void;
+  onSubmit: (title: string, amount: number, paidBy: string) => void;
+  isLoading: boolean;
+  participants: Participant[];
+  isHost: boolean;
+  currentParticipantId: string;
+}
+
+const ExpenseForm: React.FC<ExpenseFormProps> = ({ isOpen, onOpenChange, onSubmit, isLoading, participants, isHost, currentParticipantId }) => {
+  const [title, setTitle] = useState("");
+  const [amount, setAmount] = useState("");
+  const [paidBy, setPaidBy] = useState(currentParticipantId);
+
+  const handleSubmit = () => {
+    if (!title.trim() || !amount.trim()) return;
+    const amountNumber = parseFloat(amount.replace(",", "."));
+    if (isNaN(amountNumber)) return;
+    onSubmit(title.trim(), amountNumber, paidBy);
+    setTitle("");
+    setAmount("");
+    setPaidBy(currentParticipantId);
+  };
+
+  return (
+    <FormDialog
+      title="Nuevo Gasto"
+      description="Agrega un nuevo gasto al evento."
+      triggerText="Nuevo Gasto"
+      isOpen={isOpen}
+      onOpenChange={onOpenChange}
+      onSubmit={handleSubmit}
+      isLoading={isLoading}
+      submitText="Agregar Gasto"
+    >
+      <div className="space-y-2">
+        <Label htmlFor="title">Descripción</Label>
+        <Input
+          id="title"
+          placeholder="¿En qué gastaste?"
+          value={title}
+          onChange={(e) => setTitle(e.target.value)}
+          className="border border-primary-foreground"
+        />
+      </div>
+      <div className="space-y-2">
+        <Label htmlFor="amount">Monto</Label>
+        <Input
+          id="amount"
+          type="text"
+          placeholder="0.00"
+          value={amount}
+          onChange={(e) => setAmount(e.target.value)}
+          className="border border-primary-foreground"
+        />
+      </div>
+      {isHost && (
+        <div className="space-y-2">
+          <Label htmlFor="paidBy">Pagado por</Label>
+          <Select value={paidBy} onValueChange={setPaidBy}>
+            <SelectTrigger>
+              <SelectValue placeholder="Selecciona un participante" />
+            </SelectTrigger>
+            <SelectContent>
+              {participants.map((participant) => (
+                <SelectItem key={participant.id} value={participant.id}>
+                  {participant.name}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+      )}
+    </FormDialog>
+  );
+};
+
+export default ExpenseForm;

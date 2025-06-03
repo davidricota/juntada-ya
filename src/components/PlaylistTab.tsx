@@ -1,24 +1,41 @@
-import React, { useState, Dispatch, SetStateAction } from "react";
-import { Card, CardContent, CardHeader, CardTitle } from "./ui/card";
-import { ListMusic, Play, Youtube } from "lucide-react";
+import React, { useState, Dispatch, SetStateAction, useEffect } from "react";
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "./ui/card";
+import { ListMusic, Play, Youtube, Plus, Loader2 } from "lucide-react";
 import YouTubePlayer from "./YoutubePlayer";
 import Playlist from "./Playlist";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { PlaylistService } from "@/services/playlistService";
 import { toast } from "@/hooks/use-toast";
-import { Participant } from "@/services/eventService";
-import { PlaylistItem } from "@/services/playlistService";
+import { Participant, PlaylistItem } from "@/types";
 import YouTubeSongSearch from "./YouTubeSongSearch";
+import { YouTubeVideo } from "@/services/youtubeService";
+import JoinEventCard from "./JoinEventCard";
+import { SkeletonCard } from "@/components/ui/skeleton-card";
+import { Skeleton } from "@/components/ui/skeleton";
 
 export interface PlaylistTabProps {
   eventId: string;
   participants: Participant[];
   playlist: PlaylistItem[];
   onPlaylistChange: Dispatch<SetStateAction<PlaylistItem[]>>;
+  currentParticipantId: string | null;
+  accessCode: string;
+  isHost: boolean;
+  isLoading: boolean;
 }
 
-const PlaylistTab: React.FC<PlaylistTabProps> = ({ eventId, participants, playlist, onPlaylistChange }) => {
+const PlaylistTab: React.FC<PlaylistTabProps> = ({
+  eventId,
+  participants,
+  playlist,
+  onPlaylistChange,
+  currentParticipantId,
+  accessCode,
+  isHost,
+  isLoading,
+}) => {
   const [currentVideoIndex, setCurrentVideoIndex] = useState(0);
+
   const handleVideoSelect = (index) => {
     setCurrentVideoIndex(index);
   };
@@ -45,6 +62,48 @@ const PlaylistTab: React.FC<PlaylistTabProps> = ({ eventId, participants, playli
     PlaylistService.removeFromPlaylist(index);
     toast({ title: "Canción Eliminada", description: `${title}` });
   };
+
+  const handleSongSelected = async (song: YouTubeVideo) => {
+    if (!currentParticipantId) {
+      toast({ title: "Acción Requerida", description: "Debes unirte al evento para agregar canciones.", variant: "destructive" });
+      return;
+    }
+
+    try {
+      const newSong = await PlaylistService.addToPlaylist(eventId, currentParticipantId, {
+        youtube_video_id: song.id,
+        title: song.title,
+        thumbnail_url: song.thumbnail,
+        channel_title: song.channelTitle,
+      });
+      onPlaylistChange((prev) => [...prev, newSong]);
+      toast({ title: "¡Canción Agregada!", description: `${song.title} se añadió a la playlist.` });
+    } catch (error) {
+      console.error("Error adding song:", error);
+      toast({ title: "Error", description: "No se pudo agregar la canción. Inténtalo de nuevo.", variant: "destructive" });
+    }
+  };
+
+  if (isLoading) {
+    return (
+      <div className="space-y-4">
+        <SkeletonCard
+          header={{
+            title: true,
+            description: false,
+            meta: false,
+            actions: 0,
+          }}
+          content={{
+            items: 4,
+            itemHeight: "h-16",
+            itemWidth: "w-full",
+          }}
+        />
+        <Skeleton className="h-12 w-full" />
+      </div>
+    );
+  }
 
   return (
     <>
@@ -79,6 +138,11 @@ const PlaylistTab: React.FC<PlaylistTabProps> = ({ eventId, participants, playli
           )}
         </CardContent>
       </Card>
+      {currentParticipantId ? (
+        <YouTubeSongSearch onSongSelected={handleSongSelected} />
+      ) : (
+        <JoinEventCard accessCode={accessCode} message="unirte al evento para agregar canciones" />
+      )}
     </>
   );
 };

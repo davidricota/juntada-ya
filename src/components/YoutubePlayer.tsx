@@ -1,5 +1,19 @@
 import React, { useState, useEffect, useRef } from "react";
 
+// Declaración de tipos para la API de YouTube
+declare global {
+  interface Window {
+    YT: {
+      Player: any;
+      PlayerState: {
+        ENDED: number;
+        PLAYING: number;
+      };
+    };
+    onYouTubeIframeAPIReady: () => void;
+  }
+}
+
 const YouTubePlayer = ({ playlistItems, currentVideoIndex, onVideoEnd, onPreviousVideo, onNextVideo }) => {
   const [isPlaying, setIsPlaying] = useState(false);
   const [player, setPlayer] = useState(null);
@@ -35,7 +49,7 @@ const YouTubePlayer = ({ playlistItems, currentVideoIndex, onVideoEnd, onPreviou
       const videoId = playlistItems[currentVideoIndex]?.youtube_video_id;
       if (videoId) {
         player.loadVideoById(videoId);
-        //  setIsPlaying(true);
+        // No establecer isPlaying en true para evitar autoplay
       }
     }
   }, [currentVideoIndex, player, playlistItems]);
@@ -57,11 +71,12 @@ const YouTubePlayer = ({ playlistItems, currentVideoIndex, onVideoEnd, onPreviou
         autoplay: 0,
         controls: 1,
         rel: 0,
+        mute: 0, // Asegurar que no esté muteado por defecto
       },
       events: {
         onReady: (event) => {
           setPlayer(event.target);
-          setIsPlaying(true);
+          // No establecer isPlaying en true para evitar autoplay
         },
         onStateChange: (event) => {
           // Si el video termina, reproducir el siguiente

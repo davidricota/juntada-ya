@@ -10,10 +10,15 @@ import { Plus, Vote, X, Check, Loader2 } from "lucide-react";
 import { PollService } from "@/services/pollService";
 import { useToast } from "@/hooks/use-toast";
 import { Poll, PollOption, PollVote } from "@/types";
+import { supabase } from "@/integrations/supabase/client";
+import { PollForm } from "@/components/PollForm";
+import { Skeleton } from "@/components/ui/skeleton";
+import { SkeletonCard } from "@/components/ui/skeleton-card";
 
 interface PollsTabProps {
   eventId: string;
   currentParticipantId: string | null;
+  isHost: boolean;
 }
 
 interface PollWithDetails extends Poll {
@@ -27,35 +32,99 @@ interface PollOptionWithVotes extends PollOption {
   has_voted?: boolean;
 }
 
-const PollsTab: React.FC<PollsTabProps> = ({ eventId, currentParticipantId }) => {
+const PollSkeleton = () => (
+  <Card className="bg-card text-card-foreground animate-pulse">
+    <CardHeader>
+      <div className="flex items-start justify-between">
+        <div className="space-y-2">
+          <Skeleton className="h-6 w-56" />
+          <Skeleton className="h-4 w-72" />
+          <div className="flex items-center gap-2">
+            <Skeleton className="h-4 w-20" />
+            <Skeleton className="h-4 w-4 rounded-full" />
+            <Skeleton className="h-4 w-24" />
+          </div>
+        </div>
+        <div className="flex gap-2">
+          <Skeleton className="h-8 w-8 rounded-md" />
+          <Skeleton className="h-8 w-8 rounded-md" />
+        </div>
+      </div>
+    </CardHeader>
+    <CardContent>
+      <div className="space-y-3">
+        {[1, 2, 3].map((i) => (
+          <div key={i} className="space-y-2">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <Skeleton className="h-8 w-8 rounded-md" />
+                <Skeleton className="h-5 w-36" />
+              </div>
+              <Skeleton className="h-4 w-20" />
+            </div>
+            <div className="h-2 bg-secondary rounded-full overflow-hidden">
+              <Skeleton className="h-full w-2/3" />
+            </div>
+          </div>
+        ))}
+        <div className="flex justify-end">
+          <Skeleton className="h-4 w-24" />
+        </div>
+      </div>
+    </CardContent>
+  </Card>
+);
+
+const PollsTab: React.FC<PollsTabProps> = ({ eventId, currentParticipantId, isHost }) => {
   const [polls, setPolls] = useState<PollWithDetails[]>([]);
   const [isLoading, setIsLoading] = useState(true);
-  const [newPollTitle, setNewPollTitle] = useState("");
-  const [newPollDescription, setNewPollDescription] = useState("");
-  const [allowMultipleVotes, setAllowMultipleVotes] = useState(false);
-  const [options, setOptions] = useState<string[]>([""]);
-  const [isCreatingPoll, setIsCreatingPoll] = useState(false);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [editingPoll, setEditingPoll] = useState<PollWithDetails | null>(null);
   const { toast } = useToast();
 
   useEffect(() => {
     fetchPolls();
+
+    // Suscribirse a cambios en los votos
+    const subscription = supabase
+      .channel("poll_votes_changes")
+      .on(
+        "postgres_changes",
+        {
+          event: "*",
+          schema: "public",
+          table: "poll_votes",
+        },
+        async (payload) => {
+          // Refrescar los votos cuando hay cambios
+          await fetchPolls();
+        }
+      )
+      .subscribe();
+
+    return () => {
+      subscription.unsubscribe();
+    };
   }, [eventId]);
 
   const fetchPolls = async () => {
     try {
-      const [pollsData, votesData] = await Promise.all([
-        PollService.getPolls(eventId),
-        currentParticipantId ? PollService.getPollVotes(eventId) : Promise.resolve([]),
-      ]);
+      const pollsData = await PollService.getPolls(eventId);
 
       const processedPolls: PollWithDetails[] = await Promise.all(
         pollsData.map(async (poll) => {
-          const pollOptions = await PollService.getPollOptions(poll.id);
+          const [pollOptions, pollVotes, creator] = await Promise.all([
+            PollService.getPollOptions(poll.id),
+            PollService.getPollVotes(poll.id),
+            PollService.getParticipant(poll.created_by_participant_id),
+          ]);
+
           const optionsWithVotes: PollOptionWithVotes[] = pollOptions.map((option) => ({
             ...option,
-            votes_count: votesData.filter((vote) => vote.option_id === option.id).length,
-            has_voted: votesData.some((vote) => vote.option_id === option.id),
+            votes_count: pollVotes.filter((vote) => vote.option_id === option.id).length,
+            has_voted: currentParticipantId
+              ? pollVotes.some((vote) => vote.option_id === option.id && vote.participant_id === currentParticipantId)
+              : false,
           }));
 
           const totalVotes = optionsWithVotes.reduce((sum, option) => sum + (option.votes_count || 0), 0);
@@ -64,6 +133,7 @@ const PollsTab: React.FC<PollsTabProps> = ({ eventId, currentParticipantId }) =>
             ...poll,
             options: optionsWithVotes,
             total_votes: totalVotes,
+            creator_name: creator?.name || "Anónimo",
           };
         })
       );
@@ -81,7 +151,7 @@ const PollsTab: React.FC<PollsTabProps> = ({ eventId, currentParticipantId }) =>
     }
   };
 
-  const handleCreatePoll = async () => {
+  const handleCreatePoll = async (formData: { title: string; description: string; allowMultipleVotes: boolean; options: string[] }) => {
     if (!currentParticipantId) {
       toast({
         title: "Error",
@@ -91,68 +161,94 @@ const PollsTab: React.FC<PollsTabProps> = ({ eventId, currentParticipantId }) =>
       return;
     }
 
-    if (!newPollTitle.trim()) {
-      toast({
-        title: "Error",
-        description: "El título de la encuesta es requerido.",
-        variant: "destructive",
-      });
-      return;
-    }
-
-    const validOptions = options.filter((opt) => opt.trim());
-    if (validOptions.length < 2) {
-      toast({
-        title: "Error",
-        description: "Se requieren al menos dos opciones válidas.",
-        variant: "destructive",
-      });
-      return;
-    }
-
-    setIsCreatingPoll(true);
-
     try {
-      // Create poll
-      const poll = await PollService.createPoll(eventId, currentParticipantId, {
-        title: newPollTitle.trim(),
-        description: newPollDescription.trim() || null,
-        allow_multiple_votes: allowMultipleVotes,
-      });
+      if (editingPoll) {
+        // Actualizar encuesta existente
+        await PollService.updatePoll(editingPoll.id, {
+          title: formData.title.trim(),
+          description: formData.description.trim() || null,
+          allow_multiple_votes: formData.allowMultipleVotes,
+        });
 
-      // Create options
-      await Promise.all(
-        validOptions.map((title) =>
-          PollService.addPollOption(poll.id, {
-            title: title.trim(),
-          })
-        )
-      );
+        // Actualizar opciones
+        const existingOptions = await PollService.getPollOptions(editingPoll.id);
+        await Promise.all(existingOptions.map((opt) => PollService.removePollOption(opt.id)));
 
-      toast({
-        title: "¡Encuesta creada!",
-        description: "La encuesta se ha creado exitosamente.",
-      });
+        await Promise.all(
+          formData.options.map((title) =>
+            PollService.addPollOption(editingPoll.id, {
+              title: title.trim(),
+            })
+          )
+        );
+
+        toast({
+          title: "¡Encuesta actualizada!",
+          description: "La encuesta se ha actualizado exitosamente.",
+        });
+      } else {
+        // Crear nueva encuesta
+        const poll = await PollService.createPoll(eventId, currentParticipantId, {
+          title: formData.title.trim(),
+          description: formData.description.trim() || null,
+          allow_multiple_votes: formData.allowMultipleVotes,
+        });
+
+        await Promise.all(
+          formData.options.map((title) =>
+            PollService.addPollOption(poll.id, {
+              title: title.trim(),
+            })
+          )
+        );
+
+        toast({
+          title: "¡Encuesta creada!",
+          description: "La encuesta se ha creado exitosamente.",
+        });
+      }
 
       // Reset form
-      setNewPollTitle("");
-      setNewPollDescription("");
-      setAllowMultipleVotes(false);
-      setOptions([""]);
+      setEditingPoll(null);
       setIsDialogOpen(false);
 
       // Refresh polls
       fetchPolls();
     } catch (error) {
-      console.error("Error creating poll:", error);
+      console.error("Error creating/updating poll:", error);
       toast({
         title: "Error",
-        description: "No se pudo crear la encuesta. Inténtalo de nuevo.",
+        description: "No se pudo crear/actualizar la encuesta. Inténtalo de nuevo.",
         variant: "destructive",
       });
-    } finally {
-      setIsCreatingPoll(false);
     }
+  };
+
+  const handleEditPoll = (poll: PollWithDetails) => {
+    setEditingPoll(poll);
+    setIsDialogOpen(true);
+  };
+
+  const handleDeletePoll = async (pollId: string) => {
+    try {
+      await PollService.deletePoll(pollId);
+      toast({
+        title: "Encuesta eliminada",
+        description: "La encuesta se ha eliminado correctamente.",
+      });
+      fetchPolls();
+    } catch (error) {
+      console.error("Error deleting poll:", error);
+      toast({
+        title: "Error",
+        description: "No se pudo eliminar la encuesta. Inténtalo de nuevo.",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const canEditPoll = (poll: PollWithDetails) => {
+    return isHost || (currentParticipantId && poll.created_by_participant_id === currentParticipantId);
   };
 
   const handleVote = async (pollId: string, optionId: string, allowMultiple: boolean) => {
@@ -166,15 +262,60 @@ const PollsTab: React.FC<PollsTabProps> = ({ eventId, currentParticipantId }) =>
     }
 
     try {
-      await PollService.vote(pollId, optionId, currentParticipantId);
+      const poll = polls.find((p) => p.id === pollId);
+      if (!poll) return;
+
+      // Si no permite múltiples votos, primero removemos el voto anterior si existe
+      if (!allowMultiple) {
+        const previousVote = poll.options?.find((opt) => opt.has_voted);
+        if (previousVote) {
+          await PollService.removeVote(pollId, currentParticipantId, previousVote.id);
+        }
+      }
+
+      // Agregamos el nuevo voto
+      await PollService.vote(pollId, currentParticipantId, optionId);
+
+      // Actualizamos el estado local inmediatamente
+      setPolls((prevPolls) =>
+        prevPolls.map((p) => {
+          if (p.id === pollId) {
+            const updatedOptions = p.options?.map((opt) => {
+              if (!allowMultiple) {
+                // Si no permite múltiples votos, actualizamos todos los votos
+                return {
+                  ...opt,
+                  votes_count: opt.id === optionId ? (opt.votes_count || 0) + 1 : opt.has_voted ? (opt.votes_count || 0) - 1 : opt.votes_count,
+                  has_voted: opt.id === optionId,
+                };
+              } else {
+                // Si permite múltiples votos, solo actualizamos la opción seleccionada
+                return opt.id === optionId
+                  ? {
+                      ...opt,
+                      votes_count: (opt.votes_count || 0) + 1,
+                      has_voted: true,
+                    }
+                  : opt;
+              }
+            });
+
+            const totalVotes = updatedOptions?.reduce((sum, opt) => sum + (opt.votes_count || 0), 0) || 0;
+
+            return {
+              ...p,
+              options: updatedOptions,
+              total_votes: totalVotes,
+            };
+          }
+          return p;
+        })
+      );
 
       toast({
         title: "¡Voto registrado!",
         description: "Tu voto se ha registrado correctamente.",
       });
-
-      // Refresh polls to update vote counts
-      fetchPolls();
     } catch (error) {
       console.error("Error voting:", error);
       toast({
@@ -189,14 +330,39 @@ const PollsTab: React.FC<PollsTabProps> = ({ eventId, currentParticipantId }) =>
     if (!currentParticipantId) return;
 
     try {
-      await PollService.removeVote(pollId, optionId, currentParticipantId);
+      await PollService.removeVote(pollId, currentParticipantId, optionId);
+
+      // Actualizamos el estado local inmediatamente
+      setPolls((prevPolls) =>
+        prevPolls.map((poll) => {
+          if (poll.id === pollId) {
+            const updatedOptions = poll.options?.map((option) => {
+              if (option.id === optionId) {
+                return {
+                  ...option,
+                  votes_count: (option.votes_count || 0) - 1,
+                  has_voted: false,
+                };
+              }
+              return option;
+            });
+
+            const totalVotes = updatedOptions?.reduce((sum, opt) => sum + (opt.votes_count || 0), 0) || 0;
+
+            return {
+              ...poll,
+              options: updatedOptions,
+              total_votes: totalVotes,
+            };
+          }
+          return poll;
+        })
+      );
 
       toast({
         title: "Voto eliminado",
         description: "Tu voto se ha eliminado correctamente.",
       });
-
-      fetchPolls();
     } catch (error) {
       console.error("Error removing vote:", error);
       toast({
@@ -209,8 +375,28 @@ const PollsTab: React.FC<PollsTabProps> = ({ eventId, currentParticipantId }) =>
 
   if (isLoading) {
     return (
-      <div className="flex items-center justify-center p-8">
-        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      <div className="space-y-4">
+        <div className="flex justify-end">
+          <Skeleton className="h-9 w-36" />
+        </div>
+        <div className="grid gap-4">
+          {[1, 2].map((i) => (
+            <SkeletonCard
+              key={i}
+              header={{
+                title: true,
+                description: true,
+                meta: true,
+                actions: 2,
+              }}
+              content={{
+                items: 3,
+                itemHeight: "h-8",
+                itemWidth: "w-full",
+              }}
+            />
+          ))}
+        </div>
       </div>
     );
   }
@@ -226,83 +412,26 @@ const PollsTab: React.FC<PollsTabProps> = ({ eventId, currentParticipantId }) =>
           </DialogTrigger>
           <DialogContent>
             <DialogHeader>
-              <DialogTitle>Nueva Encuesta</DialogTitle>
-              <DialogDescription>Crea una nueva encuesta para que los participantes voten.</DialogDescription>
+              <DialogTitle>{editingPoll ? "Editar Encuesta" : "Nueva Encuesta"}</DialogTitle>
+              <DialogDescription>
+                {editingPoll ? "Modifica los detalles de la encuesta." : "Crea una nueva encuesta para que los participantes voten."}
+              </DialogDescription>
             </DialogHeader>
-            <div className="space-y-4">
-              <div className="space-y-2">
-                <Label htmlFor="title">Título</Label>
-                <Input id="title" placeholder="¿Qué quieres preguntar?" value={newPollTitle} onChange={(e) => setNewPollTitle(e.target.value)} />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="description">Descripción (opcional)</Label>
-                <Textarea
-                  id="description"
-                  placeholder="Añade más detalles sobre la encuesta..."
-                  value={newPollDescription}
-                  onChange={(e) => setNewPollDescription(e.target.value)}
-                />
-              </div>
-              <div className="space-y-2">
-                <Label>Opciones</Label>
-                {options.map((option, index) => (
-                  <div key={index} className="flex gap-2">
-                    <Input
-                      placeholder={`Opción ${index + 1}`}
-                      value={option}
-                      onChange={(e) => {
-                        const newOptions = [...options];
-                        newOptions[index] = e.target.value;
-                        setOptions(newOptions);
-                      }}
-                    />
-                    {index > 0 && (
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        size="icon"
-                        onClick={() => {
-                          const newOptions = options.filter((_, i) => i !== index);
-                          setOptions(newOptions);
-                        }}
-                      >
-                        <X className="h-4 w-4" />
-                      </Button>
-                    )}
-                  </div>
-                ))}
-                <Button type="button" variant="outline" onClick={() => setOptions([...options, ""])} className="w-full">
-                  Agregar Opción
-                </Button>
-              </div>
-              <div className="flex items-center space-x-2">
-                <Switch
-                  id="multiple-votes"
-                  checked={allowMultipleVotes}
-                  onCheckedChange={setAllowMultipleVotes}
-                  className="data-[state=checked]:bg-white data-[state=unchecked]:bg-white"
-                />
-                <Label htmlFor="multiple-votes" className="text-primary-foreground">
-                  Permitir votos múltiples
-                </Label>
-              </div>
-            </div>
-            <DialogFooter>
-              <Button
-                type="submit"
-                onClick={handleCreatePoll}
-                disabled={isCreatingPoll}
-                className="bg-primary-foreground text-primary hover:bg-primary-foreground/90"
-              >
-                {isCreatingPoll ? (
-                  <>
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin" /> Creando...
-                  </>
-                ) : (
-                  "Crear Encuesta"
-                )}
-              </Button>
-            </DialogFooter>
+            <PollForm
+              initialData={
+                editingPoll
+                  ? {
+                      title: editingPoll.title,
+                      description: editingPoll.description || "",
+                      allowMultipleVotes: editingPoll.allow_multiple_votes,
+                      options: editingPoll.options?.map((opt) => opt.title) || [""],
+                    }
+                  : undefined
+              }
+              onSubmit={handleCreatePoll}
+              onDelete={editingPoll ? () => handleDeletePoll(editingPoll.id) : undefined}
+              isSubmitting={false}
+            />
           </DialogContent>
         </Dialog>
       </div>
@@ -311,18 +440,66 @@ const PollsTab: React.FC<PollsTabProps> = ({ eventId, currentParticipantId }) =>
         {polls.length === 0 ? (
           <Card className="bg-card text-card-foreground">
             <CardContent className="flex flex-col items-center justify-center p-6 text-center">
-              <p className="text-lg text-muted-foreground">No hay encuestas creadas</p>
-              <p className="text-sm text-muted-foreground">¡Sé el primero en crear una encuesta!</p>
+              <div className="text-lg text-muted-foreground">No hay encuestas creadas</div>
+              <div className="text-sm text-muted-foreground">¡Sé el primero en crear una encuesta!</div>
             </CardContent>
           </Card>
         ) : (
           polls.map((poll) => (
             <Card key={poll.id} className="bg-card text-card-foreground">
               <CardHeader>
-                <CardTitle className="text-xl text-primary">{poll.title}</CardTitle>
-                {poll.description && <CardDescription className="text-muted-foreground">{poll.description}</CardDescription>}
-                <div className="text-sm text-muted-foreground">
-                  Creada por {poll.creator_name} · {new Date(poll.created_at).toLocaleDateString()}
+                <div className="flex items-start justify-between">
+                  <div>
+                    <CardTitle className="text-xl text-primary">{poll.title}</CardTitle>
+                    {poll.description && <CardDescription className="text-muted-foreground">{poll.description}</CardDescription>}
+                    <div className="text-sm text-muted-foreground">
+                      Creada por {poll.creator_name} · {new Date(poll.created_at).toLocaleDateString()}
+                    </div>
+                  </div>
+                  {canEditPoll(poll) && (
+                    <div className="flex gap-2">
+                      <Button variant="ghost" size="icon" onClick={() => handleEditPoll(poll)}>
+                        <svg
+                          xmlns="http://www.w3.org/2000/svg"
+                          width="24"
+                          height="24"
+                          viewBox="0 0 24 24"
+                          fill="none"
+                          stroke="currentColor"
+                          strokeWidth="2"
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          className="h-4 w-4"
+                        >
+                          <path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z" />
+                          <path d="m15 5 4 4" />
+                        </svg>
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        onClick={() => handleDeletePoll(poll.id)}
+                        className="text-destructive hover:text-destructive/90"
+                      >
+                        <svg
+                          xmlns="http://www.w3.org/2000/svg"
+                          width="24"
+                          height="24"
+                          viewBox="0 0 24 24"
+                          fill="none"
+                          stroke="currentColor"
+                          strokeWidth="2"
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          className="h-4 w-4"
+                        >
+                          <path d="M3 6h18" />
+                          <path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6" />
+                          <path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2" />
+                        </svg>
+                      </Button>
+                    </div>
+                  )}
                 </div>
               </CardHeader>
               <CardContent>
@@ -345,9 +522,9 @@ const PollsTab: React.FC<PollsTabProps> = ({ eventId, currentParticipantId }) =>
                               {option.title}
                             </Button>
                           </div>
-                          <span className="text-sm text-muted-foreground">
+                          <div className="text-sm text-muted-foreground">
                             {option.votes_count || 0} votos ({percentage.toFixed(1)}%)
-                          </span>
+                          </div>
                         </div>
                         <div className="h-2 bg-secondary rounded-full overflow-hidden">
                           <div className="h-full bg-primary transition-all duration-500 ease-in-out" style={{ width: `${percentage}%` }} />
@@ -355,9 +532,9 @@ const PollsTab: React.FC<PollsTabProps> = ({ eventId, currentParticipantId }) =>
                       </div>
                     );
                   })}
-                  <p className="text-sm text-muted-foreground text-right">
+                  <div className="text-sm text-muted-foreground text-right">
                     Total: {poll.total_votes} {poll.total_votes === 1 ? "voto" : "votos"}
-                  </p>
+                  </div>
                 </div>
               </CardContent>
             </Card>

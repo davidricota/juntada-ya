@@ -9,6 +9,7 @@ import { LogOut, Users } from "lucide-react";
 import PlaylistTab from "@/components/PlaylistTab";
 import PollsTab from "@/components/PollsTab";
 import ExpensesTab from "@/components/ExpensesTab";
+import JoinEventCard from "@/components/JoinEventCard";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { EventService } from "@/services/eventService";
 import { PlaylistService } from "@/services/playlistService";
@@ -177,14 +178,14 @@ const EventPage: React.FC = () => {
               </CardDescription>
             </CardHeader>
           </Card>
-          <Card className="bg-card text-card-foreground shadow-lg rounded-lg overflow-hidden">
+          <Card className="bg-card text-card-foreground shadow-lg rounded-lg">
             <CardHeader className="bg-card">
               <CardTitle className="text-xl flex items-center text-primary">
                 <Users className="mr-2 h-5 w-5 text-primary" /> Participantes ({participants.length})
               </CardTitle>
             </CardHeader>
             <CardContent>
-              <ScrollArea className="h-screen max-h-screen rounded-lg pr-4">
+              <ScrollArea className="max-h-screen rounded-lg pr-4">
                 {participants.length > 0 ? (
                   <ul className="space-y-3">
                     {participants.map((p) => (
@@ -219,24 +220,14 @@ const EventPage: React.FC = () => {
               </TabsTrigger>
             </TabsList>
             <TabsContent value="playlist">
-              <PlaylistTab eventId={eventId} participants={participants} playlist={playlistItems} onPlaylistChange={setPlaylistItems} />
-              {currentParticipantId ? (
-                <YouTubeSongSearch onSongSelected={handleSongSelected} />
-              ) : (
-                <Card className="bg-card text-card-foreground p-6 text-center shadow-lg">
-                  <p className="text-muted-foreground">
-                    Debes{" "}
-                    <Button
-                      variant="link"
-                      onClick={() => navigate(`/join/${eventDetails?.access_code}`)}
-                      className="p-0 h-auto text-primary hover:underline"
-                    >
-                      unirte al evento
-                    </Button>{" "}
-                    para agregar canciones.
-                  </p>
-                </Card>
-              )}
+              <PlaylistTab
+                eventId={eventId}
+                participants={participants}
+                playlist={playlistItems}
+                onPlaylistChange={setPlaylistItems}
+                currentParticipantId={currentParticipantId}
+                accessCode={eventDetails?.access_code || ""}
+              />
             </TabsContent>
             <TabsContent value="polls">
               <PollsTab eventId={eventId} currentParticipantId={currentParticipantId} />
@@ -250,19 +241,7 @@ const EventPage: React.FC = () => {
                   isHost={eventDetails?.host_id === currentParticipantId}
                 />
               ) : (
-                <Card className="bg-card text-card-foreground p-6 text-center shadow-lg">
-                  <p className="text-muted-foreground">
-                    Debes{" "}
-                    <Button
-                      variant="link"
-                      onClick={() => navigate(`/join/${eventDetails?.access_code}`)}
-                      className="p-0 h-auto text-primary hover:underline"
-                    >
-                      unirte al evento
-                    </Button>{" "}
-                    para ver y agregar gastos.
-                  </p>
-                </Card>
+                <JoinEventCard accessCode={eventDetails?.access_code || ""} message="unirte al evento para ver y agregar gastos" />
               )}
             </TabsContent>
           </Tabs>
