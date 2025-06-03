@@ -5,15 +5,16 @@ import { useToast } from "@/hooks/use-toast";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Users } from "lucide-react";
+import { LogOut, Users } from "lucide-react";
 import PlaylistTab from "@/components/PlaylistTab";
 import PollsTab from "@/components/PollsTab";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { EventService, EventType, Participant, ParticipantChangePayload } from "@/services/eventService";
-import { PlaylistService, PlaylistItem, PlaylistChangePayload } from "@/services/playlistService";
+import { EventService } from "@/services/eventService";
+import { PlaylistService } from "@/services/playlistService";
 import { YouTubeService, YouTubeVideo } from "@/services/youtubeService";
 import YouTubeSongSearch from "@/components/YouTubeSongSearch";
 import { RealtimeChannel } from "@supabase/supabase-js";
+import { EventType, Participant, ParticipantChangePayload, PlaylistItem, PlaylistChangePayload } from "@/types";
 
 const EventPage: React.FC = () => {
   const { eventId } = useParams<{ eventId: string }>();
@@ -89,6 +90,7 @@ const EventPage: React.FC = () => {
         setPlaylistItems((prevItems) => prevItems.filter((item) => item.id !== payload.old.id));
       } else if (payload.eventType === "INSERT") {
         // En lugar de recargar todo, solo agregamos el nuevo item
+        const participant = participants.find((p) => p.id === payload.new.added_by_participant_id);
         const newItem: PlaylistItem = {
           id: payload.new.id,
           youtube_video_id: payload.new.youtube_video_id,
@@ -96,7 +98,9 @@ const EventPage: React.FC = () => {
           thumbnail_url: payload.new.thumbnail_url,
           channel_title: payload.new.channel_title,
           added_by_participant_id: payload.new.added_by_participant_id,
-          participant_name: participants.find((p) => p.id === payload.new.added_by_participant_id)?.name || "Desconocido",
+          event_id: payload.new.event_id,
+          added_at: payload.new.added_at,
+          participant_name: participant?.name || "Desconocido",
         };
         setPlaylistItems((prevItems) => [...prevItems, newItem]);
       }
@@ -115,6 +119,13 @@ const EventPage: React.FC = () => {
     };
   }, [eventId, navigate, toast]);
 
+  const handleLogout = () => {
+    localStorage.removeItem(`event_${eventId}_participant_id`);
+    localStorage.removeItem(`event_${eventId}_participant_name`);
+    EventService.leaveEvent(eventId, currentParticipantId);
+    navigate("/");
+  };
+
   const handleSongSelected = async (song: YouTubeVideo) => {
     if (!currentParticipantId) {
       toast({ title: "Acción Requerida", description: "Debes unirte al evento para agregar canciones.", variant: "destructive" });
@@ -123,7 +134,12 @@ const EventPage: React.FC = () => {
     if (!eventDetails) return;
 
     try {
-      await PlaylistService.addSong(eventDetails.id, currentParticipantId, song);
+      await PlaylistService.addToPlaylist(eventDetails.id, currentParticipantId, {
+        youtube_video_id: song.id,
+        title: song.title,
+        thumbnail_url: song.thumbnail,
+        channel_title: song.channelTitle,
+      });
       toast({ title: "¡Canción Agregada!", description: `${song.title} se añadió a la playlist.` });
     } catch (error) {
       console.error("Error adding song:", error);
@@ -148,12 +164,17 @@ const EventPage: React.FC = () => {
               <CardTitle className="text-3xl md:text-4xl font-bold text-primary">{eventDetails.name}</CardTitle>
               <CardDescription className="text-muted-foreground">
                 Código de Acceso: <span className="font-semibold text-primary">{eventDetails.access_code}</span>
+                {currentParticipantName && (
+                  <>
+                    <div className="text-sm text-muted-foreground">
+                      Conectado como: <span className="font-medium text-card-foreground">{currentParticipantName}</span>
+                    </div>
+                    <a onClick={handleLogout} className="font-bold cursor-pointer flex items-center gap-2 text-red-500">
+                      <LogOut className="h-4 w-4" /> Abandonar Evento
+                    </a>
+                  </>
+                )}
               </CardDescription>
-              {currentParticipantName && (
-                <p className="text-sm text-muted-foreground">
-                  Conectado como: <span className="font-medium text-card-foreground">{currentParticipantName}</span>
-                </p>
-              )}
             </CardHeader>
           </Card>
           <Card className="bg-card text-card-foreground shadow-lg rounded-lg overflow-hidden">

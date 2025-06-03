@@ -1,26 +1,5 @@
 import { supabase } from "@/integrations/supabase/client";
-import { RealtimePostgresChangesPayload } from "@supabase/supabase-js";
-
-export type EventType = {
-  id: string;
-  name: string;
-  access_code: string;
-  created_at: string;
-};
-
-export type Participant = {
-  id: string;
-  name: string;
-  whatsapp_number: string;
-};
-
-export type ParticipantChangePayload = RealtimePostgresChangesPayload<{
-  id: string;
-  name: string;
-  whatsapp_number: string;
-  event_id: string;
-  created_at: string;
-}>;
+import { EventType, Participant, ParticipantChangePayload } from "@/types";
 
 export class EventService {
   static async getEventById(eventId: string): Promise<EventType | null> {
@@ -28,6 +7,28 @@ export class EventService {
 
     if (error) throw error;
     return data as EventType;
+  }
+
+  static async getEventByAccessCode(accessCode: string): Promise<EventType | null> {
+    const { data, error } = await supabase.from("events").select("*").eq("access_code", accessCode).single();
+
+    if (error) throw error;
+    return data as EventType;
+  }
+
+  static async isParticipant(eventId: string, whatsappNumber: string): Promise<Participant | null> {
+    const { data, error } = await supabase
+      .from("event_participants")
+      .select("*")
+      .eq("event_id", eventId)
+      .eq("whatsapp_number", whatsappNumber)
+      .single();
+
+    if (error) {
+      if (error.code === "PGRST116") return null; // No rows returned
+      throw error;
+    }
+    return data as Participant;
   }
 
   static async getEventParticipants(eventId: string): Promise<Participant[]> {
@@ -50,6 +51,11 @@ export class EventService {
 
     if (error) throw error;
     return data as Participant;
+  }
+
+  static async leaveEvent(eventId: string, participantId: string) {
+    const { error } = await supabase.from("event_participants").delete().eq("id", participantId).eq("event_id", eventId);
+    if (error) throw error;
   }
 
   static subscribeToParticipants(eventId: string, callback: (payload: ParticipantChangePayload) => void) {

@@ -1,0 +1,1 @@
+ALTER TABLE events ADD COLUMN host_id TEXT NOT NULL;

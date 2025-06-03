@@ -25,6 +25,10 @@ export type Database = {
           name?: string;
           whatsapp_number?: string;
         };
+        Delete: {
+          id: string;
+          event_id: string;
+        };
         Relationships: [
           {
             foreignKeyName: "event_participants_event_id_fkey";
@@ -41,18 +45,21 @@ export type Database = {
           created_at: string;
           id: string;
           name: string;
+          host_id: string;
         };
         Insert: {
           access_code: string;
           created_at?: string;
           id?: string;
           name: string;
+          host_id: string;
         };
         Update: {
           access_code?: string;
           created_at?: string;
           id?: string;
           name?: string;
+          host_id?: string;
         };
         Relationships: [];
       };

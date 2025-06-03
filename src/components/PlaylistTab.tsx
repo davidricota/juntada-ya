@@ -1,6 +1,6 @@
-import React, { useState, Dispatch, SetStateAction, useCallback, memo } from "react";
+import React, { useState, Dispatch, SetStateAction } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "./ui/card";
-import { ListMusic } from "lucide-react";
+import { ListMusic, Play, Youtube } from "lucide-react";
 import YouTubePlayer from "./YoutubePlayer";
 import Playlist from "./Playlist";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -16,51 +16,41 @@ export interface PlaylistTabProps {
   onPlaylistChange: Dispatch<SetStateAction<PlaylistItem[]>>;
 }
 
-const PlaylistTab: React.FC<PlaylistTabProps> = memo(({ eventId, participants, playlist, onPlaylistChange }) => {
+const PlaylistTab: React.FC<PlaylistTabProps> = ({ eventId, participants, playlist, onPlaylistChange }) => {
   const [currentVideoIndex, setCurrentVideoIndex] = useState(0);
-
-  const handleVideoSelect = useCallback((index: number) => {
+  const handleVideoSelect = (index) => {
     setCurrentVideoIndex(index);
-  }, []);
+  };
 
-  const handlePreviousVideo = useCallback(() => {
-    setCurrentVideoIndex((prevIndex) => (prevIndex > 0 ? prevIndex - 1 : playlist.length - 1));
-  }, [playlist.length]);
+  // Funciones para navegación entre videos
+  const handlePreviousVideo = () => {
+    if (currentVideoIndex > 0) {
+      setCurrentVideoIndex(currentVideoIndex - 1);
+    } else {
+      setCurrentVideoIndex(playlist.length - 1);
+    }
+  };
 
-  const handleNextVideo = useCallback(() => {
-    setCurrentVideoIndex((prevIndex) => (prevIndex < playlist.length - 1 ? prevIndex + 1 : 0));
-  }, [playlist.length]);
+  const handleNextVideo = () => {
+    if (currentVideoIndex < playlist.length - 1) {
+      setCurrentVideoIndex(currentVideoIndex + 1);
+    } else {
+      setCurrentVideoIndex(0);
+    }
+  };
 
-  const handleVideoDelete = useCallback(
-    async (id: string, title: string) => {
-      try {
-        await PlaylistService.deleteSong(id);
-        onPlaylistChange((prevItems) => prevItems.filter((item) => item.id !== id));
-        setCurrentVideoIndex((prevIndex) => {
-          const newIndex = playlist.findIndex((item) => item.id === id);
-          if (newIndex === -1) return prevIndex;
-          if (newIndex === prevIndex) return 0;
-          if (newIndex < prevIndex) return prevIndex - 1;
-          return prevIndex;
-        });
-        toast({ title: "Canción Eliminada", description: `${title}` });
-      } catch (error) {
-        console.error("Error deleting song:", error);
-        toast({
-          title: "Error",
-          description: "No se pudo eliminar la canción. Inténtalo de nuevo.",
-          variant: "destructive",
-        });
-      }
-    },
-    [onPlaylistChange, playlist]
-  );
+  const handleVideoDelete = (index: string, title: string) => {
+    console.log("Eliminar video en el índice:", index);
+    PlaylistService.removeFromPlaylist(index);
+    toast({ title: "Canción Eliminada", description: `${title}` });
+  };
 
   return (
     <Card className="bg-card text-card-foreground shadow-lg">
       <CardHeader>
         <CardTitle className="text-xl flex items-center">
-          <ListMusic className="mr-2 h-5 w-5 text-primary" /> Playlist Colaborativa
+          <ListMusic className="mr-2 h-5 w-5 text-primary" />
+          Playlist Colaborativa
         </CardTitle>
       </CardHeader>
       <CardContent className="space-y-4">
@@ -73,7 +63,7 @@ const PlaylistTab: React.FC<PlaylistTabProps> = memo(({ eventId, participants, p
               onPreviousVideo={handlePreviousVideo}
               onNextVideo={handleNextVideo}
             />
-            <ScrollArea className="h-screen max-h-96 rounded-lg pr-4">
+            <ScrollArea className="max-h-96 rounded-lg pr-4">
               <Playlist
                 playlistItems={playlist}
                 currentVideoIndex={currentVideoIndex}
@@ -88,8 +78,6 @@ const PlaylistTab: React.FC<PlaylistTabProps> = memo(({ eventId, participants, p
       </CardContent>
     </Card>
   );
-});
-
-PlaylistTab.displayName = "PlaylistTab";
+};
 
 export default PlaylistTab;
