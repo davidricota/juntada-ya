@@ -8,9 +8,11 @@ import { useToast } from "@/hooks/use-toast";
 import { generateAccessCode } from "@/lib/utils";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { useParticipantStore } from "@/stores/participantStore";
+import { StorageService } from "@/services/storageService";
 import PhoneInput from "react-phone-input-2";
 import "react-phone-input-2/lib/style.css";
 import { cn } from "@/lib/utils";
+import { EncryptionService } from "@/services/encryptionService";
 
 const CreateEventPage: React.FC = () => {
   const [eventName, setEventName] = useState("");
@@ -21,13 +23,15 @@ const CreateEventPage: React.FC = () => {
   const [eventId, setEventId] = useState<string | null>(null);
   const navigate = useNavigate();
   const { toast } = useToast();
-  const { name: storedName, whatsapp: storedWhatsapp, setParticipant } = useParticipantStore();
+  const { getName, getWhatsapp, setParticipant } = useParticipantStore();
 
   // Inicializar los campos con los valores almacenados si existen
   React.useEffect(() => {
+    const storedName = getName();
+    const storedWhatsapp = getWhatsapp();
     if (storedName) setParticipantName(storedName);
     if (storedWhatsapp) setParticipantWhatsapp(storedWhatsapp);
-  }, [storedName, storedWhatsapp]);
+  }, [getName, getWhatsapp]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -52,12 +56,13 @@ const CreateEventPage: React.FC = () => {
       // Intentar generar un código de acceso único
       while (!eventCreated && attempts < 5) {
         attempts++;
+        const encryptedHostId = await EncryptionService.encrypt(participantWhatsapp);
         const { data, error } = await supabase
           .from("events")
           .insert({
             name: eventName,
             access_code: newAccessCode,
-            host_id: participantWhatsapp, // El número ya viene formateado con el código de país
+            host_id: encryptedHostId,
           })
           .select()
           .single();
@@ -79,10 +84,11 @@ const CreateEventPage: React.FC = () => {
       }
 
       // Agregar al creador como participante
+      const encryptedNumber = await EncryptionService.encrypt(participantWhatsapp);
       const { error: participantError } = await supabase.from("event_participants").insert({
         event_id: createdEventData.id,
         name: participantName,
-        whatsapp_number: participantWhatsapp,
+        whatsapp_number: encryptedNumber,
       });
 
       if (participantError) throw participantError;
@@ -91,8 +97,8 @@ const CreateEventPage: React.FC = () => {
       setParticipant(participantName, participantWhatsapp);
 
       // Guardar en localStorage para mantener la sesión
-      localStorage.setItem(`event_${createdEventData.id}_participant_id`, createdEventData.id);
-      localStorage.setItem(`event_${createdEventData.id}_participant_name`, participantName);
+      StorageService.setItem(`event_${createdEventData.id}_participant_id`, createdEventData.id);
+      StorageService.setItem(`event_${createdEventData.id}_participant_name`, participantName);
 
       setAccessCode(createdEventData.access_code);
       setEventId(createdEventData.id);
@@ -130,7 +136,11 @@ const CreateEventPage: React.FC = () => {
             >
               Ir al Evento
             </Button>
-            <Button onClick={() => navigate("/")} variant="outline" className="w-full">
+            <Button
+              onClick={() => navigate("/")}
+              variant="outline"
+              className="w-full bg-primary-foreground hover:bg-primary hover:text-primary-foreground"
+            >
               Volver al Inicio
             </Button>
           </CardFooter>

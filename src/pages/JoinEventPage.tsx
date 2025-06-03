@@ -7,6 +7,7 @@ import { useToast } from "@/hooks/use-toast";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { useParticipantStore } from "@/stores/participantStore";
 import { EventService } from "@/services/eventService";
+import { StorageService } from "@/services/storageService";
 import PhoneInput from "react-phone-input-2";
 import "react-phone-input-2/lib/style.css";
 import { cn } from "@/lib/utils";
@@ -18,13 +19,15 @@ const JoinEventPage: React.FC = () => {
   const [isLoading, setIsLoading] = useState(false);
   const navigate = useNavigate();
   const { toast } = useToast();
-  const { name: storedName, whatsapp: storedWhatsapp, setParticipant } = useParticipantStore();
+  const { getName, getWhatsapp, setParticipant } = useParticipantStore();
 
   // Inicializar los campos con los valores almacenados si existen
   React.useEffect(() => {
+    const storedName = getName();
+    const storedWhatsapp = getWhatsapp();
     if (storedName) setParticipantName(storedName);
     if (storedWhatsapp) setParticipantWhatsapp(storedWhatsapp);
-  }, [storedName, storedWhatsapp]);
+  }, [getName, getWhatsapp]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -53,8 +56,8 @@ const JoinEventPage: React.FC = () => {
       if (existingParticipant) {
         // Si ya es participante, guardar la información y redirigir
         setParticipant(participantName, participantWhatsapp);
-        localStorage.setItem(`event_${event.id}_participant_id`, existingParticipant.id);
-        localStorage.setItem(`event_${event.id}_participant_name`, participantName);
+        StorageService.setItem(`event_${event.id}_participant_id`, existingParticipant.id);
+        StorageService.setItem(`event_${event.id}_participant_name`, participantName);
         navigate(`/event/${event.id}`);
         return;
       }
@@ -67,8 +70,8 @@ const JoinEventPage: React.FC = () => {
 
       // Guardar la información del participante
       setParticipant(participantName, participantWhatsapp);
-      localStorage.setItem(`event_${event.id}_participant_id`, participant.id);
-      localStorage.setItem(`event_${event.id}_participant_name`, participantName);
+      StorageService.setItem(`event_${event.id}_participant_id`, participant.id);
+      StorageService.setItem(`event_${event.id}_participant_name`, participantName);
 
       toast({ title: "¡Bienvenido!", description: `Te has unido al evento ${event.name}` });
       navigate(`/event/${event.id}`);
