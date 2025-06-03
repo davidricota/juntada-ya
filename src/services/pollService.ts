@@ -26,7 +26,7 @@ export class PollService {
   static async createPoll(
     eventId: string,
     participantId: string,
-    pollData: Omit<Poll, "id" | "event_id" | "created_by_participant_id" | "created_at">
+    pollData: Omit<Poll, "id" | "event_id" | "created_by_participant_id" | "created_at" | "closed_at">
   ): Promise<Poll> {
     const { data, error } = await supabase
       .from("polls")
@@ -36,6 +36,7 @@ export class PollService {
         title: pollData.title,
         description: pollData.description,
         allow_multiple_votes: pollData.allow_multiple_votes,
+        closed_at: null,
       })
       .select()
       .single();
@@ -71,6 +72,12 @@ export class PollService {
 
     if (error) throw error;
     return data as PollVote;
+  }
+
+  static async removeVote(pollId: string, optionId: string, participantId: string): Promise<void> {
+    const { error } = await supabase.from("poll_votes").delete().eq("poll_id", pollId).eq("option_id", optionId).eq("participant_id", participantId);
+
+    if (error) throw error;
   }
 
   static async closePoll(pollId: string): Promise<void> {

@@ -8,6 +8,7 @@ import { PlaylistService } from "@/services/playlistService";
 import { toast } from "@/hooks/use-toast";
 import { Participant } from "@/services/eventService";
 import { PlaylistItem } from "@/services/playlistService";
+import YouTubeSongSearch from "./YouTubeSongSearch";
 
 export interface PlaylistTabProps {
   eventId: string;
@@ -46,37 +47,39 @@ const PlaylistTab: React.FC<PlaylistTabProps> = ({ eventId, participants, playli
   };
 
   return (
-    <Card className="bg-card text-card-foreground shadow-lg">
-      <CardHeader>
-        <CardTitle className="text-xl flex items-center">
-          <ListMusic className="mr-2 h-5 w-5 text-primary" />
-          Playlist Colaborativa
-        </CardTitle>
-      </CardHeader>
-      <CardContent className="space-y-4">
-        {playlist.length > 0 ? (
-          <>
-            <YouTubePlayer
-              playlistItems={playlist}
-              currentVideoIndex={currentVideoIndex}
-              onVideoEnd={handleNextVideo}
-              onPreviousVideo={handlePreviousVideo}
-              onNextVideo={handleNextVideo}
-            />
-            <ScrollArea className="max-h-96 rounded-lg pr-4">
-              <Playlist
+    <>
+      <Card className="bg-card text-card-foreground shadow-lg">
+        <CardHeader>
+          <CardTitle className="text-xl flex items-center">
+            <ListMusic className="mr-2 h-5 w-5 text-primary" />
+            Playlist Colaborativa
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          {playlist.length > 0 ? (
+            <>
+              <YouTubePlayer
                 playlistItems={playlist}
                 currentVideoIndex={currentVideoIndex}
-                onVideoSelect={handleVideoSelect}
-                onVideoDelete={handleVideoDelete}
+                onVideoEnd={handleNextVideo}
+                onPreviousVideo={handlePreviousVideo}
+                onNextVideo={handleNextVideo}
               />
-            </ScrollArea>
-          </>
-        ) : (
-          <p className="text-muted-foreground text-center py-6 italic">¡La playlist está vacía! Agrega la primera canción.</p>
-        )}
-      </CardContent>
-    </Card>
+              <ScrollArea className="max-h-96 rounded-lg pr-4">
+                <Playlist
+                  playlistItems={playlist}
+                  currentVideoIndex={currentVideoIndex}
+                  onVideoSelect={handleVideoSelect}
+                  onVideoDelete={handleVideoDelete}
+                />
+              </ScrollArea>
+            </>
+          ) : (
+            <p className="text-muted-foreground text-center py-6 italic">¡La playlist está vacía! Agrega la primera canción.</p>
+          )}
+        </CardContent>
+      </Card>
+    </>
   );
 };
 

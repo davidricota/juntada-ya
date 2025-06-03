@@ -8,6 +8,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { LogOut, Users } from "lucide-react";
 import PlaylistTab from "@/components/PlaylistTab";
 import PollsTab from "@/components/PollsTab";
+import ExpensesTab from "@/components/ExpensesTab";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { EventService } from "@/services/eventService";
 import { PlaylistService } from "@/services/playlistService";
@@ -146,7 +147,6 @@ const EventPage: React.FC = () => {
       toast({ title: "Error", description: "No se pudo agregar la canción. Inténtalo de nuevo.", variant: "destructive" });
     }
   };
-
   if (isLoading) {
     return <div className="container mx-auto p-4 text-center text-spotify-text-muted">Cargando evento...</div>;
   }
@@ -220,7 +220,6 @@ const EventPage: React.FC = () => {
             </TabsList>
             <TabsContent value="playlist">
               <PlaylistTab eventId={eventId} participants={participants} playlist={playlistItems} onPlaylistChange={setPlaylistItems} />
-
               {currentParticipantId ? (
                 <YouTubeSongSearch onSongSelected={handleSongSelected} />
               ) : (
@@ -242,7 +241,30 @@ const EventPage: React.FC = () => {
             <TabsContent value="polls">
               <PollsTab eventId={eventId} currentParticipantId={currentParticipantId} />
             </TabsContent>
-            <TabsContent value="gastos">Change your password here.</TabsContent>
+            <TabsContent value="gastos">
+              {currentParticipantId ? (
+                <ExpensesTab
+                  eventId={eventId}
+                  participants={participants}
+                  currentParticipantId={currentParticipantId}
+                  isHost={eventDetails?.host_id === currentParticipantId}
+                />
+              ) : (
+                <Card className="bg-card text-card-foreground p-6 text-center shadow-lg">
+                  <p className="text-muted-foreground">
+                    Debes{" "}
+                    <Button
+                      variant="link"
+                      onClick={() => navigate(`/join/${eventDetails?.access_code}`)}
+                      className="p-0 h-auto text-primary hover:underline"
+                    >
+                      unirte al evento
+                    </Button>{" "}
+                    para ver y agregar gastos.
+                  </p>
+                </Card>
+              )}
+            </TabsContent>
           </Tabs>
         </div>
       </div>

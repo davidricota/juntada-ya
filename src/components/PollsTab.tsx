@@ -7,36 +7,28 @@ import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Plus, Vote, X, Check, Loader2 } from "lucide-react";
-import { supabase } from "@/integrations/supabase/client";
+import { PollService } from "@/services/pollService";
 import { useToast } from "@/hooks/use-toast";
+import { Poll, PollOption, PollVote } from "@/types";
 
 interface PollsTabProps {
   eventId: string;
   currentParticipantId: string | null;
 }
 
-interface Poll {
-  id: string;
-  title: string;
-  description: string | null;
-  created_by_participant_id: string;
-  created_at: string;
-  closed_at: string | null;
-  allow_multiple_votes: boolean;
+interface PollWithDetails extends Poll {
   creator_name?: string;
-  options?: PollOption[];
+  options?: PollOptionWithVotes[];
   total_votes?: number;
 }
 
-interface PollOption {
-  id: string;
-  title: string;
+interface PollOptionWithVotes extends PollOption {
   votes_count?: number;
   has_voted?: boolean;
 }
 
 const PollsTab: React.FC<PollsTabProps> = ({ eventId, currentParticipantId }) => {
-  const [polls, setPolls] = useState<Poll[]>([]);
+  const [polls, setPolls] = useState<PollWithDetails[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [newPollTitle, setNewPollTitle] = useState("");
   const [newPollDescription, setNewPollDescription] = useState("");
@@ -52,72 +44,28 @@ const PollsTab: React.FC<PollsTabProps> = ({ eventId, currentParticipantId }) =>
 
   const fetchPolls = async () => {
     try {
-      // Fetch polls with creator names
-      const { data: pollsData, error: pollsError } = await supabase
-        .from("polls")
-        .select(
-          `
-          *,
-          event_participants (name),
-          poll_options (
-            id,
-            title,
-            poll_votes (count)
-          )
-        `
-        )
-        .eq("event_id", eventId)
-        .order("created_at", { ascending: false });
+      const [pollsData, votesData] = await Promise.all([
+        PollService.getPolls(eventId),
+        currentParticipantId ? PollService.getPollVotes(eventId) : Promise.resolve([]),
+      ]);
 
-      if (pollsError) throw pollsError;
-
-      // Fetch votes for the current participant
-      const { data: votesData, error: votesError } = await supabase
-        .from("poll_votes")
-        .select("poll_id, option_id")
-        .eq("participant_id", currentParticipantId);
-
-      if (votesError) throw votesError;
-
-      // Process and format the data
-      const processedPolls: Poll[] = pollsData.map(
-        (poll: {
-          id: string;
-          title: string;
-          description: string | null;
-          created_by_participant_id: string;
-          created_at: string;
-          closed_at: string | null;
-          allow_multiple_votes: boolean;
-          event_participants?: { name?: string };
-          poll_options: Array<{
-            id: string;
-            title: string;
-            poll_votes: Array<{ count: number }>;
-          }>;
-        }) => {
-          const options: PollOption[] = poll.poll_options.map((option) => ({
-            id: option.id,
-            title: option.title,
-            votes_count: option.poll_votes[0]?.count || 0,
-            has_voted: votesData?.some((vote: { option_id: string }) => vote.option_id === option.id) || false,
+      const processedPolls: PollWithDetails[] = await Promise.all(
+        pollsData.map(async (poll) => {
+          const pollOptions = await PollService.getPollOptions(poll.id);
+          const optionsWithVotes: PollOptionWithVotes[] = pollOptions.map((option) => ({
+            ...option,
+            votes_count: votesData.filter((vote) => vote.option_id === option.id).length,
+            has_voted: votesData.some((vote) => vote.option_id === option.id),
           }));
 
-          const totalVotes = options.reduce((sum: number, option: PollOption) => sum + (option.votes_count || 0), 0);
+          const totalVotes = optionsWithVotes.reduce((sum, option) => sum + (option.votes_count || 0), 0);
 
           return {
-            id: poll.id,
-            title: poll.title,
-            description: poll.description,
-            created_by_participant_id: poll.created_by_participant_id,
-            created_at: poll.created_at,
-            closed_at: poll.closed_at,
-            allow_multiple_votes: poll.allow_multiple_votes,
-            creator_name: poll.event_participants?.name || "Unknown",
-            options,
+            ...poll,
+            options: optionsWithVotes,
             total_votes: totalVotes,
           };
-        }
+        })
       );
 
       setPolls(processedPolls);
@@ -166,29 +114,20 @@ const PollsTab: React.FC<PollsTabProps> = ({ eventId, currentParticipantId }) =>
 
     try {
       // Create poll
-      const { data: pollData, error: pollError } = await supabase
-        .from("polls")
-        .insert({
-          event_id: eventId,
-          title: newPollTitle.trim(),
-          description: newPollDescription.trim() || null,
-          created_by_participant_id: currentParticipantId,
-          allow_multiple_votes: allowMultipleVotes,
-        })
-        .select()
-        .single();
-
-      if (pollError) throw pollError;
+      const poll = await PollService.createPoll(eventId, currentParticipantId, {
+        title: newPollTitle.trim(),
+        description: newPollDescription.trim() || null,
+        allow_multiple_votes: allowMultipleVotes,
+      });
 
       // Create options
-      const optionsToInsert = validOptions.map((title) => ({
-        poll_id: pollData.id,
-        title: title.trim(),
-      }));
-
-      const { error: optionsError } = await supabase.from("poll_options").insert(optionsToInsert);
-
-      if (optionsError) throw optionsError;
+      await Promise.all(
+        validOptions.map((title) =>
+          PollService.addPollOption(poll.id, {
+            title: title.trim(),
+          })
+        )
+      );
 
       toast({
         title: "¡Encuesta creada!",
@@ -227,19 +166,7 @@ const PollsTab: React.FC<PollsTabProps> = ({ eventId, currentParticipantId }) =>
     }
 
     try {
-      if (!allowMultiple) {
-        // Remove existing votes for this poll if multiple votes aren't allowed
-        await supabase.from("poll_votes").delete().eq("poll_id", pollId).eq("participant_id", currentParticipantId);
-      }
-
-      // Add new vote
-      const { error } = await supabase.from("poll_votes").insert({
-        poll_id: pollId,
-        option_id: optionId,
-        participant_id: currentParticipantId,
-      });
-
-      if (error) throw error;
+      await PollService.vote(pollId, optionId, currentParticipantId);
 
       toast({
         title: "¡Voto registrado!",
@@ -262,14 +189,7 @@ const PollsTab: React.FC<PollsTabProps> = ({ eventId, currentParticipantId }) =>
     if (!currentParticipantId) return;
 
     try {
-      const { error } = await supabase
-        .from("poll_votes")
-        .delete()
-        .eq("poll_id", pollId)
-        .eq("option_id", optionId)
-        .eq("participant_id", currentParticipantId);
-
-      if (error) throw error;
+      await PollService.removeVote(pollId, optionId, currentParticipantId);
 
       toast({
         title: "Voto eliminado",
@@ -297,77 +217,62 @@ const PollsTab: React.FC<PollsTabProps> = ({ eventId, currentParticipantId }) =>
 
   return (
     <div className="space-y-6">
-      <div className="flex justify-between items-center">
-        <h2 className="text-2xl font-bold text-primary">Encuestas</h2>
+      <div className="flex justify-end">
         <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
           <DialogTrigger asChild>
-            <Button className="bg-card/80 hover:bg-card text-primary">
+            <Button className="bg-primary text-primary-foreground hover:bg-primary/90">
               <Plus className="mr-2 h-4 w-4" /> Nueva Encuesta
             </Button>
           </DialogTrigger>
-          <DialogContent className="bg-primary text-primary-foreground">
+          <DialogContent>
             <DialogHeader>
-              <DialogTitle className="text-primary-foreground">Crear Nueva Encuesta</DialogTitle>
-              <DialogDescription className="text-primary-foreground/80">Crea una nueva encuesta para que los participantes voten.</DialogDescription>
+              <DialogTitle>Nueva Encuesta</DialogTitle>
+              <DialogDescription>Crea una nueva encuesta para que los participantes voten.</DialogDescription>
             </DialogHeader>
-            <div className="space-y-4 py-4">
+            <div className="space-y-4">
               <div className="space-y-2">
-                <Label htmlFor="title" className="text-primary-foreground">
-                  Título
-                </Label>
-                <Input
-                  id="title"
-                  value={newPollTitle}
-                  onChange={(e) => setNewPollTitle(e.target.value)}
-                  placeholder="¿Qué quieres preguntar?"
-                  className="bg-primary border-primary-foreground text-primary-foreground placeholder:text-primary-foreground/50"
-                />
+                <Label htmlFor="title">Título</Label>
+                <Input id="title" placeholder="¿Qué quieres preguntar?" value={newPollTitle} onChange={(e) => setNewPollTitle(e.target.value)} />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="description" className="text-primary-foreground">
-                  Descripción (opcional)
-                </Label>
+                <Label htmlFor="description">Descripción (opcional)</Label>
                 <Textarea
                   id="description"
+                  placeholder="Añade más detalles sobre la encuesta..."
                   value={newPollDescription}
                   onChange={(e) => setNewPollDescription(e.target.value)}
-                  placeholder="Agrega más detalles sobre tu pregunta..."
-                  className="bg-primary border-primary-foreground text-primary-foreground placeholder:text-primary-foreground/50"
                 />
               </div>
               <div className="space-y-2">
-                <Label className="text-primary-foreground">Opciones</Label>
+                <Label>Opciones</Label>
                 {options.map((option, index) => (
                   <div key={index} className="flex gap-2">
                     <Input
+                      placeholder={`Opción ${index + 1}`}
                       value={option}
                       onChange={(e) => {
                         const newOptions = [...options];
                         newOptions[index] = e.target.value;
                         setOptions(newOptions);
                       }}
-                      placeholder={`Opción ${index + 1}`}
-                      className="bg-primary border-primary-foreground text-primary-foreground placeholder:text-primary-foreground/50"
                     />
                     {index > 0 && (
                       <Button
-                        variant="outline"
+                        type="button"
+                        variant="ghost"
                         size="icon"
-                        onClick={() => setOptions(options.filter((_, i) => i !== index))}
-                        className="border-primary-foreground text-primary-foreground hover:bg-primary-foreground/10"
+                        onClick={() => {
+                          const newOptions = options.filter((_, i) => i !== index);
+                          setOptions(newOptions);
+                        }}
                       >
                         <X className="h-4 w-4" />
                       </Button>
                     )}
                   </div>
                 ))}
-                <Button
-                  type="button"
-                  variant="outline"
-                  onClick={() => setOptions([...options, ""])}
-                  className="w-full mt-2 border-primary-foreground text-primary-foreground hover:bg-primary-foreground hover:text-white"
-                >
-                  <Plus className="mr-2 h-4 w-4" /> Agregar Opción
+                <Button type="button" variant="outline" onClick={() => setOptions([...options, ""])} className="w-full">
+                  Agregar Opción
                 </Button>
               </div>
               <div className="flex items-center space-x-2">
@@ -403,56 +308,60 @@ const PollsTab: React.FC<PollsTabProps> = ({ eventId, currentParticipantId }) =>
       </div>
 
       <div className="grid gap-6">
-        {polls.map((poll) => (
-          <Card key={poll.id} className="bg-card text-card-foreground">
-            <CardHeader>
-              <CardTitle className="text-xl text-primary">{poll.title}</CardTitle>
-              {poll.description && <CardDescription className="text-muted-foreground">{poll.description}</CardDescription>}
-              <div className="text-sm text-muted-foreground">
-                Creada por {poll.creator_name} · {new Date(poll.created_at).toLocaleDateString()}
-              </div>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-4">
-                {poll.options?.map((option) => {
-                  const percentage = poll.total_votes ? ((option.votes_count || 0) / poll.total_votes) * 100 : 0;
-                  return (
-                    <div key={option.id} className="space-y-2">
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-2">
-                          <Button
-                            variant={option.has_voted ? "default" : "outline"}
-                            size="sm"
-                            onClick={() =>
-                              option.has_voted ? removeVote(poll.id, option.id) : handleVote(poll.id, option.id, poll.allow_multiple_votes)
-                            }
-                            className={option.has_voted ? "bg-primary text-primary-foreground" : "bg-card text-primary"}
-                          >
-                            {option.has_voted ? <Check className="h-4 w-4 mr-2" /> : <Vote className="h-4 w-4 mr-2" />}
-                            {option.title}
-                          </Button>
-                        </div>
-                        <span className="text-sm text-muted-foreground">
-                          {option.votes_count || 0} votos ({percentage.toFixed(1)}%)
-                        </span>
-                      </div>
-                      <div className="h-2 bg-secondary rounded-full overflow-hidden">
-                        <div className="h-full bg-primary transition-all duration-500 ease-in-out" style={{ width: `${percentage}%` }} />
-                      </div>
-                    </div>
-                  );
-                })}
-                <p className="text-sm text-muted-foreground text-right">
-                  Total: {poll.total_votes} {poll.total_votes === 1 ? "voto" : "votos"}
-                </p>
-              </div>
+        {polls.length === 0 ? (
+          <Card className="bg-card text-card-foreground">
+            <CardContent className="flex flex-col items-center justify-center p-6 text-center">
+              <p className="text-lg text-muted-foreground">No hay encuestas creadas</p>
+              <p className="text-sm text-muted-foreground">¡Sé el primero en crear una encuesta!</p>
             </CardContent>
           </Card>
-        ))}
-        {polls.length === 0 && (
-          <Card className="bg-card text-card-foreground">
-            <CardContent className="p-8 text-center text-muted-foreground">No hay encuestas creadas aún. ¡Sé el primero en crear una!</CardContent>
-          </Card>
+        ) : (
+          polls.map((poll) => (
+            <Card key={poll.id} className="bg-card text-card-foreground">
+              <CardHeader>
+                <CardTitle className="text-xl text-primary">{poll.title}</CardTitle>
+                {poll.description && <CardDescription className="text-muted-foreground">{poll.description}</CardDescription>}
+                <div className="text-sm text-muted-foreground">
+                  Creada por {poll.creator_name} · {new Date(poll.created_at).toLocaleDateString()}
+                </div>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-4">
+                  {poll.options?.map((option) => {
+                    const percentage = poll.total_votes ? ((option.votes_count || 0) / poll.total_votes) * 100 : 0;
+                    return (
+                      <div key={option.id} className="space-y-2">
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-2">
+                            <Button
+                              variant={option.has_voted ? "default" : "outline"}
+                              size="sm"
+                              onClick={() =>
+                                option.has_voted ? removeVote(poll.id, option.id) : handleVote(poll.id, option.id, poll.allow_multiple_votes)
+                              }
+                              className={option.has_voted ? "bg-primary text-primary-foreground" : "bg-card text-primary"}
+                            >
+                              {option.has_voted ? <Check className="h-4 w-4 mr-2" /> : <Vote className="h-4 w-4 mr-2" />}
+                              {option.title}
+                            </Button>
+                          </div>
+                          <span className="text-sm text-muted-foreground">
+                            {option.votes_count || 0} votos ({percentage.toFixed(1)}%)
+                          </span>
+                        </div>
+                        <div className="h-2 bg-secondary rounded-full overflow-hidden">
+                          <div className="h-full bg-primary transition-all duration-500 ease-in-out" style={{ width: `${percentage}%` }} />
+                        </div>
+                      </div>
+                    );
+                  })}
+                  <p className="text-sm text-muted-foreground text-right">
+                    Total: {poll.total_votes} {poll.total_votes === 1 ? "voto" : "votos"}
+                  </p>
+                </div>
+              </CardContent>
+            </Card>
+          ))
         )}
       </div>
     </div>

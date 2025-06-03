@@ -70,3 +70,34 @@ export type PollVote = {
   participant_id: string;
   created_at: string;
 };
+
+export type Expense = {
+  id: string;
+  event_id: string;
+  title: string;
+  amount: number;
+  paid_by_participant_id: string;
+  created_at: string;
+  participant_name?: string;
+};
+
+export type ExpenseChangePayload = RealtimePostgresChangesPayload<{
+  id: string;
+  event_id: string;
+  title: string;
+  amount: number;
+  paid_by_participant_id: string;
+  created_at: string;
+}>;
+
+export type ExpenseSummary = {
+  total: number;
+  perPerson: number;
+  participants: {
+    id: string;
+    name: string;
+    paid: number;
+    owes: number;
+    receives: number;
+  }[];
+};
