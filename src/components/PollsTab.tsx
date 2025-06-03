@@ -379,24 +379,19 @@ const PollsTab: React.FC<PollsTabProps> = ({ eventId, currentParticipantId, isHo
         <div className="flex justify-end">
           <Skeleton className="h-9 w-36" />
         </div>
-        <div className="grid gap-4">
-          {[1, 2].map((i) => (
-            <SkeletonCard
-              key={i}
-              header={{
-                title: true,
-                description: true,
-                meta: true,
-                actions: 2,
-              }}
-              content={{
-                items: 3,
-                itemHeight: "h-8",
-                itemWidth: "w-full",
-              }}
-            />
-          ))}
-        </div>
+        <SkeletonCard
+          header={{
+            title: true,
+            description: true,
+            meta: false,
+            actions: 0,
+          }}
+          content={{
+            items: 4,
+            itemHeight: "h-12",
+            itemWidth: "w-full",
+          }}
+        />
       </div>
     );
   }

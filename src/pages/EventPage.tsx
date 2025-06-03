@@ -148,6 +148,12 @@ const EventPage: React.FC = () => {
       toast({ title: "Error", description: "No se pudo agregar la canción. Inténtalo de nuevo.", variant: "destructive" });
     }
   };
+
+  // Find the current participant object
+  const currentParticipant = participants.find((p) => p.id === currentParticipantId);
+  // Compare the participant's whatsapp/phone with eventDetails.host_id
+  const isHost = currentParticipant?.whatsapp_number === eventDetails?.host_id;
+
   if (isLoading) {
     return <div className="container mx-auto p-4 text-center text-spotify-text-muted">Cargando evento...</div>;
   }
@@ -227,19 +233,15 @@ const EventPage: React.FC = () => {
                 onPlaylistChange={setPlaylistItems}
                 currentParticipantId={currentParticipantId}
                 accessCode={eventDetails?.access_code || ""}
+                isHost={isHost}
               />
             </TabsContent>
             <TabsContent value="polls">
-              <PollsTab eventId={eventId} currentParticipantId={currentParticipantId} />
+              <PollsTab eventId={eventId} currentParticipantId={currentParticipantId} isHost={isHost} />
             </TabsContent>
             <TabsContent value="gastos">
               {currentParticipantId ? (
-                <ExpensesTab
-                  eventId={eventId}
-                  participants={participants}
-                  currentParticipantId={currentParticipantId}
-                  isHost={eventDetails?.host_id === currentParticipantId}
-                />
+                <ExpensesTab eventId={eventId} participants={participants} currentParticipantId={currentParticipantId} isHost={isHost} />
               ) : (
                 <JoinEventCard accessCode={eventDetails?.access_code || ""} message="unirte al evento para ver y agregar gastos" />
               )}

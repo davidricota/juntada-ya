@@ -16,6 +16,7 @@ interface ExpenseFormProps {
 }
 
 const ExpenseForm: React.FC<ExpenseFormProps> = ({ isOpen, onOpenChange, onSubmit, isLoading, participants, isHost, currentParticipantId }) => {
+  console.log("ExpenseForm debug:", { isHost, participants });
   const [title, setTitle] = useState("");
   const [amount, setAmount] = useState("");
   const [paidBy, setPaidBy] = useState(currentParticipantId);
@@ -62,11 +63,11 @@ const ExpenseForm: React.FC<ExpenseFormProps> = ({ isOpen, onOpenChange, onSubmi
           className="border border-primary-foreground"
         />
       </div>
-      {isHost && (
+      {isHost && participants.length > 0 && (
         <div className="space-y-2">
           <Label htmlFor="paidBy">Pagado por</Label>
           <Select value={paidBy} onValueChange={setPaidBy}>
-            <SelectTrigger>
+            <SelectTrigger className="border border-primary-foreground">
               <SelectValue placeholder="Selecciona un participante" />
             </SelectTrigger>
             <SelectContent>
