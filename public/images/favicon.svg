@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg width="512" height="512" viewBox="0 0 512 512" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <!-- Fondo circular negro -->
+  <circle cx="256" cy="256" r="256" fill="#18181b"/>
+  
+  <!-- Texto +! en rojo -->
+  <text x="256" y="320" 
+        font-family="Arial, sans-serif" 
+        font-size="280" 
+        font-weight="bold" 
+        fill="#ef4444" 
+        text-anchor="middle">
+    +!
+  </text>
+</svg> 
