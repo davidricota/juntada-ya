@@ -56,13 +56,18 @@ const CreateEventPage: React.FC = () => {
       // Intentar generar un código de acceso único
       while (!eventCreated && attempts < 5) {
         attempts++;
-        const encryptedHostId = await EncryptionService.encrypt(participantWhatsapp);
+        const encryptedWhatsapp = StorageService.encrypt(participantWhatsapp);
+
+        console.log("=== Creando Evento ===");
+        console.log("WhatsApp Original:", participantWhatsapp);
+        console.log("WhatsApp Encriptado:", encryptedWhatsapp);
+
         const { data, error } = await supabase
           .from("events")
           .insert({
             name: eventName,
             access_code: newAccessCode,
-            host_id: encryptedHostId,
+            host_id: encryptedWhatsapp,
           })
           .select()
           .single();
@@ -83,21 +88,36 @@ const CreateEventPage: React.FC = () => {
         throw new Error("No se pudo generar un código de acceso único");
       }
 
-      // Agregar al creador como participante
-      const encryptedNumber = await EncryptionService.encrypt(participantWhatsapp);
-      const { error: participantError } = await supabase.from("event_participants").insert({
-        event_id: createdEventData.id,
-        name: participantName,
-        whatsapp_number: encryptedNumber,
-      });
+      // Guardar el WhatsApp encriptado en el storage después de tener el ID del evento
+      const encryptedWhatsapp = StorageService.encrypt(participantWhatsapp);
+      StorageService.setItem(`event_${createdEventData.id}_whatsapp`, encryptedWhatsapp);
+
+      // Agregar al creador como participante usando el mismo valor encriptado
+      console.log("=== Agregando Participante ===");
+      console.log("WhatsApp Original:", participantWhatsapp);
+      console.log("WhatsApp Encriptado:", encryptedWhatsapp);
+
+      const { data: participantData, error: participantError } = await supabase
+        .from("event_participants")
+        .insert({
+          event_id: createdEventData.id,
+          name: participantName,
+          whatsapp_number: encryptedWhatsapp,
+        })
+        .select()
+        .single();
 
       if (participantError) throw participantError;
 
       // Guardar la información del participante en el store
       setParticipant(participantName, participantWhatsapp);
+      console.log("=== Guardando en LocalStorage ===");
+      console.log("Participant Data:", participantData);
+      console.log("Participant ID:", participantData.id);
+      console.log("Participant Name:", participantName);
 
       // Guardar en localStorage para mantener la sesión
-      StorageService.setItem(`event_${createdEventData.id}_participant_id`, createdEventData.id);
+      StorageService.setItem(`event_${createdEventData.id}_participant_id`, participantData.id);
       StorageService.setItem(`event_${createdEventData.id}_participant_name`, participantName);
 
       setAccessCode(createdEventData.access_code);

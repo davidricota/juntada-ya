@@ -16,6 +16,7 @@ import { usePlayer } from "@/contexts/PlayerContext";
 import { cn } from "@/lib/utils";
 import { useLocation } from "react-router-dom";
 import MiniPlayer from "./MiniPlayer";
+import { useParams } from "react-router-dom";
 
 interface YouTubePlayer {
   playVideo: () => void;
@@ -42,7 +43,7 @@ export interface PlaylistTabProps {
   currentTab: string;
 }
 
-const PlaylistTab: React.FC<PlaylistTabProps> = ({
+export default function PlaylistTab({
   eventId,
   participants,
   playlist,
@@ -52,25 +53,15 @@ const PlaylistTab: React.FC<PlaylistTabProps> = ({
   isHost,
   isLoading,
   currentTab,
-}) => {
+}: PlaylistTabProps) {
   const [currentVideoIndex, setCurrentVideoIndex] = useState(0);
   const [isPlayerReady, setIsPlayerReady] = useState(false);
   const playerRef = useRef<YouTubePlayer | null>(null);
-  const {
-    isMinimized,
-    setCurrentVideo,
-    isPlaying,
-    setIsPlaying,
-    progress,
-    setProgress,
-    duration,
-    setDuration,
-    volume,
-    setVolume,
-    isMuted,
-    setIsMuted,
-    setIsMinimized,
-  } = usePlayer();
+  const { setCurrentVideo, isPlaying, setIsPlaying, progress, setProgress, duration, setDuration, volume, setVolume, isMuted, setIsMuted } =
+    usePlayer();
+  const { isMinimized: usePlayerMinimized } = usePlayer();
+  const [player, setPlayer] = useState<YouTubePlayer | null>(null);
+  const { eventId: useParamsEventId } = useParams<{ eventId: string }>();
 
   // Update context when video changes
   useEffect(() => {
@@ -83,28 +74,38 @@ const PlaylistTab: React.FC<PlaylistTabProps> = ({
   useEffect(() => {
     const subscription = PlaylistService.subscribeToPlaylist(eventId, (payload: PlaylistChangePayload) => {
       if (payload.eventType === "DELETE") {
+        // Verificar si el item ya fue eliminado localmente
         onPlaylistChange((prevItems) => {
+          const exists = prevItems.some((item) => item.id === payload.old.id);
+          if (!exists) return prevItems; // Si ya no existe, no hacer nada
+
           const newItems = prevItems.filter((item) => item.id !== payload.old.id);
-          // If the deleted item was the current video, move to the next one
+          // Si el video actual fue eliminado, movemos al siguiente
           if (currentVideoIndex >= newItems.length) {
             setCurrentVideoIndex(Math.max(0, newItems.length - 1));
           }
           return newItems;
         });
       } else if (payload.eventType === "INSERT") {
-        const participant = participants.find((p) => p.id === payload.new.added_by_participant_id);
-        const newItem: PlaylistItem = {
-          id: payload.new.id,
-          youtube_video_id: payload.new.youtube_video_id,
-          title: payload.new.title,
-          thumbnail_url: payload.new.thumbnail_url,
-          channel_title: payload.new.channel_title,
-          added_by_participant_id: payload.new.added_by_participant_id,
-          event_id: payload.new.event_id,
-          added_at: payload.new.added_at,
-          participant_name: participant?.name || "Desconocido",
-        };
-        onPlaylistChange((prevItems) => [...prevItems, newItem]);
+        // Verificamos si la canción ya existe en la playlist
+        onPlaylistChange((prevItems) => {
+          const exists = prevItems.some((item) => item.youtube_video_id === payload.new.youtube_video_id);
+          if (exists) return prevItems;
+
+          const participant = participants.find((p) => p.id === payload.new.added_by_participant_id);
+          const newItem: PlaylistItem = {
+            id: payload.new.id,
+            youtube_video_id: payload.new.youtube_video_id,
+            title: payload.new.title,
+            thumbnail_url: payload.new.thumbnail_url,
+            channel_title: payload.new.channel_title,
+            added_by_participant_id: payload.new.added_by_participant_id,
+            event_id: payload.new.event_id,
+            added_at: payload.new.added_at,
+            participant_name: participant?.name || "Desconocido",
+          };
+          return [...prevItems, newItem];
+        });
       }
     });
 
@@ -113,6 +114,40 @@ const PlaylistTab: React.FC<PlaylistTabProps> = ({
     };
   }, [eventId, participants, onPlaylistChange, currentVideoIndex]);
 
+  // Update progress in real-time
+  useEffect(() => {
+    if (!isPlaying || !playerRef.current) {
+      return;
+    }
+
+    const interval = setInterval(() => {
+      if (playerRef.current) {
+        const currentTime = playerRef.current.getCurrentTime();
+        setProgress(currentTime);
+      }
+    }, 1000);
+
+    return () => clearInterval(interval);
+  }, [isPlaying, setProgress]);
+
+  // Memoize the YouTubePlayer to prevent unnecessary re-renders
+  const memoizedYouTubePlayer = React.useMemo(
+    () => (
+      <YouTubePlayer
+        key={`player-${currentVideoIndex}`}
+        playlistItems={playlist}
+        initialVideoIndex={currentVideoIndex}
+        currentTab={currentTab}
+        onPlayerReady={(player) => {
+          playerRef.current = player;
+          setIsPlayerReady(true);
+          setPlayer(player);
+        }}
+      />
+    ),
+    [currentVideoIndex, currentTab] // Solo se recrea cuando cambia el índice del video actual
+  );
+
   const handleVideoSelect = (index: number) => {
     console.log("Selecting video at index:", index);
     setCurrentVideoIndex(index);
@@ -120,10 +155,29 @@ const PlaylistTab: React.FC<PlaylistTabProps> = ({
 
   const handleVideoDelete = async (id: string, title: string) => {
     try {
+      // Actualizar el estado local inmediatamente
+      onPlaylistChange((prevItems) => {
+        const newItems = prevItems.filter((item) => item.id !== id);
+        // Si el video actual fue eliminado, movemos al siguiente
+        if (currentVideoIndex >= newItems.length) {
+          setCurrentVideoIndex(Math.max(0, newItems.length - 1));
+        }
+        return newItems;
+      });
+
+      // Luego intentar eliminar en la base de datos
       await PlaylistService.removeFromPlaylist(id);
       toast({ title: "Canción Eliminada", description: `${title}` });
     } catch (error) {
       console.error("Error deleting video:", error);
+      // Si hay error, revertir el cambio local
+      onPlaylistChange((prevItems) => {
+        const deletedItem = playlist.find((item) => item.id === id);
+        if (deletedItem) {
+          return [...prevItems, deletedItem];
+        }
+        return prevItems;
+      });
       toast({
         title: "Error",
         description: "No se pudo eliminar la canción. Inténtalo de nuevo.",
@@ -143,13 +197,13 @@ const PlaylistTab: React.FC<PlaylistTabProps> = ({
     }
 
     try {
-      const newSong = await PlaylistService.addToPlaylist(eventId, currentParticipantId, {
+      await PlaylistService.addToPlaylist(eventId, currentParticipantId, {
         youtube_video_id: song.id,
         title: song.title,
         thumbnail_url: song.thumbnail,
         channel_title: song.channelTitle,
       });
-      onPlaylistChange((prev) => [...prev, newSong]);
+      // No actualizamos el estado aquí, dejamos que la suscripción lo maneje
       toast({ title: "¡Canción Agregada!", description: `${song.title} se añadió a la playlist.` });
     } catch (error) {
       console.error("Error adding song:", error);
@@ -208,6 +262,10 @@ const PlaylistTab: React.FC<PlaylistTabProps> = ({
     }
   };
 
+  const handlePlayerReady = (player: YouTubePlayer) => {
+    setPlayer(player);
+  };
+
   if (isLoading) {
     return (
       <div className="space-y-4">
@@ -230,7 +288,7 @@ const PlaylistTab: React.FC<PlaylistTabProps> = ({
   }
 
   return (
-    <>
+    <div className="flex flex-col h-full">
       <div className={cn("transition-all duration-200", currentTab !== "playlist" && "opacity-0 w-0 h-0 overflow-hidden")}>
         <Card className="bg-card text-card-foreground shadow-lg">
           <CardHeader>
@@ -242,7 +300,14 @@ const PlaylistTab: React.FC<PlaylistTabProps> = ({
           <CardContent className="space-y-4">
             {playlist.length > 0 ? (
               <>
-                <YouTubePlayer playlistItems={playlist} initialVideoIndex={currentVideoIndex} />
+                <YouTubePlayer
+                  playlistItems={playlist}
+                  initialVideoIndex={currentVideoIndex}
+                  onPlayerReady={(player) => {
+                    playerRef.current = player;
+                    setIsPlayerReady(true);
+                  }}
+                />
                 <ScrollArea className="max-h-96 rounded-lg">
                   <Playlist
                     playlistItems={playlist}
@@ -263,25 +328,29 @@ const PlaylistTab: React.FC<PlaylistTabProps> = ({
           <JoinEventCard accessCode={accessCode} message="unirte al evento para agregar canciones" />
         )}
       </div>
-      {currentTab !== "playlist" && playlist.length > 0 && playlist[currentVideoIndex] && isPlaying && (
+      {currentTab !== "playlist" && (
         <MiniPlayer
           currentVideo={playlist[currentVideoIndex]}
+          player={playerRef.current}
+          onPrevious={() => {
+            const prevIndex = currentVideoIndex === 0 ? playlist.length - 1 : currentVideoIndex - 1;
+            setCurrentVideoIndex(prevIndex);
+          }}
+          onNext={() => {
+            const nextIndex = currentVideoIndex === playlist.length - 1 ? 0 : currentVideoIndex + 1;
+            setCurrentVideoIndex(nextIndex);
+          }}
           isPlaying={isPlaying}
           progress={progress}
           duration={duration}
-          volume={volume}
-          isMuted={isMuted}
-          onPlayPause={handlePlayPause}
-          onPrevious={handlePrevious}
-          onNext={handleNext}
-          onVolumeChange={handleVolumeChange}
-          onMuteToggle={handleMuteToggle}
-          onProgressChange={handleProgressChange}
-          onMaximize={() => setIsMinimized(false)}
+          onSeek={(value) => {
+            setProgress(value);
+            if (playerRef.current) {
+              playerRef.current.seekTo(value, true);
+            }
+          }}
         />
       )}
-    </>
+    </div>
   );
-};
-
-export default PlaylistTab;
+}

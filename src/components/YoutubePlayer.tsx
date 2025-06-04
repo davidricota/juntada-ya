@@ -57,7 +57,7 @@ interface YouTubePlayer {
   unMute: () => void;
   getDuration: () => number;
   getCurrentTime: () => number;
-  seekTo: (seconds: number, allowSeekAhead: boolean) => void;
+  seekTo: (seconds: number, allowSeekAhead?: boolean) => void;
 }
 
 interface YouTubePlayerEvent {
@@ -84,35 +84,21 @@ interface VideoItem {
 interface YouTubePlayerProps {
   playlistItems: VideoItem[];
   initialVideoIndex?: number;
+  onPlayerReady?: (player: YouTubePlayer) => void;
 }
 
-export default function YouTubePlayer({ playlistItems, initialVideoIndex = 0 }: YouTubePlayerProps) {
-  const {
-    isMinimized,
-    currentVideo: contextVideo,
-    setCurrentVideo,
-    isPlaying,
-    setIsPlaying,
-    progress,
-    setProgress,
-    duration,
-    setDuration,
-    volume,
-    setVolume,
-    isMuted,
-    setIsMuted,
-    setIsMinimized,
-  } = usePlayer();
-
-  const [currentVideoIndex, setCurrentVideoIndex] = useState(initialVideoIndex);
+export default function YouTubePlayer({ playlistItems, initialVideoIndex = 0, onPlayerReady }: YouTubePlayerProps) {
+  const [isPlayerReady, setIsPlayerReady] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const [isBuffering, setIsBuffering] = useState(false);
   const [isVisualizationActive, setIsVisualizationActive] = useState(false);
-  const [error, setError] = useState<string | null>(null);
   const [isRepeatEnabled, setIsRepeatEnabled] = useState(false);
-
   const playerRef = useRef<YouTubePlayer | null>(null);
   const playerContainerRef = useRef<HTMLDivElement>(null);
-  const progressIntervalRef = useRef<NodeJS.Timeout | null>(null);
+  const { setCurrentVideo, isPlaying, setIsPlaying, progress, setProgress, duration, setDuration, volume, setVolume, isMuted, setIsMuted } =
+    usePlayer();
+
+  const [currentVideoIndex, setCurrentVideoIndex] = useState(initialVideoIndex);
 
   const currentVideo = playlistItems[currentVideoIndex] || {
     id: "",
@@ -129,20 +115,6 @@ export default function YouTubePlayer({ playlistItems, initialVideoIndex = 0 }: 
   useEffect(() => {
     setCurrentVideo(currentVideo);
   }, [currentVideo, setCurrentVideo]);
-
-  // Handle tab visibility change
-  useEffect(() => {
-    const handleVisibilityChange = () => {
-      if (document.hidden && isPlaying) {
-        setIsMinimized(true);
-      }
-    };
-
-    document.addEventListener("visibilitychange", handleVisibilityChange);
-    return () => {
-      document.removeEventListener("visibilitychange", handleVisibilityChange);
-    };
-  }, [isPlaying, setIsMinimized]);
 
   // Load YouTube API
   useEffect(() => {
@@ -163,9 +135,6 @@ export default function YouTubePlayer({ playlistItems, initialVideoIndex = 0 }: 
     return () => {
       if (playerRef.current) {
         playerRef.current.destroy();
-      }
-      if (progressIntervalRef.current) {
-        clearInterval(progressIntervalRef.current);
       }
     };
   }, []);
@@ -193,15 +162,7 @@ export default function YouTubePlayer({ playlistItems, initialVideoIndex = 0 }: 
           iv_load_policy: 3,
         },
         events: {
-          onReady: (event) => {
-            console.log("Player ready");
-            onPlayerReady(event);
-            // Load initial video after player is ready but don't play
-            const videoId = playlistItems[currentVideoIndex]?.youtube_video_id;
-            if (videoId) {
-              event.target.loadVideoById(videoId);
-            }
-          },
+          onReady: handlePlayerReady,
           onStateChange: onPlayerStateChange,
           onError: onPlayerError,
         },
@@ -212,10 +173,11 @@ export default function YouTubePlayer({ playlistItems, initialVideoIndex = 0 }: 
     }
   };
 
-  const onPlayerReady = (event: YouTubePlayerEvent) => {
-    // Set initial volume
-    event.target.setVolume(volume * 100);
-    setDuration(event.target.getDuration() || 30);
+  const handlePlayerReady = (event: YouTubePlayerEvent) => {
+    playerRef.current = event.target;
+    setIsPlayerReady(true);
+    setDuration(event.target.getDuration());
+    onPlayerReady?.(event.target);
   };
 
   const onPlayerStateChange = (event: YouTubePlayerEvent) => {
@@ -251,22 +213,6 @@ export default function YouTubePlayer({ playlistItems, initialVideoIndex = 0 }: 
     // Update duration when it becomes available
     if (playerState === window.YT.PlayerState.PLAYING) {
       setDuration(playerRef.current?.getDuration() || 30);
-
-      // Start progress tracking
-      if (progressIntervalRef.current) {
-        clearInterval(progressIntervalRef.current);
-      }
-
-      progressIntervalRef.current = setInterval(() => {
-        if (playerRef.current && typeof playerRef.current.getCurrentTime === "function") {
-          setProgress(playerRef.current.getCurrentTime());
-        }
-      }, 1000);
-    } else if (playerState === window.YT.PlayerState.PAUSED) {
-      // Stop progress tracking
-      if (progressIntervalRef.current) {
-        clearInterval(progressIntervalRef.current);
-      }
     }
   };
 
@@ -384,26 +330,6 @@ export default function YouTubePlayer({ playlistItems, initialVideoIndex = 0 }: 
         <h2 className="text-white text-xl font-bold">No videos available</h2>
         <p className="text-zinc-400 mt-2">Please add videos to your playlist</p>
       </div>
-    );
-  }
-
-  if (isMinimized) {
-    return (
-      <MiniPlayer
-        currentVideo={currentVideo}
-        isPlaying={isPlaying}
-        progress={progress}
-        duration={duration}
-        volume={volume}
-        isMuted={isMuted}
-        onPlayPause={handlePlayPause}
-        onPrevious={handlePrevious}
-        onNext={handleNext}
-        onVolumeChange={handleVolumeChange}
-        onMuteToggle={handleMuteToggle}
-        onProgressChange={handleProgressChange}
-        onMaximize={() => setIsMinimized(false)}
-      />
     );
   }
 

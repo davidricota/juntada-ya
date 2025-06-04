@@ -17,7 +17,7 @@ import { YouTubeService, YouTubeVideo } from "@/services/youtubeService";
 import YouTubeSongSearch from "@/components/YouTubeSongSearch";
 import { RealtimeChannel } from "@supabase/supabase-js";
 import { EventType, Participant, ParticipantChangePayload, PlaylistItem, PlaylistChangePayload } from "@/types";
-
+import { EncryptionService } from "@/services/encryptionService";
 const EventPage: React.FC = () => {
   const { eventId } = useParams<{ eventId: string }>();
   const navigate = useNavigate();
@@ -37,8 +37,8 @@ const EventPage: React.FC = () => {
       return;
     }
 
-    const participantId = localStorage.getItem(`event_${eventId}_participant_id`);
-    const participantName = localStorage.getItem(`event_${eventId}_participant_name`);
+    const participantId = EncryptionService.decrypt(localStorage.getItem(`event_${eventId}_participant_id`));
+    const participantName = EncryptionService.decrypt(localStorage.getItem(`event_${eventId}_participant_name`));
 
     if (!participantId) {
       toast({
