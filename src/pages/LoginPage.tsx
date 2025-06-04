@@ -5,6 +5,8 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { toast } from "sonner";
+import { cn } from "@/lib/utils";
+import PhoneInput from "react-phone-input-2";
 
 const LoginPage: React.FC = () => {
   const [phone, setPhone] = useState("");
@@ -17,40 +19,70 @@ const LoginPage: React.FC = () => {
     setLoading(true);
 
     try {
-      // Format phone number (remove spaces, dashes, etc.)
+      // Formatear número de teléfono (eliminar espacios, guiones, etc.)
       const formattedPhone = phone.replace(/\D/g, "");
 
       if (formattedPhone.length < 10) {
-        throw new Error("Please enter a valid phone number");
+        throw new Error("Por favor ingresa un número de teléfono válido");
       }
 
       login(formattedPhone);
-      toast.success("Logged in successfully");
+      toast.success("Inicio de sesión exitoso");
       navigate("/my-events");
     } catch (error) {
-      console.error("Login error:", error);
-      toast.error("Error logging in. Please try again.");
+      console.error("Error de inicio de sesión:", error);
+      toast.error("Error al iniciar sesión. Por favor intenta de nuevo.");
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <div className="container mx-auto px-4 py-8 flex justify-center items-center min-h-[80vh]">
+    <div className="flex flex-col items-center justify-center p-4">
       <Card className="w-full max-w-md">
         <CardHeader>
-          <CardTitle>Login with WhatsApp</CardTitle>
-          <CardDescription>Enter your WhatsApp number to access your events</CardDescription>
+          <CardTitle>Iniciar Sesión con WhatsApp</CardTitle>
+          <CardDescription>Ingresa tu número de WhatsApp para acceder a tus eventos</CardDescription>
         </CardHeader>
         <form onSubmit={handleSubmit}>
           <CardContent>
             <div className="space-y-4">
-              <Input type="tel" placeholder="WhatsApp Number (e.g., 1234567890)" value={phone} onChange={(e) => setPhone(e.target.value)} required />
+              <PhoneInput
+                country="ar"
+                value={phone}
+                onChange={setPhone}
+                inputProps={{
+                  className: cn(
+                    "flex h-10 w-full rounded-md border border-input bg-foreground pl-14 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground !text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                  ),
+                }}
+                buttonClass="border-input bg-background hover:bg-accent hover:text-accent-foreground"
+                dropdownClass="bg-foreground border-input"
+                searchClass="bg-background border-input text-foreground"
+                containerClass="w-full"
+                inputStyle={{
+                  width: "100%",
+                  color: "hsl(var(--foreground))",
+                }}
+                buttonStyle={{
+                  backgroundColor: "hsl(var(--foreground))",
+                  borderColor: "hsl(var(--input))",
+                }}
+                dropdownStyle={{
+                  backgroundColor: "hsl(var(--foreground))",
+                  borderColor: "hsl(var(--input))",
+                }}
+                searchStyle={{
+                  backgroundColor: "hsl(var(--background))",
+                  borderColor: "hsl(var(--input))",
+                  color: "hsl(var(--foreground))",
+                }}
+              />
             </div>
           </CardContent>
           <CardFooter>
             <Button type="submit" className="w-full" disabled={loading}>
-              {loading ? "Logging in..." : "Login"}
+              {loading ? "Iniciando sesión..." : "Iniciar Sesión"}
             </Button>
           </CardFooter>
         </form>
