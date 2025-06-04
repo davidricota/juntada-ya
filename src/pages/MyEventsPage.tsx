@@ -13,7 +13,7 @@ const MyEventsPage: React.FC = () => {
   const { toast } = useToast();
   const [events, setEvents] = useState<(EventType & { participants?: Participant[] })[]>([]);
   const [loading, setLoading] = useState(true);
-  const { getUserStorage } = useParticipantStore();
+  const { getUserStorage, getUserId } = useParticipantStore();
 
   useEffect(() => {
     fetchEvents();
@@ -22,20 +22,31 @@ const MyEventsPage: React.FC = () => {
   const fetchEvents = async () => {
     try {
       const userStorage = getUserStorage();
-      if (!userStorage) {
+      const userId = getUserId();
+
+      console.log("User Storage:", userStorage);
+      console.log("User ID:", userId);
+
+      if (!userStorage || !userId) {
+        console.log("No user storage or user ID found, redirecting to home");
         navigate("/");
         return;
       }
 
       // Obtener eventos donde el usuario es host
-      const hostedEvents = await EventService.getEventsByHost(userStorage.id);
+      console.log("Fetching hosted events for user:", userId);
+      const hostedEvents = await EventService.getEventsByHost(userId);
+      console.log("Hosted events:", hostedEvents);
 
       // Obtener eventos donde el usuario es participante
-      const participantEvents = await EventService.getEventsByParticipant(userStorage.id);
+      console.log("Fetching participant events for user:", userId);
+      const participantEvents = await EventService.getEventsByParticipant(userId);
+      console.log("Participant events:", participantEvents);
 
       // Combinar y eliminar duplicados
       const allEvents = [...hostedEvents, ...participantEvents];
       const uniqueEvents = Array.from(new Map(allEvents.map((event) => [event.id, event])).values());
+      console.log("Combined unique events:", uniqueEvents);
 
       setEvents(uniqueEvents);
     } catch (error) {

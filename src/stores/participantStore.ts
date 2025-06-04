@@ -94,6 +94,13 @@ export const useParticipantStore = create<ParticipantState>()(
       clearParticipant: () => {
         set({ participant: null });
         localStorage.removeItem("participant_data");
+        localStorage.removeItem("user_data");
+        // Limpiar todos los event_participants
+        Object.keys(localStorage).forEach((key) => {
+          if (key.startsWith("event_") && key.endsWith("_participant")) {
+            localStorage.removeItem(key);
+          }
+        });
       },
     }),
     {

@@ -21,11 +21,14 @@ import { EncryptionService } from "@/services/encryptionService";
 import { SearchDialog } from "@/components/SearchDialog";
 import { ParticipantsTab } from "@/components/ParticipantsTab";
 import { useParticipantStore } from "@/stores/participantStore";
+import { toast } from "sonner";
 
 const EventPage: React.FC = () => {
   const { eventId } = useParams<{ eventId: string }>();
   const navigate = useNavigate();
   const { toast } = useToast();
+
+  console.log("EventPage mounted with eventId:", eventId);
 
   const [event, setEvent] = useState<(EventType & { participants?: Participant[] }) | null>(null);
   const [participants, setParticipants] = useState<Participant[]>([]);
@@ -37,71 +40,78 @@ const EventPage: React.FC = () => {
   const [currentTab, setCurrentTab] = useState<string>("playlist");
   const [isSearchOpen, setIsSearchOpen] = useState(false);
   const [isHost, setIsHost] = useState(false);
-  const { getEventParticipant, getUserStorage } = useParticipantStore();
+  const { getUserStorage, getUserId } = useParticipantStore();
 
   useEffect(() => {
+    console.log("EventPage useEffect triggered");
     if (!eventId) {
+      console.log("No eventId found, redirecting to home");
       navigate("/");
       return;
     }
 
-    const eventParticipant = getEventParticipant(eventId);
     const userStorage = getUserStorage();
+    const userId = getUserId();
 
-    if (!eventParticipant || !userStorage) {
-      setTimeout(() => {
-        const refreshedUser = getUserStorage();
-        const refreshedParticipant = getEventParticipant(eventId);
-        if (!refreshedUser || !refreshedParticipant) {
+    console.log("Initial data:", {
+      userStorage,
+      userId,
+      eventId,
+    });
+
+    if (!userStorage || !userId) {
+      console.log("Missing user data, redirecting to home");
+      navigate("/");
+      return;
+    }
+
+    const fetchEventData = async () => {
+      console.log("Starting to fetch event data");
+      setIsLoading(true);
+      try {
+        console.log("Fetching event data for ID:", eventId);
+        const eventData = await EventService.getEvent(eventId);
+        console.log("Event data received:", eventData);
+
+        if (!eventData) {
+          console.log("No event data found");
+          toast({ title: "Error", description: "Evento no encontrado.", variant: "destructive" });
+          navigate("/");
+          return;
+        }
+
+        setEvent(eventData);
+        setParticipants(eventData.participants || []);
+
+        console.log("User data:", {
+          userStorage,
+          userId,
+        });
+
+        // Encontrar el participante actual usando user_id
+        const currentParticipant = eventData.participants?.find((p) => p.user_id === userId);
+        console.log("Current participant found:", currentParticipant);
+
+        if (currentParticipant) {
+          console.log("Setting current participant:", currentParticipant);
+          setCurrentParticipantId(currentParticipant.id);
+          setCurrentParticipantName(currentParticipant.name);
+        } else {
+          console.log("User is not a participant in this event");
           toast({
             title: "Información",
             description: "No estás registrado como participante en este evento. Para añadir canciones, únete primero usando el código del evento.",
             variant: "default",
           });
         }
-      }, 500);
-      return;
-    }
 
-    setCurrentParticipantId(userStorage.id);
-    setCurrentParticipantName(eventParticipant.name);
-
-    const fetchEventData = async () => {
-      setIsLoading(true);
-      try {
-        // Fetch event details
-        const eventData = await EventService.getEvent(eventId);
-        console.log("Event Data from DB:", eventData);
-
-        if (!eventData) {
-          toast({ title: "Error", description: "Evento no encontrado.", variant: "destructive" });
-          navigate("/");
-          return;
-        }
-
-        // Fetch participants
-        const participantsData = await EventService.getEventParticipants(eventId);
-        console.log("Participants Data from DB:", participantsData);
-
-        setEvent(eventData);
-        setParticipants(participantsData || []);
-
-        const userStorage = getUserStorage();
-        console.log("User Storage:", userStorage);
-        console.log("Event Participant from Store:", getEventParticipant(eventId));
-
-        // Encontrar el participante actual basado en el user_id
-        const currentParticipant = participantsData?.find((p) => p.user_id === userStorage?.id);
-        console.log("Current Participant:", currentParticipant);
-
-        if (currentParticipant) {
-          setCurrentParticipantId(currentParticipant.id);
-          setCurrentParticipantName(currentParticipant.name);
-        }
-
-        setIsHost(eventData.host_user_id === userStorage?.id);
+        // Verificar si el usuario es el host
+        const isUserHost = eventData.host_user_id === userId;
+        console.log("Is user host:", isUserHost);
+        setIsHost(isUserHost);
 
         // Fetch playlist items
+        console.log("Fetching playlist items");
         const playlistData = await PlaylistService.getPlaylistItems(eventId);
         console.log("Playlist Data:", playlistData);
         setPlaylist(playlistData);
@@ -109,6 +119,7 @@ const EventPage: React.FC = () => {
         console.error("Error fetching event data:", error);
         toast({ title: "Error", description: "Error al cargar los datos del evento.", variant: "destructive" });
       } finally {
+        console.log("Finished loading event data");
         setIsLoading(false);
       }
     };
@@ -116,7 +127,9 @@ const EventPage: React.FC = () => {
     fetchEventData();
 
     // Subscribe to participants changes
+    console.log("Setting up subscriptions");
     const participantsSubscription = EventService.subscribeToParticipants(eventId, (payload: ParticipantChangePayload) => {
+      console.log("Participants change received:", payload);
       if (payload.eventType === "INSERT") {
         fetchEventData();
       }
@@ -124,6 +137,7 @@ const EventPage: React.FC = () => {
 
     // Subscribe to playlist changes
     const playlistSubscription = PlaylistService.subscribeToPlaylist(eventId, (payload: PlaylistChangePayload) => {
+      console.log("Playlist change received:", payload);
       if (payload.eventType === "DELETE") {
         setPlaylist((prev) => prev.filter((item) => item.id !== payload.old.id));
       } else if (payload.eventType === "INSERT") {
@@ -147,6 +161,7 @@ const EventPage: React.FC = () => {
     setSubscriptions([participantsSubscription, playlistSubscription]);
 
     return () => {
+      console.log("Cleaning up subscriptions");
       // Cleanup subscriptions
       subscriptions.forEach((subscription) => {
         if (subscription) {

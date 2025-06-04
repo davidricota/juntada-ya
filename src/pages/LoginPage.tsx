@@ -7,6 +7,8 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import PhoneInput from "react-phone-input-2";
+import { UserService } from "@/services/userService";
+import { encrypt } from "@/lib/encryption";
 
 const LoginPage: React.FC = () => {
   const [phone, setPhone] = useState("");
@@ -14,7 +16,7 @@ const LoginPage: React.FC = () => {
   const { login } = useAuth();
   const navigate = useNavigate();
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
 
@@ -25,6 +27,15 @@ const LoginPage: React.FC = () => {
       if (formattedPhone.length < 10) {
         throw new Error("Por favor ingresa un número de teléfono válido");
       }
+
+      // Obtener o crear el usuario
+      const user = await UserService.getOrCreateUser(formattedPhone, "Usuario");
+      console.log("User created/retrieved:", user);
+
+      // Guardar user_data en localStorage
+      const userStorage = { id: user.id, whatsapp: formattedPhone };
+      localStorage.setItem("user_data", encrypt(JSON.stringify(userStorage)));
+      console.log("User storage saved:", userStorage);
 
       login(formattedPhone);
       toast.success("Inicio de sesión exitoso");
