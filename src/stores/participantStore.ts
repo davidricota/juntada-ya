@@ -1,50 +1,103 @@
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
-import CryptoJS from "crypto-js";
+import { encrypt, decrypt } from "@/lib/encryption";
 
-const SECRET_KEY = import.meta.env.VITE_JWT_SECRET || "default_secret";
-
-function encrypt(value: string) {
-  return CryptoJS.AES.encrypt(value, SECRET_KEY).toString();
+interface Participant {
+  name: string;
+  phone: string;
+  userId?: string;
 }
 
-function decrypt(value: string) {
-  const bytes = CryptoJS.AES.decrypt(value, SECRET_KEY);
-  return bytes.toString(CryptoJS.enc.Utf8);
+interface EventParticipant {
+  id: string;
+  name: string;
+}
+
+interface UserStorage {
+  id: string;
+  whatsapp: string;
 }
 
 interface ParticipantState {
-  encryptedName: string | null;
-  encryptedWhatsapp: string | null;
-  setParticipant: (name: string, whatsapp: string) => void;
-  clearParticipant: () => void;
+  participant: Participant | null;
+  setParticipant: (name: string, phone: string, userId?: string) => void;
+  setEventParticipant: (eventId: string, participantId: string, name: string) => void;
+  getParticipant: () => Participant | null;
+  getEventParticipant: (eventId: string) => EventParticipant | null;
+  getUserStorage: () => UserStorage | null;
   getName: () => string | null;
   getWhatsapp: () => string | null;
+  getUserId: () => string | null;
+  clearParticipant: () => void;
 }
 
 export const useParticipantStore = create<ParticipantState>()(
   persist(
     (set, get) => ({
-      encryptedName: null,
-      encryptedWhatsapp: null,
-      setParticipant: (name, whatsapp) => {
-        set({
-          encryptedName: encrypt(name),
-          encryptedWhatsapp: encrypt(whatsapp),
-        });
+      participant: null,
+      setParticipant: (name, phone, userId) => {
+        const participant = { name, phone, userId };
+        const encrypted = encrypt(JSON.stringify(participant));
+        set({ participant: { name, phone, userId } });
+        localStorage.setItem("participant_data", encrypted);
       },
-      clearParticipant: () => set({ encryptedName: null, encryptedWhatsapp: null }),
+      setEventParticipant: (eventId, participantId, name) => {
+        const eventParticipant = { id: participantId, name };
+        const encrypted = encrypt(JSON.stringify(eventParticipant));
+        localStorage.setItem(`event_${eventId}_participant`, encrypted);
+      },
+      getParticipant: () => {
+        const stored = localStorage.getItem("participant_data");
+        if (!stored) return null;
+        try {
+          const decrypted = decrypt(stored);
+          return JSON.parse(decrypted);
+        } catch (error) {
+          console.error("Error decrypting participant:", error);
+          return null;
+        }
+      },
+      getEventParticipant: (eventId) => {
+        const stored = localStorage.getItem(`event_${eventId}_participant`);
+        if (!stored) return null;
+        try {
+          const decrypted = decrypt(stored);
+          return JSON.parse(decrypted);
+        } catch (error) {
+          console.error("Error decrypting event participant:", error);
+          return null;
+        }
+      },
+      getUserStorage: () => {
+        const stored = localStorage.getItem("user_data");
+        if (!stored) return null;
+        try {
+          const decrypted = decrypt(stored);
+          return JSON.parse(decrypted);
+        } catch (error) {
+          console.error("Error decrypting user data:", error);
+          return null;
+        }
+      },
       getName: () => {
-        const encrypted = get().encryptedName;
-        return encrypted ? decrypt(encrypted) : null;
+        const participant = get().getParticipant();
+        return participant?.name || null;
       },
       getWhatsapp: () => {
-        const encrypted = get().encryptedWhatsapp;
-        return encrypted ? decrypt(encrypted) : null;
+        const participant = get().getParticipant();
+        return participant?.phone || null;
+      },
+      getUserId: () => {
+        const userStorage = get().getUserStorage();
+        return userStorage?.id || null;
+      },
+      clearParticipant: () => {
+        set({ participant: null });
+        localStorage.removeItem("participant_data");
       },
     }),
     {
-      name: "participant-storage",
+      name: "participant_data",
     }
   )
 );

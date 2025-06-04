@@ -183,4 +183,60 @@ export class EventService {
   static unsubscribeFromParticipants(subscription: RealtimeChannel): void {
     subscription.unsubscribe();
   }
+
+  static async getEventsByHost(userId: string): Promise<(EventType & { participants?: Participant[] })[]> {
+    const { data, error } = await supabase
+      .from("events")
+      .select(
+        `
+        *,
+        participants:event_participants (
+          id,
+          event_id,
+          user_id,
+          name,
+          created_at
+        )
+      `
+      )
+      .eq("host_user_id", userId)
+      .order("created_at", { ascending: false });
+
+    if (error) throw error;
+    return data.map((event) => ({
+      ...event,
+      participants: event.participants || [],
+    }));
+  }
+
+  static async getEventsByParticipant(userId: string): Promise<(EventType & { participants?: Participant[] })[]> {
+    const { data: participantData, error: participantError } = await supabase.from("event_participants").select("event_id").eq("user_id", userId);
+
+    if (participantError) throw participantError;
+    if (!participantData.length) return [];
+
+    const eventIds = participantData.map((p) => p.event_id);
+    const { data: eventsData, error: eventsError } = await supabase
+      .from("events")
+      .select(
+        `
+        *,
+        participants:event_participants (
+          id,
+          event_id,
+          user_id,
+          name,
+          created_at
+        )
+      `
+      )
+      .in("id", eventIds)
+      .order("created_at", { ascending: false });
+
+    if (eventsError) throw eventsError;
+    return eventsData.map((event) => ({
+      ...event,
+      participants: event.participants || [],
+    }));
+  }
 }

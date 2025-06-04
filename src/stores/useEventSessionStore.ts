@@ -2,27 +2,31 @@
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
 
-type Attendee = {
-  name: string;
-  whatsapp_number: string;
-};
+interface EventSession {
+  eventName: string;
+  description?: string;
+  createdAt: string;
+  hostPhone: string;
+  accessCode: string;
+  participants?: string[];
+}
 
-type EventSessionState = {
-  sessions: Record<string, Attendee>; // clave = eventId
-  setSession: (eventId: string, attendee: Attendee) => void;
-  getSession: (eventId: string) => Attendee | undefined;
+interface EventSessionState {
+  sessions: Record<string, EventSession>;
+  setSession: (eventId: string, session: EventSession) => void;
+  getSession: (eventId: string) => EventSession | undefined;
   clearSession: (eventId: string) => void;
-};
+}
 
 export const useEventSessionStore = create(
   persist<EventSessionState>(
     (set, get) => ({
       sessions: {},
-      setSession: (eventId, attendee) =>
+      setSession: (eventId, session) =>
         set((state) => ({
           sessions: {
             ...state.sessions,
-            [eventId]: attendee,
+            [eventId]: session,
           },
         })),
       getSession: (eventId) => get().sessions[eventId],

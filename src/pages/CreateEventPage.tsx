@@ -12,6 +12,8 @@ import { cn } from "@/lib/utils";
 import { EventService } from "@/services/eventService";
 import { UserService } from "@/services/userService";
 import { supabase } from "@/integrations/supabase/client";
+import { encrypt } from "@/lib/encryption";
+import { Copy } from "lucide-react";
 
 const CreateEventPage: React.FC = () => {
   const [eventName, setEventName] = useState("");
@@ -22,7 +24,7 @@ const CreateEventPage: React.FC = () => {
   const [eventId, setEventId] = useState<string | null>(null);
   const navigate = useNavigate();
   const { toast } = useToast();
-  const { getName, getWhatsapp, setParticipant } = useParticipantStore();
+  const { getName, getWhatsapp, setParticipant, setEventParticipant } = useParticipantStore();
 
   // Inicializar los campos con los valores almacenados si existen
   React.useEffect(() => {
@@ -49,6 +51,7 @@ const CreateEventPage: React.FC = () => {
     try {
       // Crear o obtener el usuario
       const user = await UserService.getOrCreateUser(participantWhatsapp, participantName);
+      console.log("User created/retrieved:", user);
 
       // Generar el accessCode
       const generatedAccessCode = Math.random().toString(36).substring(2, 8).toUpperCase();
@@ -61,6 +64,7 @@ const CreateEventPage: React.FC = () => {
         .single();
 
       if (eventError) throw eventError;
+      console.log("Event created:", eventData);
 
       const eventId = eventData.id;
 
@@ -72,20 +76,28 @@ const CreateEventPage: React.FC = () => {
         .single();
 
       if (participantError) throw participantError;
+      console.log("Participant created:", participantData);
 
-      // Guardar el participant_id y el nombre en localStorage
-      localStorage.setItem(`event_${eventId}_participant_id`, participantData.id);
-      localStorage.setItem(`event_${eventId}_participant_name`, participantData.name);
-      localStorage.setItem("currentParticipantId", participantData.id);
+      // Guardar la información del usuario
+      const userStorage = { id: user.id, whatsapp: participantWhatsapp };
+      localStorage.setItem("user_data", encrypt(JSON.stringify(userStorage)));
+      console.log("User storage saved:", userStorage);
+
+      // Guardar la información del participante del evento
+      setEventParticipant(eventId, user.id, participantData.name);
+      console.log("Event participant saved:", { eventId, userId: user.id, name: participantData.name });
 
       // Guardar la información del participante en el store
       setParticipant(participantName, participantWhatsapp);
+      console.log("Participant store updated:", { name: participantName, whatsapp: participantWhatsapp });
 
       setAccessCode(eventData.access_code);
       setEventId(eventId);
       toast({ title: "¡Evento Creado!", description: `Nombre: ${eventName}, Código: ${eventData.access_code}` });
 
-      navigate(`/event/${eventId}`);
+      setTimeout(() => {
+        navigate(`/event/${eventId}`);
+      }, 2000);
     } catch (error) {
       console.error("Error creating event:", error);
       toast({ title: "Error", description: "No se pudo crear el evento. Inténtalo de nuevo.", variant: "destructive" });
@@ -109,7 +121,24 @@ const CreateEventPage: React.FC = () => {
             </div>
             <div>
               <p className="text-sm text-muted-foreground">Código de Acceso:</p>
-              <p className="text-3xl font-bold text-primary">{accessCode}</p>
+              <div className="flex items-center gap-2">
+                <p className="text-3xl font-bold text-primary">{accessCode}</p>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  onClick={() => {
+                    const joinUrl = `${window.location.origin}/join/${accessCode}`;
+                    navigator.clipboard.writeText(joinUrl);
+                    toast({
+                      title: "Código copiado",
+                      description: "El enlace para unirse al evento ha sido copiado al portapapeles.",
+                    });
+                  }}
+                  className="h-8 w-8"
+                >
+                  <Copy className="h-5 w-5" />
+                </Button>
+              </div>
             </div>
           </CardContent>
           <CardFooter className="flex flex-col gap-2">

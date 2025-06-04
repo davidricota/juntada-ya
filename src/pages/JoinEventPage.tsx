@@ -19,7 +19,7 @@ const JoinEventPage: React.FC = () => {
   const [isLoading, setIsLoading] = useState(false);
   const navigate = useNavigate();
   const { toast } = useToast();
-  const { getName, getWhatsapp, setParticipant } = useParticipantStore();
+  const { getName, getWhatsapp, setParticipant, setEventParticipant } = useParticipantStore();
 
   // Inicializar los campos con los valores almacenados si existen
   React.useEffect(() => {
@@ -59,8 +59,7 @@ const JoinEventPage: React.FC = () => {
       if (existingParticipant) {
         // Si ya es participante, guardar la información y redirigir
         setParticipant(participantName, participantWhatsapp);
-        localStorage.setItem(`event_${event.id}_participant_id`, user.id);
-        localStorage.setItem(`event_${event.id}_participant_name`, participantName);
+        setEventParticipant(event.id, user.id, participantName);
         navigate(`/event/${event.id}`);
         return;
       }
@@ -70,8 +69,7 @@ const JoinEventPage: React.FC = () => {
 
       // Guardar la información del participante
       setParticipant(participantName, participantWhatsapp);
-      localStorage.setItem(`event_${event.id}_participant_id`, user.id);
-      localStorage.setItem(`event_${event.id}_participant_name`, participantName);
+      setEventParticipant(event.id, user.id, participantName);
 
       toast({ title: "¡Bienvenido!", description: `Te has unido al evento ${event.name}` });
       navigate(`/event/${event.id}`);

@@ -5,7 +5,7 @@ import { useToast } from "@/hooks/use-toast";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { LogOut, Users } from "lucide-react";
+import { LogOut, Users, Copy } from "lucide-react";
 import PlaylistTab from "@/components/PlaylistTab";
 import PollsTab from "@/components/PollsTab";
 import ExpensesTab from "@/components/ExpensesTab";
@@ -20,6 +20,7 @@ import { EventType, Participant, ParticipantChangePayload, PlaylistItem, Playlis
 import { EncryptionService } from "@/services/encryptionService";
 import { SearchDialog } from "@/components/SearchDialog";
 import { ParticipantsTab } from "@/components/ParticipantsTab";
+import { useParticipantStore } from "@/stores/participantStore";
 
 const EventPage: React.FC = () => {
   const { eventId } = useParams<{ eventId: string }>();
@@ -36,6 +37,7 @@ const EventPage: React.FC = () => {
   const [currentTab, setCurrentTab] = useState<string>("playlist");
   const [isSearchOpen, setIsSearchOpen] = useState(false);
   const [isHost, setIsHost] = useState(false);
+  const { getEventParticipant, getUserStorage } = useParticipantStore();
 
   useEffect(() => {
     if (!eventId) {
@@ -43,35 +45,65 @@ const EventPage: React.FC = () => {
       return;
     }
 
-    const participantId = localStorage.getItem(`event_${eventId}_participant_id`);
-    const participantName = localStorage.getItem(`event_${eventId}_participant_name`);
+    const eventParticipant = getEventParticipant(eventId);
+    const userStorage = getUserStorage();
 
-    if (!participantId) {
-      toast({
-        title: "Información",
-        description: "No estás registrado como participante en este evento. Para añadir canciones, únete primero usando el código del evento.",
-        variant: "default",
-      });
+    if (!eventParticipant || !userStorage) {
+      setTimeout(() => {
+        const refreshedUser = getUserStorage();
+        const refreshedParticipant = getEventParticipant(eventId);
+        if (!refreshedUser || !refreshedParticipant) {
+          toast({
+            title: "Información",
+            description: "No estás registrado como participante en este evento. Para añadir canciones, únete primero usando el código del evento.",
+            variant: "default",
+          });
+        }
+      }, 500);
+      return;
     }
-    setCurrentParticipantId(participantId);
-    setCurrentParticipantName(participantName);
+
+    setCurrentParticipantId(userStorage.id);
+    setCurrentParticipantName(eventParticipant.name);
 
     const fetchEventData = async () => {
       setIsLoading(true);
       try {
         // Fetch event details
         const eventData = await EventService.getEvent(eventId);
+        console.log("Event Data from DB:", eventData);
+
         if (!eventData) {
           toast({ title: "Error", description: "Evento no encontrado.", variant: "destructive" });
           navigate("/");
           return;
         }
+
+        // Fetch participants
+        const participantsData = await EventService.getEventParticipants(eventId);
+        console.log("Participants Data from DB:", participantsData);
+
         setEvent(eventData);
-        setParticipants(eventData.participants || []);
-        setIsHost(eventData.host_user_id === localStorage.getItem("currentParticipantId"));
+        setParticipants(participantsData || []);
+
+        const userStorage = getUserStorage();
+        console.log("User Storage:", userStorage);
+        console.log("Event Participant from Store:", getEventParticipant(eventId));
+
+        // Encontrar el participante actual basado en el user_id
+        const currentParticipant = participantsData?.find((p) => p.user_id === userStorage?.id);
+        console.log("Current Participant:", currentParticipant);
+
+        if (currentParticipant) {
+          setCurrentParticipantId(currentParticipant.id);
+          setCurrentParticipantName(currentParticipant.name);
+        }
+
+        setIsHost(eventData.host_user_id === userStorage?.id);
 
         // Fetch playlist items
         const playlistData = await PlaylistService.getPlaylistItems(eventId);
+        console.log("Playlist Data:", playlistData);
         setPlaylist(playlistData);
       } catch (error) {
         console.error("Error fetching event data:", error);
@@ -127,20 +159,29 @@ const EventPage: React.FC = () => {
 
   useEffect(() => {
     const storedParticipantId = localStorage.getItem("currentParticipantId");
-    if (!storedParticipantId) {
-      // No redirigir al home, solo mostrar un mensaje
-      toast({
-        title: "Información",
-        description: "No estás registrado como participante en este evento. Para añadir canciones, únete primero usando el código del evento.",
-        variant: "default",
-      });
-    }
     setCurrentParticipantId(storedParticipantId);
-  }, [navigate, toast]);
+  }, [navigate]);
+
+  useEffect(() => {
+    if (!isLoading && participants.length > 0) {
+      const userStorage = getUserStorage();
+      if (!userStorage) {
+        return;
+      }
+      const isParticipant = participants.some((p) => p.user_id === userStorage.id);
+      if (!isParticipant) {
+        toast({
+          title: "Información",
+          description: "No estás registrado como participante en este evento. Para añadir canciones, únete primero usando el código del evento.",
+          variant: "default",
+        });
+      }
+    }
+  }, [isLoading, participants]);
 
   const handleLogout = () => {
-    localStorage.removeItem(`event_${eventId}_participant_id`);
-    localStorage.removeItem(`event_${eventId}_participant_name`);
+    const { clearParticipant } = useParticipantStore.getState();
+    clearParticipant();
     EventService.leaveEvent(eventId, currentParticipantId);
     navigate("/");
   };
@@ -195,7 +236,24 @@ const EventPage: React.FC = () => {
             <CardHeader className="bg-card">
               <CardTitle className="text-3xl md:text-4xl font-bold text-primary">{event.name}</CardTitle>
               <CardDescription className="text-muted-foreground">
-                Código de Acceso: <span className="font-semibold text-primary">{event.access_code}</span>
+                <div className="flex items-center gap-2">
+                  Código de Acceso: <span className="font-semibold text-primary">{event.access_code}</span>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    onClick={() => {
+                      const joinUrl = `${window.location.origin}/join/${event.access_code}`;
+                      navigator.clipboard.writeText(joinUrl);
+                      toast({
+                        title: "Código copiado",
+                        description: "El enlace para unirse al evento ha sido copiado al portapapeles.",
+                      });
+                    }}
+                    className="h-6 w-6"
+                  >
+                    <Copy className="h-4 w-4" />
+                  </Button>
+                </div>
                 {currentParticipantName && (
                   <>
                     <div className="text-sm text-muted-foreground">
