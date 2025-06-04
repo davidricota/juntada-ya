@@ -1,18 +1,17 @@
 import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
-import { generateAccessCode } from "@/lib/utils";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { useParticipantStore } from "@/stores/participantStore";
-import { StorageService } from "@/services/storageService";
 import PhoneInput from "react-phone-input-2";
 import "react-phone-input-2/lib/style.css";
 import { cn } from "@/lib/utils";
-import { EncryptionService } from "@/services/encryptionService";
+import { EventService } from "@/services/eventService";
+import { UserService } from "@/services/userService";
+import { supabase } from "@/integrations/supabase/client";
 
 const CreateEventPage: React.FC = () => {
   const [eventName, setEventName] = useState("");
@@ -47,82 +46,46 @@ const CreateEventPage: React.FC = () => {
 
     setIsLoading(true);
 
-    let newAccessCode = generateAccessCode();
-    let eventCreated = false;
-    let attempts = 0;
-    let createdEventData = null;
-
     try {
-      // Intentar generar un código de acceso único
-      while (!eventCreated && attempts < 5) {
-        attempts++;
-        const encryptedWhatsapp = StorageService.encrypt(participantWhatsapp);
+      // Crear o obtener el usuario
+      const user = await UserService.getOrCreateUser(participantWhatsapp, participantName);
 
-        console.log("=== Creando Evento ===");
-        console.log("WhatsApp Original:", participantWhatsapp);
-        console.log("WhatsApp Encriptado:", encryptedWhatsapp);
+      // Generar el accessCode
+      const generatedAccessCode = Math.random().toString(36).substring(2, 8).toUpperCase();
 
-        const { data, error } = await supabase
-          .from("events")
-          .insert({
-            name: eventName,
-            access_code: newAccessCode,
-            host_id: encryptedWhatsapp,
-          })
-          .select()
-          .single();
+      // Crear el evento usando el ID del usuario
+      const { data: eventData, error: eventError } = await supabase
+        .from("events")
+        .insert({ name: eventName, access_code: generatedAccessCode, host_user_id: user.id })
+        .select()
+        .single();
 
-        if (error) {
-          if (error.message.includes('duplicate key value violates unique constraint "events_access_code_key"')) {
-            newAccessCode = generateAccessCode();
-          } else {
-            throw error;
-          }
-        } else {
-          createdEventData = data;
-          eventCreated = true;
-        }
-      }
+      if (eventError) throw eventError;
 
-      if (!eventCreated || !createdEventData) {
-        throw new Error("No se pudo generar un código de acceso único");
-      }
+      const eventId = eventData.id;
 
-      // Guardar el WhatsApp encriptado en el storage después de tener el ID del evento
-      const encryptedWhatsapp = StorageService.encrypt(participantWhatsapp);
-      StorageService.setItem(`event_${createdEventData.id}_whatsapp`, encryptedWhatsapp);
-
-      // Agregar al creador como participante usando el mismo valor encriptado
-      console.log("=== Agregando Participante ===");
-      console.log("WhatsApp Original:", participantWhatsapp);
-      console.log("WhatsApp Encriptado:", encryptedWhatsapp);
-
+      // Crear el participante (host) del evento
       const { data: participantData, error: participantError } = await supabase
         .from("event_participants")
-        .insert({
-          event_id: createdEventData.id,
-          name: participantName,
-          whatsapp_number: encryptedWhatsapp,
-        })
+        .insert({ event_id: eventId, user_id: user.id, name: user.name })
         .select()
         .single();
 
       if (participantError) throw participantError;
 
+      // Guardar el participant_id y el nombre en localStorage
+      localStorage.setItem(`event_${eventId}_participant_id`, participantData.id);
+      localStorage.setItem(`event_${eventId}_participant_name`, participantData.name);
+      localStorage.setItem("currentParticipantId", participantData.id);
+
       // Guardar la información del participante en el store
       setParticipant(participantName, participantWhatsapp);
-      console.log("=== Guardando en LocalStorage ===");
-      console.log("Participant Data:", participantData);
-      console.log("Participant ID:", participantData.id);
-      console.log("Participant Name:", participantName);
 
-      // Guardar en localStorage para mantener la sesión
-      StorageService.setItem(`event_${createdEventData.id}_participant_id`, participantData.id);
-      StorageService.setItem(`event_${createdEventData.id}_participant_name`, participantName);
+      setAccessCode(eventData.access_code);
+      setEventId(eventId);
+      toast({ title: "¡Evento Creado!", description: `Nombre: ${eventName}, Código: ${eventData.access_code}` });
 
-      setAccessCode(createdEventData.access_code);
-      setEventId(createdEventData.id);
-      toast({ title: "¡Evento Creado!", description: `Nombre: ${eventName}, Código: ${createdEventData.access_code}` });
+      navigate(`/event/${eventId}`);
     } catch (error) {
       console.error("Error creating event:", error);
       toast({ title: "Error", description: "No se pudo crear el evento. Inténtalo de nuevo.", variant: "destructive" });

@@ -9,21 +9,21 @@ export type Database = {
           event_id: string;
           id: string;
           name: string;
-          whatsapp_number: string;
+          user_id: string;
         };
         Insert: {
           created_at?: string;
           event_id: string;
           id?: string;
           name: string;
-          whatsapp_number: string;
+          user_id: string;
         };
         Update: {
           created_at?: string;
           event_id?: string;
           id?: string;
           name?: string;
-          whatsapp_number?: string;
+          user_id?: string;
         };
         Delete: {
           id: string;
@@ -36,6 +36,13 @@ export type Database = {
             isOneToOne: false;
             referencedRelation: "events";
             referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "event_participants_user_id_fkey";
+            columns: ["user_id"];
+            isOneToOne: false;
+            referencedRelation: "users";
+            referencedColumns: ["id"];
           }
         ];
       };
@@ -45,23 +52,31 @@ export type Database = {
           created_at: string;
           id: string;
           name: string;
-          host_id: string;
+          host_user_id: string;
         };
         Insert: {
           access_code: string;
           created_at?: string;
           id?: string;
           name: string;
-          host_id: string;
+          host_user_id: string;
         };
         Update: {
           access_code?: string;
           created_at?: string;
           id?: string;
           name?: string;
-          host_id?: string;
+          host_user_id?: string;
         };
-        Relationships: [];
+        Relationships: [
+          {
+            foreignKeyName: "events_host_user_id_fkey";
+            columns: ["host_user_id"];
+            isOneToOne: false;
+            referencedRelation: "users";
+            referencedColumns: ["id"];
+          }
+        ];
       };
       playlist_items: {
         Row: {
@@ -236,6 +251,30 @@ export type Database = {
             referencedColumns: ["id"];
           }
         ];
+      };
+      users: {
+        Row: {
+          created_at: string;
+          id: string;
+          last_active_at: string;
+          name: string | null;
+          whatsapp_hash: string;
+        };
+        Insert: {
+          created_at?: string;
+          id?: string;
+          last_active_at?: string;
+          name?: string | null;
+          whatsapp_hash: string;
+        };
+        Update: {
+          created_at?: string;
+          id?: string;
+          last_active_at?: string;
+          name?: string | null;
+          whatsapp_hash?: string;
+        };
+        Relationships: [];
       };
     };
     Views: {

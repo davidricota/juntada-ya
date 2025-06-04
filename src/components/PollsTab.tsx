@@ -386,7 +386,7 @@ const PollsTab: React.FC<PollsTabProps> = ({ eventId, currentParticipantId, isHo
       <div className="flex justify-end">
         <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
           <DialogTrigger asChild>
-            <Button className="bg-primary text-primary-foreground hover:bg-primary/90">
+            <Button className="bg-primary text-primary-foreground border border-primary-foreground hover:bg-primary/90">
               <Plus className="mr-2 h-4 w-4" /> Nueva Encuesta
             </Button>
           </DialogTrigger>

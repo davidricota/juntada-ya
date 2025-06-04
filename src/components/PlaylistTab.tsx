@@ -42,6 +42,7 @@ export interface PlaylistTabProps {
   isHost: boolean;
   isLoading: boolean;
   currentTab: string;
+  onRemoveSong: (itemId: string) => Promise<void>;
 }
 
 export default function PlaylistTab({
@@ -54,6 +55,7 @@ export default function PlaylistTab({
   isHost,
   isLoading,
   currentTab,
+  onRemoveSong,
 }: PlaylistTabProps) {
   const [currentVideoIndex, setCurrentVideoIndex] = useState(0);
   const [isPlayerReady, setIsPlayerReady] = useState(false);
@@ -188,7 +190,7 @@ export default function PlaylistTab({
       });
 
       // Luego intentar eliminar en la base de datos
-      await PlaylistService.removeFromPlaylist(id);
+      await onRemoveSong(id);
       toast({ title: "Canción Eliminada", description: `${title}` });
     } catch (error) {
       console.error("Error deleting video:", error);
@@ -361,7 +363,7 @@ export default function PlaylistTab({
           <JoinEventCard accessCode={accessCode} message="unirte al evento para agregar canciones" />
         )}
       </div>
-      {currentTab !== "playlist" && (
+      {currentTab !== "playlist" && playlist.length > 0 && (
         <MiniPlayer
           currentVideo={playlist[currentVideoIndex]}
           player={playerRef.current}

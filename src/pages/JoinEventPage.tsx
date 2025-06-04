@@ -7,7 +7,7 @@ import { useToast } from "@/hooks/use-toast";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { useParticipantStore } from "@/stores/participantStore";
 import { EventService } from "@/services/eventService";
-import { StorageService } from "@/services/storageService";
+import { UserService } from "@/services/userService";
 import PhoneInput from "react-phone-input-2";
 import "react-phone-input-2/lib/style.css";
 import { cn } from "@/lib/utils";
@@ -51,27 +51,27 @@ const JoinEventPage: React.FC = () => {
         return;
       }
 
+      // Obtener o crear el usuario
+      const user = await UserService.getOrCreateUser(participantWhatsapp, participantName);
+
       // Verificar si ya es participante
       const existingParticipant = await EventService.isParticipant(event.id, participantWhatsapp);
       if (existingParticipant) {
         // Si ya es participante, guardar la información y redirigir
         setParticipant(participantName, participantWhatsapp);
-        StorageService.setItem(`event_${event.id}_participant_id`, existingParticipant.id);
-        StorageService.setItem(`event_${event.id}_participant_name`, participantName);
+        localStorage.setItem(`event_${event.id}_participant_id`, user.id);
+        localStorage.setItem(`event_${event.id}_participant_name`, participantName);
         navigate(`/event/${event.id}`);
         return;
       }
 
       // Si no es participante, unirse al evento
-      const participant = await EventService.joinEvent(event.id, {
-        name: participantName,
-        whatsapp_number: participantWhatsapp,
-      });
+      const participant = await EventService.joinEvent(event.id, participantWhatsapp, participantName);
 
       // Guardar la información del participante
       setParticipant(participantName, participantWhatsapp);
-      StorageService.setItem(`event_${event.id}_participant_id`, participant.id);
-      StorageService.setItem(`event_${event.id}_participant_name`, participantName);
+      localStorage.setItem(`event_${event.id}_participant_id`, user.id);
+      localStorage.setItem(`event_${event.id}_participant_name`, participantName);
 
       toast({ title: "¡Bienvenido!", description: `Te has unido al evento ${event.name}` });
       navigate(`/event/${event.id}`);

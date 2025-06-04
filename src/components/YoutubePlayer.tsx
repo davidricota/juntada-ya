@@ -58,6 +58,7 @@ interface YouTubePlayer {
   getDuration: () => number;
   getCurrentTime: () => number;
   seekTo: (seconds: number, allowSeekAhead?: boolean) => void;
+  getVideoData: () => { video_id: string } | null;
 }
 
 interface YouTubePlayerEvent {

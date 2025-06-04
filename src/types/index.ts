@@ -1,7 +1,16 @@
-export interface Participant {
+export interface EventType {
   id: string;
   name: string;
-  email: string;
+  access_code: string;
+  created_at: string;
+  host_user_id: string;
+}
+
+export interface Participant {
+  id: string;
+  event_id: string;
+  user_id: string;
+  name: string;
   created_at: string;
 }
 
@@ -9,7 +18,6 @@ export interface Expense {
   id: string;
   event_id: string;
   participant_id: string;
-  participant_name: string;
   title: string;
   amount: number;
   created_at: string;
@@ -38,7 +46,7 @@ export interface Poll {
   event_id: string;
   title: string;
   description?: string;
-  created_by_participant_id: string;
+  created_by_user_id: string;
   created_at: string;
   closed_at?: string;
   allow_multiple_votes: boolean;
@@ -55,6 +63,30 @@ export interface PollVote {
   id: string;
   poll_id: string;
   option_id: string;
-  participant_id: string;
+  user_id: string;
   created_at: string;
+}
+
+export interface PlaylistItem {
+  id: string;
+  event_id: string;
+  youtube_video_id: string;
+  title: string;
+  thumbnail_url: string;
+  channel_title: string;
+  added_by_participant_id: string;
+  added_at: string;
+  participant_name: string;
+}
+
+export interface ParticipantChangePayload {
+  eventType: "INSERT" | "UPDATE" | "DELETE";
+  new: Participant;
+  old: Participant;
+}
+
+export interface PlaylistChangePayload {
+  eventType: "INSERT" | "UPDATE" | "DELETE";
+  new: PlaylistItem;
+  old: PlaylistItem;
 }
