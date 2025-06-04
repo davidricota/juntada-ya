@@ -85,9 +85,10 @@ interface YouTubePlayerProps {
   playlistItems: VideoItem[];
   initialVideoIndex?: number;
   onPlayerReady?: (player: YouTubePlayer) => void;
+  onVideoChange?: (index: number) => void;
 }
 
-export default function YouTubePlayer({ playlistItems, initialVideoIndex = 0, onPlayerReady }: YouTubePlayerProps) {
+export default function YouTubePlayer({ playlistItems, initialVideoIndex = 0, onPlayerReady, onVideoChange }: YouTubePlayerProps) {
   const [isPlayerReady, setIsPlayerReady] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [isBuffering, setIsBuffering] = useState(false);
@@ -169,7 +170,6 @@ export default function YouTubePlayer({ playlistItems, initialVideoIndex = 0, on
       });
     } catch (err) {
       setError("Failed to initialize YouTube player");
-      console.error("YouTube player initialization error:", err);
     }
   };
 
@@ -203,6 +203,7 @@ export default function YouTubePlayer({ playlistItems, initialVideoIndex = 0, on
         if (currentVideoIndex < playlistItems.length - 1) {
           const nextIndex = currentVideoIndex + 1;
           setCurrentVideoIndex(nextIndex);
+          onVideoChange?.(nextIndex);
         } else {
           // If it's the last video, stop
           setIsPlaying(false);
@@ -212,12 +213,12 @@ export default function YouTubePlayer({ playlistItems, initialVideoIndex = 0, on
 
     // Update duration when it becomes available
     if (playerState === window.YT.PlayerState.PLAYING) {
-      setDuration(playerRef.current?.getDuration() || 30);
+      const newDuration = playerRef.current?.getDuration() || 30;
+      setDuration(newDuration);
     }
   };
 
   const onPlayerError = (event: YouTubeErrorEvent) => {
-    console.error("YouTube player error:", event.data);
     setError(`Error playing video (code: ${event.data})`);
 
     // Try to play next video on error
@@ -232,7 +233,6 @@ export default function YouTubePlayer({ playlistItems, initialVideoIndex = 0, on
       const videoId = playlistItems[currentVideoIndex]?.youtube_video_id;
       if (videoId) {
         try {
-          console.log("Loading and playing video:", videoId);
           playerRef.current.loadVideoById(videoId);
           // Add a small delay before playing to ensure the video is loaded
           setTimeout(() => {
@@ -243,7 +243,6 @@ export default function YouTubePlayer({ playlistItems, initialVideoIndex = 0, on
           setError(null);
         } catch (err) {
           setError("Failed to load video");
-          console.error("Error loading video:", err);
         }
       }
     }
@@ -260,18 +259,19 @@ export default function YouTubePlayer({ playlistItems, initialVideoIndex = 0, on
       }
     } catch (err) {
       setError("Failed to control playback");
-      console.error("Playback control error:", err);
     }
   };
 
   const handlePrevious = () => {
     const prevIndex = currentVideoIndex === 0 ? playlistItems.length - 1 : currentVideoIndex - 1;
     setCurrentVideoIndex(prevIndex);
+    onVideoChange?.(prevIndex);
   };
 
   const handleNext = () => {
     const nextIndex = currentVideoIndex === playlistItems.length - 1 ? 0 : currentVideoIndex + 1;
     setCurrentVideoIndex(nextIndex);
+    onVideoChange?.(nextIndex);
   };
 
   const handleVolumeChange = (value: number[]) => {

@@ -29,6 +29,7 @@ interface YouTubePlayer {
   getDuration: () => number;
   getCurrentTime: () => number;
   seekTo: (seconds: number, allowSeekAhead: boolean) => void;
+  getVideoData: () => { video_id: string } | null;
 }
 
 export interface PlaylistTabProps {
@@ -62,6 +63,25 @@ export default function PlaylistTab({
   const { isMinimized: usePlayerMinimized } = usePlayer();
   const [player, setPlayer] = useState<YouTubePlayer | null>(null);
   const { eventId: useParamsEventId } = useParams<{ eventId: string }>();
+
+  // Update currentVideoIndex when video changes
+  useEffect(() => {
+    if (playerRef.current && isPlaying) {
+      const checkVideo = () => {
+        const currentTime = playerRef.current?.getCurrentTime() || 0;
+        const videoDuration = playerRef.current?.getDuration() || 0;
+
+        // Si el video está cerca del final, asumimos que está por cambiar
+        if (videoDuration - currentTime < 1) {
+          const nextIndex = currentVideoIndex === playlist.length - 1 ? 0 : currentVideoIndex + 1;
+          setCurrentVideoIndex(nextIndex);
+        }
+      };
+
+      const interval = setInterval(checkVideo, 1000);
+      return () => clearInterval(interval);
+    }
+  }, [isPlaying, currentVideoIndex, playlist.length]);
 
   // Update context when video changes
   useEffect(() => {
@@ -143,13 +163,15 @@ export default function PlaylistTab({
           setIsPlayerReady(true);
           setPlayer(player);
         }}
+        onVideoChange={(index) => {
+          setCurrentVideoIndex(index);
+        }}
       />
     ),
     [currentVideoIndex, currentTab] // Solo se recrea cuando cambia el índice del video actual
   );
 
   const handleVideoSelect = (index: number) => {
-    console.log("Selecting video at index:", index);
     setCurrentVideoIndex(index);
   };
 
@@ -228,11 +250,19 @@ export default function PlaylistTab({
   const handlePrevious = () => {
     const prevIndex = currentVideoIndex === 0 ? playlist.length - 1 : currentVideoIndex - 1;
     setCurrentVideoIndex(prevIndex);
+    if (playerRef.current) {
+      playerRef.current.loadVideoById(playlist[prevIndex].youtube_video_id);
+      playerRef.current.playVideo();
+    }
   };
 
   const handleNext = () => {
     const nextIndex = currentVideoIndex === playlist.length - 1 ? 0 : currentVideoIndex + 1;
     setCurrentVideoIndex(nextIndex);
+    if (playerRef.current) {
+      playerRef.current.loadVideoById(playlist[nextIndex].youtube_video_id);
+      playerRef.current.playVideo();
+    }
   };
 
   const handleVolumeChange = (value: number[]) => {
@@ -307,6 +337,9 @@ export default function PlaylistTab({
                     playerRef.current = player;
                     setIsPlayerReady(true);
                   }}
+                  onVideoChange={(index) => {
+                    setCurrentVideoIndex(index);
+                  }}
                 />
                 <ScrollArea className="max-h-96 rounded-lg">
                   <Playlist
@@ -332,14 +365,8 @@ export default function PlaylistTab({
         <MiniPlayer
           currentVideo={playlist[currentVideoIndex]}
           player={playerRef.current}
-          onPrevious={() => {
-            const prevIndex = currentVideoIndex === 0 ? playlist.length - 1 : currentVideoIndex - 1;
-            setCurrentVideoIndex(prevIndex);
-          }}
-          onNext={() => {
-            const nextIndex = currentVideoIndex === playlist.length - 1 ? 0 : currentVideoIndex + 1;
-            setCurrentVideoIndex(nextIndex);
-          }}
+          onPrevious={handlePrevious}
+          onNext={handleNext}
           isPlaying={isPlaying}
           progress={progress}
           duration={duration}
