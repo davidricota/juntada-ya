@@ -1,5 +1,5 @@
-import React, { useState } from "react";
-import { useNavigate } from "react-router-dom";
+import React, { useState, useEffect } from "react";
+import { useNavigate, useParams } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -13,7 +13,8 @@ import "react-phone-input-2/lib/style.css";
 import { cn } from "@/lib/utils";
 
 const JoinEventPage: React.FC = () => {
-  const [accessCode, setAccessCode] = useState("");
+  const { accessCode: urlAccessCode } = useParams();
+  const [accessCode, setAccessCode] = useState(urlAccessCode || "");
   const [participantName, setParticipantName] = useState("");
   const [participantWhatsapp, setParticipantWhatsapp] = useState("");
   const [isLoading, setIsLoading] = useState(false);
@@ -22,7 +23,7 @@ const JoinEventPage: React.FC = () => {
   const { getName, getWhatsapp, setParticipant, setEventParticipant } = useParticipantStore();
 
   // Inicializar los campos con los valores almacenados si existen
-  React.useEffect(() => {
+  useEffect(() => {
     const storedName = getName();
     const storedWhatsapp = getWhatsapp();
     if (storedName) setParticipantName(storedName);
@@ -101,6 +102,7 @@ const JoinEventPage: React.FC = () => {
                 onChange={(e) => setAccessCode(e.target.value)}
                 placeholder="Ingresa el código de acceso"
                 required
+                readOnly={!!urlAccessCode}
                 className="bg-card border-input text-primary placeholder:text-muted-foreground"
               />
             </div>
