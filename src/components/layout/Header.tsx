@@ -1,79 +1,124 @@
-import React from "react";
-import { Link, useNavigate } from "react-router-dom";
-import { useAuth } from "@/contexts/AuthContext";
+import React, { useState } from "react";
+import { Link, useLocation } from "react-router-dom";
 import { Button } from "@/components/ui/button";
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
-import { Menu } from "lucide-react";
+import { useParticipantStore } from "@/stores/participantStore";
+import { LogOut, Menu, X } from "lucide-react";
 
 const Header: React.FC = () => {
-  const { user, logout } = useAuth();
-  const navigate = useNavigate();
+  const location = useLocation();
+  const { getUserStorage, clearParticipant } = useParticipantStore();
+  const userStorage = getUserStorage();
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
   const handleLogout = () => {
-    logout();
-    navigate("/");
+    clearParticipant();
+    setIsMobileMenuOpen(false);
+  };
+
+  const toggleMobileMenu = () => {
+    setIsMobileMenuOpen(!isMobileMenuOpen);
   };
 
   return (
-    <header className="bg-card/80 backdrop-blur-md sticky top-0 z-50">
-      <div className="container mx-auto px-4 py-4 flex justify-between items-center">
-        <Link to="/" className="flex items-center space-x-2 text-2xl font-bold text-primary hover:opacity-80 transition-opacity">
-          <span>juntadaYa!</span>
-        </Link>
-
-        <nav className="hidden md:flex items-center space-x-6">
-          <Link to="/" className="text-primary">
-            Home
-          </Link>
-          {user ? (
-            <>
-              <Link to="/my-events" className="text-primary">
-                Mis Eventos
-              </Link>
-              <Link to="/create-event" className="text-primary">
-                Crear Evento
-              </Link>
-              <Button variant="outline" onClick={handleLogout}>
-                Logout
-              </Button>
-            </>
-          ) : (
-            <Link to="/login">
-              <Button>Login</Button>
+    <header className="bg-card text-card-foreground shadow-sm">
+      <div className="container mx-auto px-4 py-4">
+        <div className="flex justify-between items-center">
+          <div className="flex items-center space-x-8">
+            <Link to="/" className="text-2xl font-bold text-primary">
+              Juntada Ya
             </Link>
-          )}
-        </nav>
-
-        {/* Mobile menu */}
-        <div className="md:hidden">
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button variant="ghost" size="icon">
-                <Menu className="h-5 w-5" />
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end">
-              <DropdownMenuItem asChild>
-                <Link to="/">Home</Link>
-              </DropdownMenuItem>
-              {user ? (
+            <nav className="hidden md:flex space-x-6">
+              <Link
+                to="/"
+                className={`text-sm font-medium transition-colors hover:text-primary ${
+                  location.pathname === "/" ? "text-primary" : "text-muted-foreground"
+                }`}
+              >
+                Inicio
+              </Link>
+              {userStorage && (
                 <>
-                  <DropdownMenuItem asChild>
-                    <Link to="/my-events">My Events</Link>
-                  </DropdownMenuItem>
-                  <DropdownMenuItem asChild>
-                    <Link to="/create-event">Create Event</Link>
-                  </DropdownMenuItem>
-                  <DropdownMenuItem onClick={handleLogout}>Logout</DropdownMenuItem>
+                  <Link
+                    to="/my-events"
+                    className={`text-sm font-medium transition-colors hover:text-primary ${
+                      location.pathname === "/my-events" ? "text-primary" : "text-muted-foreground"
+                    }`}
+                  >
+                    Mis Eventos
+                  </Link>
+                  <Link
+                    to="/create-event"
+                    className={`text-sm font-medium transition-colors hover:text-primary ${
+                      location.pathname === "/create-event" ? "text-primary" : "text-muted-foreground"
+                    }`}
+                  >
+                    Crear Evento
+                  </Link>
                 </>
-              ) : (
-                <DropdownMenuItem asChild>
-                  <Link to="/login">Login</Link>
-                </DropdownMenuItem>
               )}
-            </DropdownMenuContent>
-          </DropdownMenu>
+            </nav>
+          </div>
+          <div className="flex items-center space-x-4">
+            {userStorage ? (
+              <>
+                <Button variant="ghost" onClick={handleLogout} className="hidden md:flex items-center gap-2">
+                  <LogOut className="h-4 w-4" />
+                  Cerrar Sesión
+                </Button>
+                <Button variant="ghost" onClick={toggleMobileMenu} className="md:hidden">
+                  {isMobileMenuOpen ? <X className="h-6 w-6" /> : <Menu className="h-6 w-6 text-primary" />}
+                </Button>
+              </>
+            ) : (
+              <Link to="/login">
+                <Button variant="default">Iniciar Sesión</Button>
+              </Link>
+            )}
+          </div>
         </div>
+
+        {/* Mobile Menu */}
+        {isMobileMenuOpen && (
+          <div className="md:hidden mt-4 py-4 border-t">
+            <nav className="flex flex-col space-y-4">
+              <Link
+                to="/"
+                className={`text-sm font-medium transition-colors hover:text-primary ${
+                  location.pathname === "/" ? "text-primary" : "text-muted-foreground"
+                }`}
+                onClick={() => setIsMobileMenuOpen(false)}
+              >
+                Inicio
+              </Link>
+              {userStorage && (
+                <>
+                  <Link
+                    to="/my-events"
+                    className={`text-sm font-medium transition-colors hover:text-primary ${
+                      location.pathname === "/my-events" ? "text-primary" : "text-muted-foreground"
+                    }`}
+                    onClick={() => setIsMobileMenuOpen(false)}
+                  >
+                    Mis Eventos
+                  </Link>
+                  <Link
+                    to="/create-event"
+                    className={`text-sm font-medium transition-colors hover:text-primary ${
+                      location.pathname === "/create-event" ? "text-primary" : "text-muted-foreground"
+                    }`}
+                    onClick={() => setIsMobileMenuOpen(false)}
+                  >
+                    Crear Evento
+                  </Link>
+                  <Button onClick={handleLogout} className="bg-primary text-primary-foreground flex items-center gap-2 justify-center">
+                    <LogOut className="h-4 w-4" />
+                    Cerrar Sesión
+                  </Button>
+                </>
+              )}
+            </nav>
+          </div>
+        )}
       </div>
     </header>
   );

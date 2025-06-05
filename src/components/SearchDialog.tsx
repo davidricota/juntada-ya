@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { PlaylistItem } from "@/types";
 import { YouTubeService, YouTubeVideo } from "@/services/youtubeService";
 import { useToast } from "@/components/ui/use-toast";
+import YouTubeSearchResults from "./YouTubeSearchResults";
 
 interface SearchDialogProps {
   isOpen: boolean;
@@ -43,7 +44,9 @@ export function SearchDialog({ isOpen, onClose, onSongSelected }: SearchDialogPr
       title: video.title,
       thumbnail_url: video.thumbnail,
       channel_title: video.channelTitle,
+      added_by_participant_id: "", // Este valor será reemplazado por el servicio
     });
+    onClose();
   };
 
   return (
@@ -64,21 +67,7 @@ export function SearchDialog({ isOpen, onClose, onSongSelected }: SearchDialogPr
               {isSearching ? "Buscando..." : "Buscar"}
             </Button>
           </div>
-          <div className="space-y-2">
-            {searchResults.map((video) => (
-              <div
-                key={video.id}
-                className="flex items-center gap-2 p-2 hover:bg-accent rounded-lg cursor-pointer"
-                onClick={() => handleSongSelect(video)}
-              >
-                <img src={video.thumbnail} alt={video.title} className="w-16 h-12 object-cover rounded" />
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm font-medium truncate">{video.title}</p>
-                  <p className="text-xs text-muted-foreground truncate">{video.channelTitle}</p>
-                </div>
-              </div>
-            ))}
-          </div>
+          <YouTubeSearchResults results={searchResults} onSongSelected={handleSongSelect} showAddButton={false} />
         </div>
       </DialogContent>
     </Dialog>

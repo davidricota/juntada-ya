@@ -85,7 +85,7 @@ export default function MiniPlayer({ currentVideo, player, onPrevious, onNext, i
             className="w-12 h-12 rounded-md object-cover"
           />
           <div className="flex flex-col">
-            <span className="text-sm font-medium text-white truncate max-w-[200px]">{currentVideo.title}</span>
+            <span className="text-sm font-medium text-white truncate max-w-[150px] md:max-w-[200px]">{currentVideo.title}</span>
             <span className="text-xs text-zinc-400">{currentVideo.channel_title}</span>
           </div>
         </div>
@@ -104,7 +104,7 @@ export default function MiniPlayer({ currentVideo, player, onPrevious, onNext, i
           </Button>
         </div>
 
-        <div className="flex items-center space-x-4">
+        <div className="hidden md:flex items-center space-x-4">
           <div className="flex items-center space-x-2">
             <Button variant="ghost" size="icon" className="text-zinc-400 hover:text-white" onClick={handleMuteToggle}>
               {isMuted ? <VolumeX className="h-5 w-5" /> : <Volume2 className="h-5 w-5" />}
@@ -112,7 +112,7 @@ export default function MiniPlayer({ currentVideo, player, onPrevious, onNext, i
             <Slider value={[isMuted ? 0 : volume]} min={0} max={1} step={0.01} onValueChange={handleVolumeChange} className="w-24" />
           </div>
 
-          <div className="flex items-center space-x-2">
+          <div className="hidden md:flex items-center space-x-2">
             <span className="text-xs text-zinc-400">{formatTime(progress)}</span>
             <Slider value={[progress]} min={0} max={duration || 1} step={1} onValueChange={(value) => onSeek(value[0])} className="w-32" />
             <span className="text-xs text-zinc-400">{formatTime(duration)}</span>
