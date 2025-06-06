@@ -11,6 +11,7 @@ import { UserService } from "@/services/userService";
 import PhoneInput from "react-phone-input-2";
 import "react-phone-input-2/lib/style.css";
 import { cn } from "@/lib/utils";
+import { encrypt } from "@/lib/encryption";
 
 const JoinEventPage: React.FC = () => {
   const { accessCode: urlAccessCode } = useParams();
@@ -54,12 +55,25 @@ const JoinEventPage: React.FC = () => {
 
       // Obtener o crear el usuario
       const user = await UserService.getOrCreateUser(participantWhatsapp, participantName);
+      if (!user) {
+        toast({ title: "Error", description: "No se pudo crear o obtener el usuario.", variant: "destructive" });
+        return;
+      }
+
+      // Guardar la información del usuario en localStorage
+      setParticipant(participantName, participantWhatsapp);
+
+      // Guardar user_data en localStorage
+      const userData = {
+        id: user.id,
+        whatsapp_number: participantWhatsapp,
+      };
+      localStorage.setItem("user_data", encrypt(JSON.stringify(userData)));
 
       // Verificar si ya es participante
       const existingParticipant = await EventService.isParticipant(event.id, participantWhatsapp);
       if (existingParticipant) {
         // Si ya es participante, guardar la información y redirigir
-        setParticipant(participantName, participantWhatsapp);
         setEventParticipant(event.id, user.id, participantName);
         navigate(`/event/${event.id}`);
         return;
@@ -67,9 +81,12 @@ const JoinEventPage: React.FC = () => {
 
       // Si no es participante, unirse al evento
       const participant = await EventService.joinEvent(event.id, participantWhatsapp, participantName);
+      if (!participant) {
+        toast({ title: "Error", description: "No se pudo unir al evento.", variant: "destructive" });
+        return;
+      }
 
-      // Guardar la información del participante
-      setParticipant(participantName, participantWhatsapp);
+      // Guardar la información del participante en localStorage
       setEventParticipant(event.id, user.id, participantName);
 
       toast({ title: "¡Bienvenido!", description: `Te has unido al evento ${event.name}` });
