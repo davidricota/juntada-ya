@@ -11,7 +11,6 @@ import "react-phone-input-2/lib/style.css";
 import { cn } from "@/lib/utils";
 import { EventService } from "@/services/eventService";
 import { UserService } from "@/services/userService";
-import { supabase } from "@/integrations/supabase/client";
 import { encrypt } from "@/lib/encryption";
 import { Copy } from "lucide-react";
 
@@ -52,28 +51,12 @@ const CreateEventPage: React.FC = () => {
       // Crear o obtener el usuario
       const user = await UserService.getOrCreateUser(participantWhatsapp, participantName);
 
-      // Generar el accessCode
-      const generatedAccessCode = Math.random().toString(36).substring(2, 8).toUpperCase();
-
       // Crear el evento usando el ID del usuario
-      const { data: eventData, error: eventError } = await supabase
-        .from("events")
-        .insert({ name: eventName, access_code: generatedAccessCode, host_user_id: user.id })
-        .select()
-        .single();
-
-      if (eventError) throw eventError;
-
+      const eventData = await EventService.createEvent(eventName, user.id);
       const eventId = eventData.id;
 
       // Crear el participante (host) del evento
-      const { data: participantData, error: participantError } = await supabase
-        .from("event_participants")
-        .insert({ event_id: eventId, user_id: user.id, name: user.name })
-        .select()
-        .single();
-
-      if (participantError) throw participantError;
+      const participantData = await EventService.createHostParticipant(eventId, user.id, user.name);
 
       // Guardar la información del usuario
       const userStorage = { id: user.id, whatsapp: participantWhatsapp };

@@ -109,55 +109,22 @@ export class EventService {
     if (error) throw error;
   }
 
-  static async createEvent(name: string, userId: string): Promise<EventType> {
-    const accessCode = generateAccessCode();
-    let eventCreated = false;
-    let attempts = 0;
-    let createdEvent = null;
+  static async createEvent(name: string, hostUserId: string): Promise<{ id: string; access_code: string }> {
+    const { data, error } = await supabase
+      .from("events")
+      .insert({ name, access_code: Math.random().toString(36).substring(2, 8).toUpperCase(), host_user_id: hostUserId })
+      .select()
+      .single();
 
-    // Intentar generar un código de acceso único
-    while (!eventCreated && attempts < 5) {
-      attempts++;
-      const { data, error } = await supabase
-        .from("events")
-        .insert({
-          name,
-          access_code: accessCode,
-          host_user_id: userId,
-        })
-        .select()
-        .single();
+    if (error) throw error;
+    return data;
+  }
 
-      if (error) {
-        if (error.message.includes('duplicate key value violates unique constraint "events_access_code_key"')) {
-          // Si el código ya existe, generamos uno nuevo y lo intentamos de nuevo
-          continue;
-        }
-        throw error;
-      }
+  static async createHostParticipant(eventId: string, userId: string, name: string): Promise<{ id: string; name: string }> {
+    const { data, error } = await supabase.from("event_participants").insert({ event_id: eventId, user_id: userId, name }).select().single();
 
-      createdEvent = data;
-      eventCreated = true;
-    }
-
-    if (!eventCreated || !createdEvent) {
-      throw new Error("No se pudo generar un código de acceso único");
-    }
-
-    // Obtener el usuario para usar su nombre
-    const { data: userData, error: userError } = await supabase.from("users").select("name").eq("id", userId).single();
-    if (userError) throw userError;
-
-    // Agregar al creador como participante
-    const { error: participantError } = await supabase.from("event_participants").insert({
-      event_id: createdEvent.id,
-      user_id: userId,
-      name: userData.name || "Host",
-    });
-
-    if (participantError) throw participantError;
-
-    return createdEvent;
+    if (error) throw error;
+    return data;
   }
 
   static async deleteEvent(eventId: string): Promise<void> {
