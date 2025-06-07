@@ -1,19 +1,14 @@
 import React, { useState, useEffect } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
-import { Switch } from "@/components/ui/switch";
+
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Plus, Vote, X, Check, Loader2 } from "lucide-react";
 import { PollService } from "@/services/pollService";
 import { useToast } from "@/hooks/use-toast";
 import { Poll, PollOption, PollVote } from "@/types";
-import { supabase } from "@/integrations/supabase/client";
 import { PollForm } from "@/components/PollForm";
 import { Skeleton } from "@/components/ui/skeleton";
-import { SkeletonCard } from "@/components/ui/skeleton-card";
 
 interface PollsTabProps {
   eventId: string;

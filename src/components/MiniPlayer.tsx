@@ -1,12 +1,10 @@
 "use client";
 
 import { Play, Pause, SkipBack, SkipForward, Volume2, VolumeX } from "lucide-react";
-import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Slider } from "@/components/ui/slider";
 import { PlaylistItem } from "@/types";
 import { usePlayer } from "@/contexts/PlayerContext";
-import { useState, useEffect } from "react";
 
 interface YouTubePlayer {
   playVideo: () => void;

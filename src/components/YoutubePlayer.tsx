@@ -8,7 +8,6 @@ import { Button } from "@/components/ui/button";
 import { Slider } from "@/components/ui/slider";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import MusicVisualization from "@/components/music-visualization";
-import MiniPlayer from "@/components/MiniPlayer";
 import { usePlayer } from "@/contexts/PlayerContext";
 
 // YouTube API types

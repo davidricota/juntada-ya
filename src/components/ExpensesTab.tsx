@@ -1,15 +1,13 @@
 import React, { useState, useEffect } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Plus, Loader2 } from "lucide-react";
+import { Loader2 } from "lucide-react";
 import { ExpenseService } from "@/services/expenseService";
 import { useToast } from "@/hooks/use-toast";
 import { Participant, Expense, ExpenseSummary, ExpenseChangePayload } from "@/types";
 import { formatCurrency } from "@/lib/utils";
 import { Trash } from "lucide-react";
 import ExpenseForm from "./ExpenseForm";
-import { SkeletonCard } from "@/components/ui/skeleton-card";
-import { Skeleton } from "@/components/ui/skeleton";
+
 import { ScrollArea } from "@/components/ui/scroll-area";
 
 interface ExpensesTabProps {

@@ -13,15 +13,11 @@ import JoinEventCard from "@/components/JoinEventCard";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { EventService } from "@/services/eventService";
 import { PlaylistService } from "@/services/playlistService";
-import { YouTubeService, YouTubeVideo } from "@/services/youtubeService";
-import YouTubeSongSearch from "@/components/YouTubeSongSearch";
+
 import { RealtimeChannel } from "@supabase/supabase-js";
 import { EventType, Participant, ParticipantChangePayload, PlaylistItem, PlaylistChangePayload } from "@/types";
-import { EncryptionService } from "@/services/encryptionService";
 import { SearchDialog } from "@/components/SearchDialog";
-import { ParticipantsTab } from "@/components/ParticipantsTab";
 import { useParticipantStore } from "@/stores/participantStore";
-import { toast } from "sonner";
 
 const EventPage: React.FC = () => {
   const { eventId } = useParams<{ eventId: string }>();

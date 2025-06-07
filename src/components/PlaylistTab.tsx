@@ -10,11 +10,9 @@ import { Participant, PlaylistItem, PlaylistChangePayload } from "@/types";
 import YouTubeSongSearch from "./YouTubeSongSearch";
 import { YouTubeVideo } from "@/services/youtubeService";
 import JoinEventCard from "./JoinEventCard";
-import { SkeletonCard } from "@/components/ui/skeleton-card";
-import { Skeleton } from "@/components/ui/skeleton";
+
 import { usePlayer } from "@/contexts/PlayerContext";
 import { cn } from "@/lib/utils";
-import { useLocation } from "react-router-dom";
 import MiniPlayer from "./MiniPlayer";
 import { useParams } from "react-router-dom";
 
