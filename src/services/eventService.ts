@@ -2,17 +2,42 @@ import { supabase } from "@/integrations/supabase/client";
 import { EventType, Participant, ParticipantChangePayload } from "@/types";
 import { RealtimeChannel } from "@supabase/supabase-js";
 import { UserService } from "./userService";
-import { generateAccessCode } from "@/lib/utils";
+
+// Cache para eventos
+const eventCache = new Map<string, { data: EventType & { participants?: Participant[] }; timestamp: number }>();
+const CACHE_TTL = 5 * 60 * 1000; // 5 minutos
 
 export class EventService {
+  private static clearCache() {
+    const now = Date.now();
+    for (const [key, value] of eventCache.entries()) {
+      if (now - value.timestamp > CACHE_TTL) {
+        eventCache.delete(key);
+      }
+    }
+  }
+
   static async getEvent(eventId: string): Promise<EventType & { participants?: Participant[] }> {
+    // Limpiar cache expirado
+    this.clearCache();
+
+    // Verificar cache
+    const cached = eventCache.get(eventId);
+    if (cached && Date.now() - cached.timestamp < CACHE_TTL) {
+      return cached.data;
+    }
+
     try {
       const { data, error } = await supabase
         .from("events")
         .select(
           `
-          *,
-          participants:event_participants (
+          id,
+          name,
+          access_code,
+          host_user_id,
+          created_at,
+          participants:event_participants!inner (
             id,
             event_id,
             user_id,
@@ -27,11 +52,23 @@ export class EventService {
       if (error) throw error;
       if (!data) throw new Error("Event not found");
 
-      return {
-        ...data,
+      const result = {
+        id: data.id,
+        name: data.name,
+        access_code: data.access_code,
+        host_user_id: data.host_user_id,
+        created_at: data.created_at,
         participants: data.participants || [],
       };
+
+      // Guardar en cache
+      eventCache.set(eventId, { data: result, timestamp: Date.now() });
+
+      return result;
     } catch (error) {
+      if (error instanceof Error) {
+        throw new Error(`Error fetching event: ${error.message}`);
+      }
       throw new Error("Error fetching event");
     }
   }
@@ -41,8 +78,12 @@ export class EventService {
       .from("events")
       .select(
         `
-        *,
-        participants:event_participants (
+        id,
+        name,
+        access_code,
+        host_user_id,
+        created_at,
+        participants:event_participants!inner (
           id,
           event_id,
           user_id,
@@ -55,30 +96,49 @@ export class EventService {
       .single();
 
     if (error) {
-      if (error.code === "PGRST116") return null; // No rows returned
+      if (error.code === "PGRST116") return null;
       throw error;
     }
-    return {
-      ...data,
+
+    const result = {
+      id: data.id,
+      name: data.name,
+      access_code: data.access_code,
+      host_user_id: data.host_user_id,
+      created_at: data.created_at,
       participants: data.participants || [],
     };
+
+    // Guardar en cache
+    eventCache.set(data.id, { data: result, timestamp: Date.now() });
+
+    return result;
   }
 
   static async isParticipant(eventId: string, whatsappNumber: string): Promise<Participant | null> {
     const user = await UserService.getUserByWhatsApp(whatsappNumber);
     if (!user) return null;
 
-    const { data, error } = await supabase.from("event_participants").select("*").eq("event_id", eventId).eq("user_id", user.id).single();
+    const { data, error } = await supabase
+      .from("event_participants")
+      .select("id, event_id, user_id, name, created_at")
+      .eq("event_id", eventId)
+      .eq("user_id", user.id)
+      .single();
 
     if (error) {
-      if (error.code === "PGRST116") return null; // No rows returned
+      if (error.code === "PGRST116") return null;
       throw error;
     }
     return data;
   }
 
   static async getEventParticipants(eventId: string): Promise<Participant[]> {
-    const { data, error } = await supabase.from("event_participants").select("*").eq("event_id", eventId).order("created_at", { ascending: true });
+    const { data, error } = await supabase
+      .from("event_participants")
+      .select("id, event_id, user_id, name, created_at")
+      .eq("event_id", eventId)
+      .order("created_at", { ascending: true });
 
     if (error) throw error;
     return data || [];
@@ -93,10 +153,14 @@ export class EventService {
         user_id: user.id,
         name,
       })
-      .select()
+      .select("id, event_id, user_id, name, created_at")
       .single();
 
     if (error) throw error;
+
+    // Invalidar cache del evento
+    eventCache.delete(eventId);
+
     return data;
   }
 
@@ -107,13 +171,17 @@ export class EventService {
     const { error } = await supabase.from("event_participants").delete().match({ event_id: eventId, user_id: user.id });
 
     if (error) throw error;
+
+    // Invalidar cache del evento
+    eventCache.delete(eventId);
   }
 
   static async createEvent(name: string, hostUserId: string): Promise<{ id: string; access_code: string }> {
+    const accessCode = Math.random().toString(36).substring(2, 8).toUpperCase();
     const { data, error } = await supabase
       .from("events")
-      .insert({ name, access_code: Math.random().toString(36).substring(2, 8).toUpperCase(), host_user_id: hostUserId })
-      .select()
+      .insert({ name, access_code: accessCode, host_user_id: hostUserId })
+      .select("id, access_code")
       .single();
 
     if (error) throw error;
@@ -121,9 +189,17 @@ export class EventService {
   }
 
   static async createHostParticipant(eventId: string, userId: string, name: string): Promise<{ id: string; name: string }> {
-    const { data, error } = await supabase.from("event_participants").insert({ event_id: eventId, user_id: userId, name }).select().single();
+    const { data, error } = await supabase
+      .from("event_participants")
+      .insert({ event_id: eventId, user_id: userId, name })
+      .select("id, name")
+      .single();
 
     if (error) throw error;
+
+    // Invalidar cache del evento
+    eventCache.delete(eventId);
+
     return data;
   }
 
@@ -131,6 +207,9 @@ export class EventService {
     const { error } = await supabase.from("events").delete().eq("id", eventId);
 
     if (error) throw error;
+
+    // Invalidar cache del evento
+    eventCache.delete(eventId);
   }
 
   static subscribeToParticipants(eventId: string, callback: (payload: ParticipantChangePayload) => void): RealtimeChannel {
@@ -145,7 +224,9 @@ export class EventService {
           filter: `event_id=eq.${eventId}`,
         },
         (payload) => {
-          callback(payload as ParticipantChangePayload);
+          // Invalidar cache cuando hay cambios
+          eventCache.delete(eventId);
+          callback(payload as unknown as ParticipantChangePayload);
         }
       )
       .subscribe();
@@ -160,7 +241,11 @@ export class EventService {
       .from("events")
       .select(
         `
-        *,
+        id,
+        name,
+        access_code,
+        host_user_id,
+        created_at,
         participants:event_participants (
           id,
           event_id,
@@ -173,22 +258,25 @@ export class EventService {
       .eq("host_user_id", userId)
       .order("created_at", { ascending: false });
 
-    if (error) {
-      throw error;
-    }
-    return data.map((event) => ({
+    if (error) throw error;
+
+    const results = data.map((event) => ({
       ...event,
       participants: event.participants || [],
     }));
+
+    // Actualizar cache
+    results.forEach((event) => {
+      eventCache.set(event.id, { data: event, timestamp: Date.now() });
+    });
+
+    return results;
   }
 
   static async getEventsByParticipant(userId: string): Promise<(EventType & { participants?: Participant[] })[]> {
     const { data: participantData, error: participantError } = await supabase.from("event_participants").select("event_id").eq("user_id", userId);
 
-    if (participantError) {
-      throw participantError;
-    }
-
+    if (participantError) throw participantError;
     if (!participantData.length) return [];
 
     const eventIds = participantData.map((p) => p.event_id);
@@ -197,7 +285,11 @@ export class EventService {
       .from("events")
       .select(
         `
-        *,
+        id,
+        name,
+        access_code,
+        host_user_id,
+        created_at,
         participants:event_participants (
           id,
           event_id,
@@ -210,13 +302,18 @@ export class EventService {
       .in("id", eventIds)
       .order("created_at", { ascending: false });
 
-    if (eventsError) {
-      throw eventsError;
-    }
+    if (eventsError) throw eventsError;
 
-    return eventsData.map((event) => ({
+    const results = eventsData.map((event) => ({
       ...event,
       participants: event.participants || [],
     }));
+
+    // Actualizar cache
+    results.forEach((event) => {
+      eventCache.set(event.id, { data: event, timestamp: Date.now() });
+    });
+
+    return results;
   }
 }

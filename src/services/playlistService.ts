@@ -1,14 +1,44 @@
 import { supabase } from "@/integrations/supabase/client";
 import { PlaylistItem, PlaylistChangePayload } from "@/types";
+import { RealtimeChannel } from "@supabase/supabase-js";
+
+// Cache para playlists
+const playlistCache = new Map<string, { data: PlaylistItem[]; timestamp: number }>();
+const CACHE_TTL = 5 * 60 * 1000; // 5 minutos
 
 export class PlaylistService {
+  private static clearCache() {
+    const now = Date.now();
+    for (const [key, value] of playlistCache.entries()) {
+      if (now - value.timestamp > CACHE_TTL) {
+        playlistCache.delete(key);
+      }
+    }
+  }
+
   static async getPlaylistItems(eventId: string): Promise<PlaylistItem[]> {
+    // Limpiar cache expirado
+    this.clearCache();
+
+    // Verificar cache
+    const cached = playlistCache.get(eventId);
+    if (cached && Date.now() - cached.timestamp < CACHE_TTL) {
+      return cached.data;
+    }
+
     const { data, error } = await supabase
       .from("playlist_items")
       .select(
         `
-        *,
-        event_participants!added_by_participant_id (
+        id,
+        youtube_video_id,
+        title,
+        thumbnail_url,
+        channel_title,
+        added_by_participant_id,
+        event_id,
+        added_at,
+        participant:event_participants (
           name
         )
       `
@@ -17,10 +47,16 @@ export class PlaylistService {
       .order("added_at", { ascending: true });
 
     if (error) throw error;
-    return data.map((item) => ({
+
+    const items = data.map((item) => ({
       ...item,
-      participant_name: item.event_participants?.name || "Desconocido",
-    })) as PlaylistItem[];
+      participant_name: item.participant?.name || "Desconocido",
+    }));
+
+    // Guardar en cache
+    playlistCache.set(eventId, { data: items, timestamp: Date.now() });
+
+    return items;
   }
 
   static async addToPlaylist(
@@ -35,13 +71,20 @@ export class PlaylistService {
         added_by_participant_id: participantId,
         youtube_video_id: videoData.youtube_video_id,
         title: videoData.title,
-        channel_title: videoData.channel_title,
         thumbnail_url: videoData.thumbnail_url,
+        channel_title: videoData.channel_title,
       })
       .select(
         `
-        *,
-        event_participants!added_by_participant_id (
+        id,
+        youtube_video_id,
+        title,
+        thumbnail_url,
+        channel_title,
+        added_by_participant_id,
+        event_id,
+        added_at,
+        participant:event_participants (
           name
         )
       `
@@ -49,20 +92,48 @@ export class PlaylistService {
       .single();
 
     if (error) throw error;
-    return {
+
+    const item = {
       ...data,
-      participant_name: data.event_participants?.name || "Desconocido",
-    } as PlaylistItem;
+      participant_name: data.participant?.name || "Desconocido",
+    };
+
+    // Actualizar cache
+    const cached = playlistCache.get(eventId);
+    if (cached) {
+      playlistCache.set(eventId, {
+        data: [...cached.data, item],
+        timestamp: Date.now(),
+      });
+    }
+
+    return item;
   }
 
-  static async removeFromPlaylist(itemId: string) {
+  static async removeFromPlaylist(itemId: string): Promise<void> {
+    const { data: item, error: fetchError } = await supabase.from("playlist_items").select("event_id").eq("id", itemId).single();
+
+    if (fetchError) throw fetchError;
+
     const { error } = await supabase.from("playlist_items").delete().eq("id", itemId);
+
     if (error) throw error;
+
+    // Actualizar cache
+    if (item?.event_id) {
+      const cached = playlistCache.get(item.event_id);
+      if (cached) {
+        playlistCache.set(item.event_id, {
+          data: cached.data.filter((i) => i.id !== itemId),
+          timestamp: Date.now(),
+        });
+      }
+    }
   }
 
   static async getPlaylist(eventId: string): Promise<PlaylistItem[]> {
     try {
-      const { data, error } = await supabase.from("playlist").select("*").eq("event_id", eventId).order("added_at", { ascending: true });
+      const { data, error } = await supabase.from("playlist_items").select("*").eq("event_id", eventId).order("added_at", { ascending: true });
       if (error) throw error;
       return data;
     } catch (error) {
@@ -73,7 +144,7 @@ export class PlaylistService {
   static async addVideo(eventId: string, videoId: string): Promise<PlaylistItem> {
     try {
       const { data, error } = await supabase
-        .from("playlist")
+        .from("playlist_items")
         .insert([{ event_id: eventId, youtube_video_id: videoId }])
         .select()
         .single();
@@ -86,50 +157,49 @@ export class PlaylistService {
 
   static async removeVideo(videoId: string): Promise<void> {
     try {
-      const { error } = await supabase.from("playlist").delete().eq("id", videoId);
+      const { error } = await supabase.from("playlist_items").delete().eq("id", videoId);
       if (error) throw error;
     } catch (error) {
       throw new Error("Error removing video from playlist");
     }
   }
 
-  static async getVideoDetails(videoId: string): Promise<VideoDetails> {
-    try {
-      const response = await fetch(
-        `https://www.googleapis.com/youtube/v3/videos?part=snippet&id=${videoId}&key=${process.env.NEXT_PUBLIC_YOUTUBE_API_KEY}`
-      );
-      const data = await response.json();
-      if (!data.items || data.items.length === 0) {
-        throw new Error("Video not found");
-      }
-      const video = data.items[0];
-      return {
-        title: video.snippet.title,
-        thumbnail_url: video.snippet.thumbnails.medium.url,
-        channel_title: video.snippet.channelTitle,
-      };
-    } catch (error) {
-      throw new Error("Error fetching video details");
+  static async getVideoDetails(videoId: string): Promise<{ title: string; thumbnail_url: string; channel_title: string }> {
+    const { data, error } = await supabase
+      .from("playlist_items")
+      .select("title, thumbnail_url, channel_title")
+      .eq("youtube_video_id", videoId)
+      .single();
+
+    if (error) {
+      if (error.code === "PGRST116") return null;
+      throw error;
     }
+
+    return data;
   }
 
-  static subscribeToPlaylist(eventId: string, callback: (payload: any) => void) {
+  static subscribeToPlaylist(eventId: string, callback: (payload: PlaylistChangePayload) => void): RealtimeChannel {
     return supabase
-      .channel(`playlist-${eventId}`)
+      .channel(`playlist:${eventId}`)
       .on(
         "postgres_changes",
         {
           event: "*",
           schema: "public",
-          table: "playlist",
+          table: "playlist_items",
           filter: `event_id=eq.${eventId}`,
         },
-        callback
+        (payload) => {
+          // Invalidar cache cuando hay cambios
+          playlistCache.delete(eventId);
+          callback(payload as PlaylistChangePayload);
+        }
       )
       .subscribe();
   }
 
-  static unsubscribeFromPlaylist(subscription: RealtimeChannel) {
+  static unsubscribeFromPlaylist(subscription: RealtimeChannel): void {
     supabase.removeChannel(subscription);
   }
 }

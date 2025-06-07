@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, lazy, Suspense } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
@@ -6,18 +6,19 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { LogOut, Users, Copy } from "lucide-react";
-import PlaylistTab from "@/components/PlaylistTab";
-import PollsTab from "@/components/PollsTab";
-import ExpensesTab from "@/components/ExpensesTab";
-import JoinEventCard from "@/components/JoinEventCard";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { EventService } from "@/services/eventService";
 import { PlaylistService } from "@/services/playlistService";
-
 import { RealtimeChannel } from "@supabase/supabase-js";
 import { EventType, Participant, ParticipantChangePayload, PlaylistItem, PlaylistChangePayload } from "@/types";
 import { SearchDialog } from "@/components/SearchDialog";
 import { useParticipantStore } from "@/stores/participantStore";
+import JoinEventCard from "@/components/JoinEventCard";
+
+// Lazy load components that are not immediately needed
+const PlaylistTab = lazy(() => import("@/components/PlaylistTab"));
+const PollsTab = lazy(() => import("@/components/PollsTab"));
+const ExpensesTab = lazy(() => import("@/components/ExpensesTab"));
 
 const EventPage: React.FC = () => {
   const { eventId } = useParams<{ eventId: string }>();
@@ -89,7 +90,11 @@ const EventPage: React.FC = () => {
 
         setPlaylist(playlistData);
       } catch (error) {
-        toast({ title: "Error", description: "Error al cargar los datos del evento.", variant: "destructive" });
+        if (error instanceof Error) {
+          toast({ title: "Error", description: error.message, variant: "destructive" });
+        } else {
+          toast({ title: "Error", description: "Error al cargar los datos del evento.", variant: "destructive" });
+        }
       } finally {
         setIsLoading(false);
       }
@@ -290,28 +295,34 @@ const EventPage: React.FC = () => {
               </TabsTrigger>
             </TabsList>
             <TabsContent value="playlist" forceMount>
-              <PlaylistTab
-                eventId={eventId}
-                participants={participants}
-                playlist={playlist}
-                onPlaylistChange={setPlaylist}
-                currentParticipantId={currentParticipantId}
-                accessCode={event.access_code || ""}
-                isHost={isHost}
-                isLoading={isLoading}
-                currentTab={currentTab}
-                onRemoveSong={handleRemoveSong}
-              />
+              <Suspense fallback={<div className="text-center p-4">Cargando playlist...</div>}>
+                <PlaylistTab
+                  eventId={eventId}
+                  participants={participants}
+                  playlist={playlist}
+                  onPlaylistChange={setPlaylist}
+                  currentParticipantId={currentParticipantId}
+                  accessCode={event.access_code || ""}
+                  isHost={isHost}
+                  isLoading={isLoading}
+                  currentTab={currentTab}
+                  onRemoveSong={handleRemoveSong}
+                />
+              </Suspense>
             </TabsContent>
             <TabsContent value="polls">
-              <PollsTab eventId={eventId} currentParticipantId={currentParticipantId} isHost={isHost} />
+              <Suspense fallback={<div className="text-center p-4">Cargando encuestas...</div>}>
+                <PollsTab eventId={eventId} currentParticipantId={currentParticipantId} isHost={isHost} />
+              </Suspense>
             </TabsContent>
             <TabsContent value="gastos">
-              {currentParticipantId ? (
-                <ExpensesTab eventId={eventId} participants={participants} currentParticipantId={currentParticipantId} isHost={isHost} />
-              ) : (
-                <JoinEventCard accessCode={event.access_code || ""} message="unirte al evento para ver y agregar gastos" />
-              )}
+              <Suspense fallback={<div className="text-center p-4">Cargando gastos...</div>}>
+                {currentParticipantId ? (
+                  <ExpensesTab eventId={eventId} participants={participants} currentParticipantId={currentParticipantId} isHost={isHost} />
+                ) : (
+                  <JoinEventCard accessCode={event.access_code || ""} message="unirte al evento para ver y agregar gastos" />
+                )}
+              </Suspense>
             </TabsContent>
           </Tabs>
         </div>
