@@ -67,6 +67,11 @@ export interface PollVote {
   user_id: string;
   created_at: string;
 }
+export interface PollChangePayload {
+  eventType: "INSERT" | "DELETE";
+  new?: Poll;
+  old?: Poll;
+}
 
 export interface PlaylistItem {
   id: string;

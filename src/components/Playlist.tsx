@@ -27,7 +27,7 @@ const Playlist: React.FC<PlayListProps> = ({ playlistItems, currentVideoIndex, o
         >
           <button onClick={() => onVideoSelect(index)} title="Reproducir" className="rounded-full hover:bg-muted transition-colors cursor-pointer">
             <PlayCircleIcon
-              className={cn("h-4 w-4 md:h-10 md:w-10 text-muted group-hover:text-red-400", currentVideoIndex === index && "text-red-500")}
+              className={cn("h-6 w-6 md:h-10 md:w-10 text-muted group-hover:text-red-400", currentVideoIndex === index && "text-red-500")}
             />
           </button>
 
@@ -41,7 +41,7 @@ const Playlist: React.FC<PlayListProps> = ({ playlistItems, currentVideoIndex, o
               <button
                 onClick={() => onVideoDelete(item.id, item.title)}
                 title="Eliminar"
-                className="rounded-full hover:bg-muted transition-colors cursor-pointer"
+                className="p-2  rounded-full hover:bg-destructive/10 transition-colors cursor-pointer"
               >
                 <Trash className={cn("h-3 w-3 md:h-4 md:w-4 text-muted group-hover:text-red-400", currentVideoIndex === index && "text-red-500")} />
               </button>

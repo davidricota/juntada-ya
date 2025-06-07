@@ -147,10 +147,10 @@ const ExpensesTab: React.FC<ExpensesTabProps> = ({ eventId, participants, curren
 
       {summary && (
         <Card className="bg-card text-card-foreground">
-          <CardHeader>
+          <CardHeader className="px-2 md:px-6">
             <CardTitle className="text-xl">Resumen de Gastos</CardTitle>
           </CardHeader>
-          <CardContent>
+          <CardContent className="px-2 md:px-6">
             <div className="space-y-4">
               <div className="flex justify-between items-center">
                 <span className="text-muted-foreground">Total Gastado:</span>
@@ -181,10 +181,10 @@ const ExpensesTab: React.FC<ExpensesTabProps> = ({ eventId, participants, curren
       )}
 
       <Card className="bg-card text-card-foreground">
-        <CardHeader>
+        <CardHeader className="px-2 md:px-6">
           <CardTitle className="text-xl">Historial de Gastos</CardTitle>
         </CardHeader>
-        <CardContent>
+        <CardContent className="px-2 md:px-6">
           <ScrollArea className="h-full max-h-72 pr-4">
             {expenses.length === 0 ? (
               <p className="text-muted-foreground text-center py-6 italic">No hay gastos registrados.</p>

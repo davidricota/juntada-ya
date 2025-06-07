@@ -22,6 +22,7 @@ interface PollsTabProps {
 }
 
 interface PollWithDetails extends Poll {
+  created_by_participant_id: string;
   creator_name?: string;
   options?: PollOptionWithVotes[];
   total_votes?: number;
@@ -85,27 +86,79 @@ const PollsTab: React.FC<PollsTabProps> = ({ eventId, currentParticipantId, isHo
   useEffect(() => {
     fetchPolls();
 
-    // Suscribirse a cambios en los votos
-    const subscription = supabase
-      .channel("poll_votes_changes")
-      .on(
-        "postgres_changes",
-        {
-          event: "*",
-          schema: "public",
-          table: "poll_votes",
-        },
-        async (payload) => {
-          // Refrescar los votos cuando hay cambios
-          await fetchPolls();
+    // Suscribirse a cambios en las encuestas
+    const pollsSubscription = PollService.subscribeToPolls(eventId, async (payload) => {
+      console.log("Poll change received:", payload);
+
+      if (payload.eventType === "DELETE") {
+        console.log("Delete event received:", payload.old);
+        setPolls((prev) => prev.filter((poll) => poll.id !== payload.old.id));
+      } else if (payload.eventType === "INSERT" && payload.new) {
+        // Agregar nueva encuesta
+        const [pollOptions, pollVotes, creator] = await Promise.all([
+          PollService.getPollOptions(payload.new.id),
+          PollService.getPollVotes(payload.new.id),
+          PollService.getParticipant(payload.new.created_by_participant_id),
+        ]);
+
+        const optionsWithVotes = pollOptions.map((option) => ({
+          ...option,
+          votes_count: pollVotes.filter((vote) => vote.option_id === option.id).length,
+          has_voted: currentParticipantId
+            ? pollVotes.some((vote) => vote.option_id === option.id && vote.participant_id === currentParticipantId)
+            : false,
+        }));
+
+        const totalVotes = optionsWithVotes.reduce((sum, option) => sum + (option.votes_count || 0), 0);
+
+        setPolls((prev) => [
+          {
+            ...payload.new,
+            options: optionsWithVotes,
+            total_votes: totalVotes,
+            creator_name: creator?.name || "Anónimo",
+          },
+          ...prev,
+        ]);
+      }
+      // Removemos el manejo de UPDATE aquí ya que lo manejamos localmente
+    });
+
+    // Suscribirse a cambios en las opciones de las encuestas
+    const pollOptionsSubscriptions = polls.map((poll) =>
+      PollService.subscribeToPollOptions(poll.id, async (payload) => {
+        console.log("Poll option change received:", payload);
+        if (payload.eventType === "INSERT" && payload.new) {
+          setPolls((prev) =>
+            prev.map((p) =>
+              p.id === poll.id
+                ? {
+                    ...p,
+                    options: [...(p.options || []), { ...payload.new, votes_count: 0, has_voted: false }],
+                  }
+                : p
+            )
+          );
+        } else if (payload.eventType === "DELETE" && payload.old) {
+          setPolls((prev) =>
+            prev.map((p) =>
+              p.id === poll.id
+                ? {
+                    ...p,
+                    options: p.options?.filter((opt) => opt.id !== payload.old.id),
+                  }
+                : p
+            )
+          );
         }
-      )
-      .subscribe();
+      })
+    );
 
     return () => {
-      subscription.unsubscribe();
+      PollService.unsubscribeFromPolls(pollsSubscription);
+      pollOptionsSubscriptions.forEach((sub) => PollService.unsubscribeFromPollOptions(sub));
     };
-  }, [eventId]);
+  }, [eventId, currentParticipantId]);
 
   const fetchPolls = async () => {
     try {
@@ -164,21 +217,66 @@ const PollsTab: React.FC<PollsTabProps> = ({ eventId, currentParticipantId, isHo
     try {
       if (editingPoll) {
         // Actualizar encuesta existente
-        await PollService.updatePoll(editingPoll.id, {
+        const updatedPoll = await PollService.updatePoll(editingPoll.id, {
           title: formData.title.trim(),
           description: formData.description.trim() || null,
           allow_multiple_votes: formData.allowMultipleVotes,
         });
 
-        // Actualizar opciones
+        // Obtener las opciones actuales
         const existingOptions = await PollService.getPollOptions(editingPoll.id);
-        await Promise.all(existingOptions.map((opt) => PollService.removePollOption(opt.id)));
+        const existingVotes = await PollService.getPollVotes(editingPoll.id);
 
-        await Promise.all(
-          formData.options.map((title) =>
-            PollService.addPollOption(editingPoll.id, {
-              title: title.trim(),
-            })
+        // Crear un mapa de las opciones existentes por título
+        const existingOptionsMap = new Map(existingOptions.map((opt) => [opt.title, opt]));
+
+        // Procesar las nuevas opciones
+        const newOptions = [];
+        const optionsToDelete = existingOptions.filter((opt) => !formData.options.some((title) => title.trim() === opt.title));
+
+        // Primero eliminamos las opciones que ya no existen
+        console.log("Eliminando opciones:", optionsToDelete);
+        await Promise.all(optionsToDelete.map((opt) => PollService.removePollOption(opt.id)));
+
+        // Luego procesamos las opciones nuevas o existentes
+        for (const title of formData.options) {
+          const trimmedTitle = title.trim();
+          if (existingOptionsMap.has(trimmedTitle)) {
+            // La opción ya existe, la mantenemos
+            const existingOption = existingOptionsMap.get(trimmedTitle)!;
+            newOptions.push(existingOption);
+          } else {
+            // Es una nueva opción, la creamos
+            console.log("Creando nueva opción:", trimmedTitle);
+            const newOption = await PollService.addPollOption(editingPoll.id, {
+              title: trimmedTitle,
+            });
+            newOptions.push(newOption);
+          }
+        }
+
+        // Preparar opciones con votos
+        const optionsWithVotes = newOptions.map((option) => ({
+          ...option,
+          votes_count: existingVotes.filter((vote) => vote.option_id === option.id).length,
+          has_voted: currentParticipantId
+            ? existingVotes.some((vote) => vote.option_id === option.id && vote.participant_id === currentParticipantId)
+            : false,
+        }));
+
+        const totalVotes = optionsWithVotes.reduce((sum, option) => sum + (option.votes_count || 0), 0);
+
+        // Actualizar el estado local
+        setPolls((prev) =>
+          prev.map((poll) =>
+            poll.id === editingPoll.id
+              ? {
+                  ...poll,
+                  ...updatedPoll,
+                  options: optionsWithVotes,
+                  total_votes: totalVotes,
+                }
+              : poll
           )
         );
 
@@ -194,13 +292,32 @@ const PollsTab: React.FC<PollsTabProps> = ({ eventId, currentParticipantId, isHo
           allow_multiple_votes: formData.allowMultipleVotes,
         });
 
-        await Promise.all(
+        // Crear opciones
+        const newOptions = await Promise.all(
           formData.options.map((title) =>
             PollService.addPollOption(poll.id, {
               title: title.trim(),
             })
           )
         );
+
+        // Preparar opciones con votos (todos en 0 para nueva encuesta)
+        const optionsWithVotes = newOptions.map((option) => ({
+          ...option,
+          votes_count: 0,
+          has_voted: false,
+        }));
+
+        // Actualizar el estado local
+        setPolls((prev) => [
+          {
+            ...poll,
+            options: optionsWithVotes,
+            total_votes: 0,
+            creator_name: "Tú", // Para nueva encuesta, sabemos que es el usuario actual
+          },
+          ...prev,
+        ]);
 
         toast({
           title: "¡Encuesta creada!",
@@ -211,9 +328,6 @@ const PollsTab: React.FC<PollsTabProps> = ({ eventId, currentParticipantId, isHo
       // Reset form
       setEditingPoll(null);
       setIsDialogOpen(false);
-
-      // Refresh polls
-      fetchPolls();
     } catch (error) {
       console.error("Error creating/updating poll:", error);
       toast({
@@ -231,14 +345,20 @@ const PollsTab: React.FC<PollsTabProps> = ({ eventId, currentParticipantId, isHo
 
   const handleDeletePoll = async (pollId: string) => {
     try {
+      // Primero actualizamos el estado local
+      setPolls((prev) => prev.filter((poll) => poll.id !== pollId));
+
+      // Luego eliminamos en la base de datos
       await PollService.deletePoll(pollId);
+
       toast({
         title: "Encuesta eliminada",
         description: "La encuesta se ha eliminado correctamente.",
       });
-      fetchPolls();
     } catch (error) {
       console.error("Error deleting poll:", error);
+      // Si hay error, recargamos todo
+      fetchPolls();
       toast({
         title: "Error",
         description: "No se pudo eliminar la encuesta. Inténtalo de nuevo.",
@@ -482,8 +602,8 @@ const PollsTab: React.FC<PollsTabProps> = ({ eventId, currentParticipantId, isHo
                   )}
                 </div>
               </CardHeader>
-              <CardContent>
-                <div className="space-y-4 px-2 md:px-6">
+              <CardContent className="px-2 md:px-6">
+                <div className="space-y-4">
                   {poll.options?.map((option) => {
                     const percentage = poll.total_votes ? ((option.votes_count || 0) / poll.total_votes) * 100 : 0;
                     return (

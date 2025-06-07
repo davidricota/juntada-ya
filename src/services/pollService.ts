@@ -1,5 +1,5 @@
 import { supabase } from "@/integrations/supabase/client";
-import { Poll, PollOption, PollVote } from "@/types";
+import { Poll, PollChangePayload, PollOption, PollVote } from "@/types";
 
 export class PollService {
   static async getPolls(eventId: string): Promise<Poll[]> {
@@ -82,16 +82,69 @@ export class PollService {
     pollId: string,
     poll: Partial<Omit<Poll, "id" | "event_id" | "created_by_participant_id" | "created_at" | "closed_at">>
   ): Promise<Poll> {
-    const { data, error } = await supabase.from("polls").update(poll).eq("id", pollId).select().single();
+    try {
+      console.log("Updating poll:", { pollId, poll });
 
-    if (error) throw error;
-    return data;
+      // Primero verificamos que la encuesta existe
+      const { data: existingPoll, error: checkError } = await supabase.from("polls").select("*").eq("id", pollId).single();
+
+      if (checkError) {
+        console.error("Error checking poll existence:", checkError);
+        throw new Error("Error al verificar la encuesta");
+      }
+
+      if (!existingPoll) {
+        throw new Error("La encuesta no existe");
+      }
+
+      // Realizamos la actualización
+      const { data, error } = await supabase
+        .from("polls")
+        .update({
+          title: poll.title,
+          description: poll.description,
+          allow_multiple_votes: poll.allow_multiple_votes,
+        })
+        .eq("id", pollId)
+        .select()
+        .single();
+
+      if (error) {
+        console.error("Error updating poll:", error);
+        throw new Error("Error al actualizar la encuesta");
+      }
+
+      if (!data) {
+        throw new Error("No se pudo actualizar la encuesta");
+      }
+
+      return data;
+    } catch (error) {
+      console.error("Error in updatePoll:", error);
+      throw error;
+    }
   }
 
   static async deletePoll(pollId: string): Promise<void> {
-    const { error } = await supabase.from("polls").delete().eq("id", pollId);
+    try {
+      console.log("=== Iniciando eliminación de encuesta ===");
+      console.log("Poll ID:", pollId);
 
-    if (error) throw error;
+      // Eliminamos la encuesta directamente
+      // Las restricciones de clave foránea con ON DELETE CASCADE se encargarán de eliminar los registros relacionados
+      const { error: deleteError } = await supabase.from("polls").delete().eq("id", pollId);
+
+      if (deleteError) {
+        console.error("Error deleting poll:", deleteError);
+        throw new Error("Error al eliminar la encuesta");
+      }
+
+      console.log("Encuesta eliminada exitosamente");
+      console.log("=== Eliminación de encuesta completada ===");
+    } catch (error) {
+      console.error("Error in deletePoll:", error);
+      throw error;
+    }
   }
 
   static async addPollOption(pollId: string, option: Omit<PollOption, "id" | "poll_id" | "created_at">): Promise<PollOption> {
@@ -271,5 +324,74 @@ export class PollService {
     }
 
     return data;
+  }
+
+  static subscribeToPolls(eventId: string, callback: (payload: PollChangePayload) => void) {
+    return supabase
+      .channel(`poll_event_${eventId}`)
+      .on(
+        "postgres_changes",
+        {
+          event: "*",
+          schema: "public",
+          table: "polls",
+          filter: `event_id=eq.${eventId}`,
+        },
+        (payload) => {
+          console.log("Raw poll payload received:", payload);
+          callback(payload as PollChangePayload);
+        }
+      )
+      .subscribe();
+  }
+
+  static subscribeToPollOptions(pollId: string, callback: (payload: any) => void) {
+    return supabase
+      .channel(`poll_options_${pollId}`)
+      .on(
+        "postgres_changes",
+        {
+          event: "*",
+          schema: "public",
+          table: "poll_options",
+          filter: `poll_id=eq.${pollId}`,
+        },
+        (payload) => {
+          console.log("Raw poll option payload received:", payload);
+          callback(payload);
+        }
+      )
+      .subscribe();
+  }
+
+  static subscribeToPollVotes(pollId: string, callback: (payload: any) => void) {
+    return supabase
+      .channel(`poll_votes_${pollId}`)
+      .on(
+        "postgres_changes",
+        {
+          event: "*",
+          schema: "public",
+          table: "poll_votes",
+          filter: `poll_id=eq.${pollId}`,
+        },
+        (payload) => {
+          console.log("Raw poll vote payload received:", payload);
+          callback(payload);
+        }
+      )
+      .subscribe();
+  }
+
+  static unsubscribeFromPolls(subscription: ReturnType<typeof supabase.channel>) {
+    supabase.removeChannel(subscription);
+  }
+
+  static unsubscribeFromPollOptions(subscription: ReturnType<typeof supabase.channel>) {
+    supabase.removeChannel(subscription);
+  }
+
+  static unsubscribeFromPollVotes(subscription: ReturnType<typeof supabase.channel>) {
+    supabase.removeChannel(subscription);
   }
 }
