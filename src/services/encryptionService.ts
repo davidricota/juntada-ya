@@ -10,7 +10,6 @@ export class EncryptionService {
     try {
       return CryptoJS.AES.encrypt(phoneNumber, SECRET_KEY).toString();
     } catch (error) {
-      console.error("Error encrypting phone number:", error);
       throw new Error("Failed to encrypt phone number");
     }
   }
@@ -38,7 +37,6 @@ export class EncryptionService {
 
       throw new Error("Invalid encrypted value");
     } catch (error) {
-      console.error("Error decrypting phone number:", error);
       // Si falla la desencriptación, asumimos que es un número sin encriptar
       if (encrypted.match(/^\+?[0-9]+$/)) {
         return encrypted;

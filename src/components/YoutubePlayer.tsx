@@ -120,113 +120,116 @@ export default function YouTubePlayer({ playlistItems, initialVideoIndex = 0, on
 
   // Load YouTube API
   useEffect(() => {
-    if (!window.YT) {
-      const tag = document.createElement("script");
-      tag.src = "https://www.youtube.com/iframe_api";
+    let isMounted = true;
 
-      const firstScriptTag = document.getElementsByTagName("script")[0];
-      if (firstScriptTag.parentNode) {
-        firstScriptTag.parentNode.insertBefore(tag, firstScriptTag);
-      }
+    const loadYouTubeAPI = async () => {
+      try {
+        if (!window.YT) {
+          const tag = document.createElement("script");
+          tag.src = "https://www.youtube.com/iframe_api";
+          const firstScriptTag = document.getElementsByTagName("script")[0];
+          firstScriptTag.parentNode?.insertBefore(tag, firstScriptTag);
 
-      window.onYouTubeIframeAPIReady = initializePlayer;
-    } else {
-      initializePlayer();
-    }
+          await new Promise((resolve) => {
+            window.onYouTubeIframeAPIReady = resolve;
+          });
+        }
 
-    return () => {
-      if (playerRef.current) {
-        playerRef.current.destroy();
+        if (!isMounted) return;
+
+        if (playerRef.current) {
+          playerRef.current.destroy();
+        }
+
+        const player = new window.YT.Player(playerContainerRef.current, {
+          height: "100%",
+          width: "100%",
+          videoId: playlistItems[initialVideoIndex].youtube_video_id,
+          playerVars: {
+            autoplay: 1,
+            controls: 1,
+            modestbranding: 1,
+            rel: 0,
+          },
+          events: {
+            onReady: (event) => {
+              if (!isMounted) return;
+              playerRef.current = event.target;
+              setIsPlayerReady(true);
+              setDuration(event.target.getDuration());
+              onPlayerReady?.(event.target);
+            },
+            onStateChange: (event) => {
+              if (!isMounted) return;
+              const playerState = event.data;
+
+              // Update playing state
+              setIsPlaying(playerState === window.YT.PlayerState.PLAYING);
+              setIsBuffering(playerState === window.YT.PlayerState.BUFFERING);
+
+              // Update visualization state
+              setIsVisualizationActive(playerState === window.YT.PlayerState.PLAYING);
+
+              // Handle video end
+              if (playerState === window.YT.PlayerState.ENDED) {
+                if (isRepeatEnabled) {
+                  // If repeat is enabled, restart the current video
+                  if (playerRef.current) {
+                    playerRef.current.seekTo(0, true);
+                    playerRef.current.playVideo();
+                  }
+                } else {
+                  // If not the last video, play next
+                  if (currentVideoIndex < playlistItems.length - 1) {
+                    const nextIndex = currentVideoIndex + 1;
+                    setCurrentVideoIndex(nextIndex);
+                    onVideoChange?.(nextIndex);
+                  } else {
+                    // If it's the last video, stop
+                    setIsPlaying(false);
+                  }
+                }
+              }
+
+              // Update duration when it becomes available
+              if (playerState === window.YT.PlayerState.PLAYING) {
+                const newDuration = playerRef.current?.getDuration() || 30;
+                setDuration(newDuration);
+              }
+            },
+            onError: () => {
+              if (!isMounted) return;
+              setError("Error playing video");
+
+              // Try to play next video on error
+              setTimeout(() => {
+                handleNext();
+              }, 3000);
+            },
+          },
+        });
+
+        playerRef.current = player;
+      } catch (error) {
+        if (!isMounted) return;
+        setError("Failed to initialize YouTube player");
       }
     };
-  }, []);
 
-  // Initialize YouTube player
-  const initializePlayer = () => {
-    if (!window.YT || !window.YT.Player || !playerContainerRef.current) {
-      setTimeout(initializePlayer, 100);
-      return;
-    }
+    loadYouTubeAPI();
 
-    if (playlistItems.length === 0) return;
-
-    try {
-      playerRef.current = new window.YT.Player(playerContainerRef.current, {
-        height: "0",
-        width: "0",
-        videoId: playlistItems[currentVideoIndex]?.youtube_video_id || "",
-        playerVars: {
-          autoplay: 0,
-          controls: 0,
-          rel: 0,
-          showinfo: 0,
-          modestbranding: 1,
-          iv_load_policy: 3,
-        },
-        events: {
-          onReady: handlePlayerReady,
-          onStateChange: onPlayerStateChange,
-          onError: onPlayerError,
-        },
-      });
-    } catch (err) {
-      setError("Failed to initialize YouTube player");
-    }
-  };
-
-  const handlePlayerReady = (event: YouTubePlayerEvent) => {
-    playerRef.current = event.target;
-    setIsPlayerReady(true);
-    setDuration(event.target.getDuration());
-    onPlayerReady?.(event.target);
-  };
-
-  const onPlayerStateChange = (event: YouTubePlayerEvent) => {
-    const playerState = event.data;
-
-    // Update playing state
-    setIsPlaying(playerState === window.YT.PlayerState.PLAYING);
-    setIsBuffering(playerState === window.YT.PlayerState.BUFFERING);
-
-    // Update visualization state
-    setIsVisualizationActive(playerState === window.YT.PlayerState.PLAYING);
-
-    // Handle video end
-    if (playerState === window.YT.PlayerState.ENDED) {
-      if (isRepeatEnabled) {
-        // If repeat is enabled, restart the current video
-        if (playerRef.current) {
-          playerRef.current.seekTo(0, true);
-          playerRef.current.playVideo();
+    return () => {
+      isMounted = false;
+      if (playerRef.current) {
+        try {
+          playerRef.current.destroy();
+        } catch (error) {
+          // Ignorar errores al destruir el player
         }
-      } else {
-        // If not the last video, play next
-        if (currentVideoIndex < playlistItems.length - 1) {
-          const nextIndex = currentVideoIndex + 1;
-          setCurrentVideoIndex(nextIndex);
-          onVideoChange?.(nextIndex);
-        } else {
-          // If it's the last video, stop
-          setIsPlaying(false);
-        }
+        playerRef.current = null;
       }
-    }
-
-    // Update duration when it becomes available
-    if (playerState === window.YT.PlayerState.PLAYING) {
-      const newDuration = playerRef.current?.getDuration() || 30;
-      setDuration(newDuration);
-    }
-  };
-
-  const onPlayerError = (event: YouTubeErrorEvent) => {
-    setError(`Error playing video (code: ${event.data})`);
-
-    // Try to play next video on error
-    setTimeout(() => {
-      handleNext();
-    }, 3000);
-  };
+    };
+  }, [playlistItems, initialVideoIndex, onPlayerReady, onVideoChange, isRepeatEnabled]);
 
   // Load new video when currentVideoIndex changes
   useEffect(() => {

@@ -6,7 +6,6 @@ import { generateAccessCode } from "@/lib/utils";
 
 export class EventService {
   static async getEvent(eventId: string): Promise<EventType & { participants?: Participant[] }> {
-    console.log("[EventService] Getting event with ID:", eventId);
     try {
       const { data, error } = await supabase
         .from("events")
@@ -25,23 +24,15 @@ export class EventService {
         .eq("id", eventId)
         .single();
 
-      if (error) {
-        console.error("[EventService] Error fetching event:", error);
-        throw error;
-      }
-      if (!data) {
-        console.error("[EventService] No event found with ID:", eventId);
-        throw new Error("Event not found");
-      }
+      if (error) throw error;
+      if (!data) throw new Error("Event not found");
 
-      console.log("[EventService] Event data retrieved:", data);
       return {
         ...data,
         participants: data.participants || [],
       };
     } catch (error) {
-      console.error("[EventService] Unexpected error in getEvent:", error);
-      throw error;
+      throw new Error("Error fetching event");
     }
   }
 
@@ -194,11 +185,10 @@ export class EventService {
   }
 
   static unsubscribeFromParticipants(subscription: RealtimeChannel): void {
-    subscription.unsubscribe();
+    supabase.removeChannel(subscription);
   }
 
   static async getEventsByHost(userId: string): Promise<(EventType & { participants?: Participant[] })[]> {
-    console.log("Querying events where user is host:", userId);
     const { data, error } = await supabase
       .from("events")
       .select(
@@ -217,10 +207,8 @@ export class EventService {
       .order("created_at", { ascending: false });
 
     if (error) {
-      console.error("Error fetching hosted events:", error);
       throw error;
     }
-    console.log("Hosted events found:", data);
     return data.map((event) => ({
       ...event,
       participants: event.participants || [],
@@ -228,22 +216,16 @@ export class EventService {
   }
 
   static async getEventsByParticipant(userId: string): Promise<(EventType & { participants?: Participant[] })[]> {
-    console.log("Querying events where user is participant:", userId);
-    // Primero obtener los event_ids donde el usuario es participante
     const { data: participantData, error: participantError } = await supabase.from("event_participants").select("event_id").eq("user_id", userId);
 
     if (participantError) {
-      console.error("Error fetching participant events:", participantError);
       throw participantError;
     }
 
-    console.log("Participant data found:", participantData);
     if (!participantData.length) return [];
 
     const eventIds = participantData.map((p) => p.event_id);
-    console.log("Event IDs to fetch:", eventIds);
 
-    // Luego obtener los detalles de esos eventos
     const { data: eventsData, error: eventsError } = await supabase
       .from("events")
       .select(
@@ -262,11 +244,9 @@ export class EventService {
       .order("created_at", { ascending: false });
 
     if (eventsError) {
-      console.error("Error fetching event details:", eventsError);
       throw eventsError;
     }
 
-    console.log("Events found:", eventsData);
     return eventsData.map((event) => ({
       ...event,
       participants: event.participants || [],

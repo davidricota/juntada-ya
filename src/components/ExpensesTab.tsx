@@ -29,14 +29,11 @@ const ExpensesTab: React.FC<ExpensesTabProps> = ({ eventId, participants, curren
   useEffect(() => {
     loadExpenses();
     const subscription = ExpenseService.subscribeToExpenses(eventId, (payload: ExpenseChangePayload) => {
-      console.log("Expense change received:", payload);
       if (payload.eventType === "INSERT" && payload.new) {
         ExpenseService.getExpenseSummary(eventId).then(setSummary);
       } else if (payload.eventType === "DELETE" && payload.old) {
-        console.log("Deleting expense:", payload.old);
         setExpenses((prev) => {
           const filtered = prev.filter((expense) => expense.id !== payload.old?.id);
-          console.log("Filtered expenses:", filtered);
           return filtered;
         });
         ExpenseService.getExpenseSummary(eventId).then(setSummary);
@@ -50,12 +47,10 @@ const ExpensesTab: React.FC<ExpensesTabProps> = ({ eventId, participants, curren
   const loadExpenses = async () => {
     try {
       const [expensesData, summaryData] = await Promise.all([ExpenseService.getExpenses(eventId), ExpenseService.getExpenseSummary(eventId)]);
-      console.log("Loaded expenses:", expensesData);
-      console.log("Loaded summary:", summaryData);
+
       setExpenses(expensesData);
       setSummary(summaryData);
     } catch (error) {
-      console.error("Error loading expenses:", error);
       toast({
         title: "Error",
         description: "No se pudieron cargar los gastos.",
@@ -88,7 +83,6 @@ const ExpensesTab: React.FC<ExpensesTabProps> = ({ eventId, participants, curren
         description: "El gasto se ha agregado correctamente.",
       });
     } catch (error) {
-      console.error("Error adding expense:", error);
       toast({
         title: "Error",
         description: "No se pudo agregar el gasto. Inténtalo de nuevo.",
@@ -112,7 +106,6 @@ const ExpensesTab: React.FC<ExpensesTabProps> = ({ eventId, participants, curren
         description: "El gasto se ha eliminado correctamente.",
       });
     } catch (error) {
-      console.error("Error deleting expense:", error);
       // Si hay error, recargamos todo
       loadExpenses();
       toast({
@@ -147,10 +140,10 @@ const ExpensesTab: React.FC<ExpensesTabProps> = ({ eventId, participants, curren
 
       {summary && (
         <Card className="bg-card text-card-foreground">
-          <CardHeader className="px-2 md:px-6">
+          <CardHeader className="p-2 md:p-6">
             <CardTitle className="text-xl">Resumen de Gastos</CardTitle>
           </CardHeader>
-          <CardContent className="px-2 md:px-6">
+          <CardContent className="p-2 md:p-6">
             <div className="space-y-4">
               <div className="flex justify-between items-center">
                 <span className="text-muted-foreground">Total Gastado:</span>
@@ -181,10 +174,10 @@ const ExpensesTab: React.FC<ExpensesTabProps> = ({ eventId, participants, curren
       )}
 
       <Card className="bg-card text-card-foreground">
-        <CardHeader className="px-2 md:px-6">
+        <CardHeader className="p-2 md:p-6">
           <CardTitle className="text-xl">Historial de Gastos</CardTitle>
         </CardHeader>
-        <CardContent className="px-2 md:px-6">
+        <CardContent className="p-2 md:p-6">
           <ScrollArea className="h-full max-h-72 pr-4">
             {expenses.length === 0 ? (
               <p className="text-muted-foreground text-center py-6 italic">No hay gastos registrados.</p>

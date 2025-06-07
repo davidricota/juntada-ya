@@ -46,7 +46,6 @@ async function generateImages() {
                 .toFile(outputPath);
         }
 
-        console.log(`Generated ${filename}`);
     }
 
     // Generar favicon.ico (combinación de 16x16 y 32x32)
@@ -64,7 +63,6 @@ async function generateImages() {
         .joinChannel(favicon16)
         .toFile(icoPath);
 
-    console.log('Generated favicon.ico');
 }
 
 generateImages().catch(console.error); 

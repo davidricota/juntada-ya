@@ -97,7 +97,6 @@ export class ExpenseService {
           filter: `event_id=eq.${eventId}`,
         },
         (payload) => {
-          console.log("Raw payload received:", payload);
           callback(payload as ExpenseChangePayload);
         }
       )

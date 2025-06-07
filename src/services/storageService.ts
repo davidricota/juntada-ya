@@ -23,7 +23,6 @@ export class StorageService {
     try {
       return this.decrypt(encrypted);
     } catch (error) {
-      console.error("Error decrypting value:", error);
       return null;
     }
   }

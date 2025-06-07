@@ -1,4 +1,3 @@
-
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 
 const YOUTUBE_API_KEY = Deno.env.get("YOUTUBE_API_KEY");
@@ -26,7 +25,6 @@ serve(async (req) => {
     }
 
     if (!YOUTUBE_API_KEY) {
-      console.error("YOUTUBE_API_KEY is not set in environment variables.");
       return new Response(JSON.stringify({ error: "YouTube API key not configured" }), {
         status: 500,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
@@ -42,10 +40,9 @@ serve(async (req) => {
     });
 
     const response = await fetch(`${YOUTUBE_API_URL}?${params.toString()}`);
-    
+
     if (!response.ok) {
       const errorData = await response.json();
-      console.error("YouTube API Error:", errorData);
       return new Response(JSON.stringify({ error: "Failed to fetch data from YouTube API", details: errorData }), {
         status: response.status,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
@@ -53,7 +50,7 @@ serve(async (req) => {
     }
 
     const data = await response.json();
-    
+
     // Simplificamos los datos antes de enviarlos al cliente
     const simplifiedResults = data.items.map((item: any) => ({
       id: item.id.videoId,
@@ -65,13 +62,10 @@ serve(async (req) => {
     return new Response(JSON.stringify({ results: simplifiedResults }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
-
   } catch (error) {
-    console.error("Error in youtube-search function:", error);
     return new Response(JSON.stringify({ error: error.message || "Internal server error" }), {
       status: 500,
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   }
 });
-

@@ -51,7 +51,6 @@ const CreateEventPage: React.FC = () => {
     try {
       // Crear o obtener el usuario
       const user = await UserService.getOrCreateUser(participantWhatsapp, participantName);
-      console.log("User created/retrieved:", user);
 
       // Generar el accessCode
       const generatedAccessCode = Math.random().toString(36).substring(2, 8).toUpperCase();
@@ -64,7 +63,6 @@ const CreateEventPage: React.FC = () => {
         .single();
 
       if (eventError) throw eventError;
-      console.log("Event created:", eventData);
 
       const eventId = eventData.id;
 
@@ -76,20 +74,16 @@ const CreateEventPage: React.FC = () => {
         .single();
 
       if (participantError) throw participantError;
-      console.log("Participant created:", participantData);
 
       // Guardar la información del usuario
       const userStorage = { id: user.id, whatsapp: participantWhatsapp };
       localStorage.setItem("user_data", encrypt(JSON.stringify(userStorage)));
-      console.log("User storage saved:", userStorage);
 
       // Guardar la información del participante del evento
       setEventParticipant(eventId, user.id, participantData.name);
-      console.log("Event participant saved:", { eventId, userId: user.id, name: participantData.name });
 
       // Guardar la información del participante en el store
       setParticipant(participantName, participantWhatsapp);
-      console.log("Participant store updated:", { name: participantName, whatsapp: participantWhatsapp });
 
       setAccessCode(eventData.access_code);
       setEventId(eventId);
@@ -99,7 +93,6 @@ const CreateEventPage: React.FC = () => {
         navigate(`/event/${eventId}`);
       }, 2000);
     } catch (error) {
-      console.error("Error creating event:", error);
       toast({ title: "Error", description: "No se pudo crear el evento. Inténtalo de nuevo.", variant: "destructive" });
     } finally {
       setIsLoading(false);

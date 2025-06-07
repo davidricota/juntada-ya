@@ -60,14 +60,76 @@ export class PlaylistService {
     if (error) throw error;
   }
 
-  static subscribeToPlaylist(eventId: string, callback: (payload: PlaylistChangePayload) => void) {
+  static async getPlaylist(eventId: string): Promise<PlaylistItem[]> {
+    try {
+      const { data, error } = await supabase.from("playlist").select("*").eq("event_id", eventId).order("added_at", { ascending: true });
+      if (error) throw error;
+      return data;
+    } catch (error) {
+      throw new Error("Error fetching playlist");
+    }
+  }
+
+  static async addVideo(eventId: string, videoId: string): Promise<PlaylistItem> {
+    try {
+      const { data, error } = await supabase
+        .from("playlist")
+        .insert([{ event_id: eventId, youtube_video_id: videoId }])
+        .select()
+        .single();
+      if (error) throw error;
+      return data;
+    } catch (error) {
+      throw new Error("Error adding video to playlist");
+    }
+  }
+
+  static async removeVideo(videoId: string): Promise<void> {
+    try {
+      const { error } = await supabase.from("playlist").delete().eq("id", videoId);
+      if (error) throw error;
+    } catch (error) {
+      throw new Error("Error removing video from playlist");
+    }
+  }
+
+  static async getVideoDetails(videoId: string): Promise<VideoDetails> {
+    try {
+      const response = await fetch(
+        `https://www.googleapis.com/youtube/v3/videos?part=snippet&id=${videoId}&key=${process.env.NEXT_PUBLIC_YOUTUBE_API_KEY}`
+      );
+      const data = await response.json();
+      if (!data.items || data.items.length === 0) {
+        throw new Error("Video not found");
+      }
+      const video = data.items[0];
+      return {
+        title: video.snippet.title,
+        thumbnail_url: video.snippet.thumbnails.medium.url,
+        channel_title: video.snippet.channelTitle,
+      };
+    } catch (error) {
+      throw new Error("Error fetching video details");
+    }
+  }
+
+  static subscribeToPlaylist(eventId: string, callback: (payload: any) => void) {
     return supabase
-      .channel(`playlist_items_event_${eventId}`)
-      .on("postgres_changes", { event: "*", schema: "public", table: "playlist_items", filter: `event_id=eq.${eventId}` }, callback)
+      .channel(`playlist-${eventId}`)
+      .on(
+        "postgres_changes",
+        {
+          event: "*",
+          schema: "public",
+          table: "playlist",
+          filter: `event_id=eq.${eventId}`,
+        },
+        callback
+      )
       .subscribe();
   }
 
-  static unsubscribeFromPlaylist(subscription: ReturnType<typeof supabase.channel>) {
+  static unsubscribeFromPlaylist(subscription: RealtimeChannel) {
     supabase.removeChannel(subscription);
   }
 }

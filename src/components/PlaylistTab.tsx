@@ -1,6 +1,6 @@
 import React, { useState, Dispatch, SetStateAction, useEffect, useRef } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "./ui/card";
-import { ListMusic } from "lucide-react";
+import { ListMusic, Loader2 } from "lucide-react";
 import YouTubePlayer from "./YoutubePlayer";
 import Playlist from "./Playlist";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -94,47 +94,19 @@ export default function PlaylistTab({
 
   // Subscribe to playlist changes
   useEffect(() => {
-    const subscription = PlaylistService.subscribeToPlaylist(eventId, (payload: PlaylistChangePayload) => {
-      if (payload.eventType === "DELETE") {
-        // Verificar si el item ya fue eliminado localmente
-        onPlaylistChange((prevItems) => {
-          const exists = prevItems.some((item) => item.id === payload.old.id);
-          if (!exists) return prevItems; // Si ya no existe, no hacer nada
-
-          const newItems = prevItems.filter((item) => item.id !== payload.old.id);
-          // Si el video actual fue eliminado, movemos al siguiente
-          if (currentVideoIndex >= newItems.length) {
-            setCurrentVideoIndex(Math.max(0, newItems.length - 1));
-          }
-          return newItems;
-        });
-      } else if (payload.eventType === "INSERT") {
-        // Verificamos si la canción ya existe en la playlist
-        onPlaylistChange((prevItems) => {
-          const exists = prevItems.some((item) => item.youtube_video_id === payload.new.youtube_video_id);
-          if (exists) return prevItems;
-
-          const participant = participants.find((p) => p.id === payload.new.added_by_participant_id);
-          const newItem: PlaylistItem = {
-            id: payload.new.id,
-            youtube_video_id: payload.new.youtube_video_id,
-            title: payload.new.title,
-            thumbnail_url: payload.new.thumbnail_url,
-            channel_title: payload.new.channel_title,
-            added_by_participant_id: payload.new.added_by_participant_id,
-            event_id: payload.new.event_id,
-            added_at: payload.new.added_at,
-            participant_name: participant?.name || "Desconocido",
-          };
-          return [...prevItems, newItem];
-        });
+    const subscription = PlaylistService.subscribeToPlaylist(eventId, async (payload) => {
+      if (payload.eventType === "INSERT" && payload.new) {
+        const videoDetails = await PlaylistService.getVideoDetails(payload.new.video_id);
+        onPlaylistChange((prev) => [...prev, { ...payload.new, ...videoDetails }]);
+      } else if (payload.eventType === "DELETE" && payload.old) {
+        onPlaylistChange((prev) => prev.filter((item) => item.id !== payload.old.id));
       }
     });
 
     return () => {
       PlaylistService.unsubscribeFromPlaylist(subscription);
     };
-  }, [eventId, participants, onPlaylistChange, currentVideoIndex]);
+  }, [eventId, onPlaylistChange]);
 
   // Update progress in real-time
   useEffect(() => {
@@ -207,7 +179,6 @@ export default function PlaylistTab({
       await onRemoveSong(id);
       toast({ title: "Canción Eliminada", description: `${title}` });
     } catch (error) {
-      console.error("Error deleting video:", error);
       // Si hay error, revertir el cambio local
       onPlaylistChange((prevItems) => {
         const deletedItem = playlist.find((item) => item.id === id);
@@ -244,7 +215,6 @@ export default function PlaylistTab({
       // No actualizamos el estado aquí, dejamos que la suscripción lo maneje
       toast({ title: "¡Canción Agregada!", description: `${song.title} se añadió a la playlist.` });
     } catch (error) {
-      console.error("Error adding song:", error);
       toast({
         title: "Error",
         description: "No se pudo agregar la canción. Inténtalo de nuevo.",
@@ -314,21 +284,20 @@ export default function PlaylistTab({
 
   if (isLoading) {
     return (
-      <div className="space-y-4">
-        <SkeletonCard
-          header={{
-            title: true,
-            description: false,
-            meta: false,
-            actions: 0,
-          }}
-          content={{
-            items: 4,
-            itemHeight: "h-16",
-            itemWidth: "w-full",
-          }}
-        />
-        <Skeleton className="h-12 w-full" />
+      <div className="flex flex-col h-full">
+        <Card className="bg-card text-card-foreground shadow-lg">
+          <CardHeader className="p-2 md:p-6">
+            <CardTitle className="text-xl flex items-center">
+              <ListMusic className="mr-2 h-5 w-5 text-primary" />
+              Playlist Colaborativa
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4 p-2 md:p-6">
+            <div className="flex items-center justify-center h-48">
+              <Loader2 className="h-8 w-8 animate-spin text-primary" />
+            </div>
+          </CardContent>
+        </Card>
       </div>
     );
   }
@@ -337,16 +306,16 @@ export default function PlaylistTab({
     <div className="flex flex-col h-full">
       <div className={cn("transition-all duration-200", currentTab !== "playlist" && "opacity-0 w-0 h-0 overflow-hidden")}>
         <Card className="bg-card text-card-foreground shadow-lg">
-          <CardHeader className="px-2 md:px-6">
+          <CardHeader className="p-2 md:p-6">
             <CardTitle className="text-xl flex items-center">
               <ListMusic className="mr-2 h-5 w-5 text-primary" />
               Playlist Colaborativa
             </CardTitle>
           </CardHeader>
-          <CardContent className="space-y-4 px-2 md:px-6">
+          <CardContent className="space-y-4 p-2 md:p-6">
             {playlist.length > 0 ? (
               <>
-                {memoizedYouTubePlayer}
+                <div className={cn("transition-all duration-200", isPlayerReady ? "opacity-100" : "opacity-0")}>{memoizedYouTubePlayer}</div>
                 <ScrollArea className="max-h-96 rounded-lg">
                   <Playlist
                     playlistItems={playlist}

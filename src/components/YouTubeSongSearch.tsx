@@ -43,7 +43,6 @@ const YouTubeSongSearch: React.FC<YouTubeSongSearchProps> = ({ onSongSelected })
         });
       }
     } catch (err) {
-      console.error("Search error:", err);
       setError(err instanceof Error ? err.message : "Ocurrió un error desconocido durante la búsqueda.");
       toast({
         title: "Error de Búsqueda",
@@ -60,7 +59,6 @@ const YouTubeSongSearch: React.FC<YouTubeSongSearchProps> = ({ onSongSelected })
       onSongSelected(song);
       toast({ title: "Canción Pre-seleccionada", description: `${song.title} lista para ser añadida.` });
     } else {
-      console.log("Song selected:", song);
       toast({ title: "Canción Seleccionada (dev)", description: `${song.title}` });
     }
   };

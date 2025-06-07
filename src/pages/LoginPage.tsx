@@ -30,18 +30,15 @@ const LoginPage: React.FC = () => {
 
       // Obtener o crear el usuario
       const user = await UserService.getOrCreateUser(formattedPhone, "Usuario");
-      console.log("User created/retrieved:", user);
 
       // Guardar user_data en localStorage
       const userStorage = { id: user.id, whatsapp: formattedPhone };
       localStorage.setItem("user_data", encrypt(JSON.stringify(userStorage)));
-      console.log("User storage saved:", userStorage);
 
       login(formattedPhone);
       toast.success("Inicio de sesión exitoso");
       navigate("/my-events");
     } catch (error) {
-      console.error("Error de inicio de sesión:", error);
       toast.error("Error al iniciar sesión. Por favor intenta de nuevo.");
     } finally {
       setLoading(false);

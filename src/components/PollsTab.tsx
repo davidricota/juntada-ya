@@ -88,10 +88,7 @@ const PollsTab: React.FC<PollsTabProps> = ({ eventId, currentParticipantId, isHo
 
     // Suscribirse a cambios en las encuestas
     const pollsSubscription = PollService.subscribeToPolls(eventId, async (payload) => {
-      console.log("Poll change received:", payload);
-
       if (payload.eventType === "DELETE") {
-        console.log("Delete event received:", payload.old);
         setPolls((prev) => prev.filter((poll) => poll.id !== payload.old.id));
       } else if (payload.eventType === "INSERT" && payload.new) {
         // Agregar nueva encuesta
@@ -121,13 +118,11 @@ const PollsTab: React.FC<PollsTabProps> = ({ eventId, currentParticipantId, isHo
           ...prev,
         ]);
       }
-      // Removemos el manejo de UPDATE aquí ya que lo manejamos localmente
     });
 
     // Suscribirse a cambios en las opciones de las encuestas
     const pollOptionsSubscriptions = polls.map((poll) =>
       PollService.subscribeToPollOptions(poll.id, async (payload) => {
-        console.log("Poll option change received:", payload);
         if (payload.eventType === "INSERT" && payload.new) {
           setPolls((prev) =>
             prev.map((p) =>
@@ -193,7 +188,6 @@ const PollsTab: React.FC<PollsTabProps> = ({ eventId, currentParticipantId, isHo
 
       setPolls(processedPolls);
     } catch (error) {
-      console.error("Error fetching polls:", error);
       toast({
         title: "Error",
         description: "No se pudieron cargar las encuestas.",
@@ -235,7 +229,6 @@ const PollsTab: React.FC<PollsTabProps> = ({ eventId, currentParticipantId, isHo
         const optionsToDelete = existingOptions.filter((opt) => !formData.options.some((title) => title.trim() === opt.title));
 
         // Primero eliminamos las opciones que ya no existen
-        console.log("Eliminando opciones:", optionsToDelete);
         await Promise.all(optionsToDelete.map((opt) => PollService.removePollOption(opt.id)));
 
         // Luego procesamos las opciones nuevas o existentes
@@ -247,7 +240,6 @@ const PollsTab: React.FC<PollsTabProps> = ({ eventId, currentParticipantId, isHo
             newOptions.push(existingOption);
           } else {
             // Es una nueva opción, la creamos
-            console.log("Creando nueva opción:", trimmedTitle);
             const newOption = await PollService.addPollOption(editingPoll.id, {
               title: trimmedTitle,
             });
@@ -329,7 +321,6 @@ const PollsTab: React.FC<PollsTabProps> = ({ eventId, currentParticipantId, isHo
       setEditingPoll(null);
       setIsDialogOpen(false);
     } catch (error) {
-      console.error("Error creating/updating poll:", error);
       toast({
         title: "Error",
         description: "No se pudo crear/actualizar la encuesta. Inténtalo de nuevo.",
@@ -356,7 +347,6 @@ const PollsTab: React.FC<PollsTabProps> = ({ eventId, currentParticipantId, isHo
         description: "La encuesta se ha eliminado correctamente.",
       });
     } catch (error) {
-      console.error("Error deleting poll:", error);
       // Si hay error, recargamos todo
       fetchPolls();
       toast({
@@ -437,7 +427,6 @@ const PollsTab: React.FC<PollsTabProps> = ({ eventId, currentParticipantId, isHo
         description: "Tu voto se ha registrado correctamente.",
       });
     } catch (error) {
-      console.error("Error voting:", error);
       toast({
         title: "Error",
         description: "No se pudo registrar tu voto. Inténtalo de nuevo.",
@@ -484,7 +473,6 @@ const PollsTab: React.FC<PollsTabProps> = ({ eventId, currentParticipantId, isHo
         description: "Tu voto se ha eliminado correctamente.",
       });
     } catch (error) {
-      console.error("Error removing vote:", error);
       toast({
         title: "Error",
         description: "No se pudo eliminar tu voto. Inténtalo de nuevo.",
@@ -547,7 +535,7 @@ const PollsTab: React.FC<PollsTabProps> = ({ eventId, currentParticipantId, isHo
         ) : (
           polls.map((poll) => (
             <Card key={poll.id} className="bg-card text-card-foreground">
-              <CardHeader className="px-2 md:px-6">
+              <CardHeader className="p-2 md:p-6">
                 <div className="flex items-start justify-between">
                   <div>
                     <CardTitle className="text-xl text-primary">{poll.title}</CardTitle>
@@ -602,7 +590,7 @@ const PollsTab: React.FC<PollsTabProps> = ({ eventId, currentParticipantId, isHo
                   )}
                 </div>
               </CardHeader>
-              <CardContent className="px-2 md:px-6">
+              <CardContent className="p-2 md:p-6">
                 <div className="space-y-4">
                   {poll.options?.map((option) => {
                     const percentage = poll.total_votes ? ((option.votes_count || 0) / poll.total_votes) * 100 : 0;

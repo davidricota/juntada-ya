@@ -24,33 +24,23 @@ const MyEventsPage: React.FC = () => {
       const userStorage = getUserStorage();
       const userId = getUserId();
 
-      console.log("User Storage:", userStorage);
-      console.log("User ID:", userId);
-
       if (!userStorage || !userId) {
-        console.log("No user storage or user ID found, redirecting to home");
         navigate("/");
         return;
       }
 
       // Obtener eventos donde el usuario es host
-      console.log("Fetching hosted events for user:", userId);
       const hostedEvents = await EventService.getEventsByHost(userId);
-      console.log("Hosted events:", hostedEvents);
 
       // Obtener eventos donde el usuario es participante
-      console.log("Fetching participant events for user:", userId);
       const participantEvents = await EventService.getEventsByParticipant(userId);
-      console.log("Participant events:", participantEvents);
 
       // Combinar y eliminar duplicados
       const allEvents = [...hostedEvents, ...participantEvents];
       const uniqueEvents = Array.from(new Map(allEvents.map((event) => [event.id, event])).values());
-      console.log("Combined unique events:", uniqueEvents);
 
       setEvents(uniqueEvents);
     } catch (error) {
-      console.error("Error fetching events:", error);
       toast({ title: "Error", description: "Error al cargar los eventos.", variant: "destructive" });
     } finally {
       setLoading(false);
@@ -63,7 +53,6 @@ const MyEventsPage: React.FC = () => {
       toast({ title: "Éxito", description: "Evento eliminado correctamente." });
       fetchEvents();
     } catch (error) {
-      console.error("Error deleting event:", error);
       toast({ title: "Error", description: "Error al eliminar el evento.", variant: "destructive" });
     }
   };

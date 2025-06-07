@@ -92,7 +92,6 @@ const JoinEventPage: React.FC = () => {
       toast({ title: "¡Bienvenido!", description: `Te has unido al evento ${event.name}` });
       navigate(`/event/${event.id}`);
     } catch (error) {
-      console.error("Error joining event:", error);
       toast({ title: "Error", description: "No se pudo unir al evento. Inténtalo de nuevo.", variant: "destructive" });
     } finally {
       setIsLoading(false);

@@ -16,7 +16,6 @@ interface ExpenseFormProps {
 }
 
 const ExpenseForm: React.FC<ExpenseFormProps> = ({ isOpen, onOpenChange, onSubmit, isLoading, participants, isHost, currentParticipantId }) => {
-  console.log("ExpenseForm debug:", { isHost, participants });
   const [title, setTitle] = useState("");
   const [amount, setAmount] = useState("");
   const [paidBy, setPaidBy] = useState(currentParticipantId);

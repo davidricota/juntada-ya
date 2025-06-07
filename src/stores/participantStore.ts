@@ -53,7 +53,6 @@ export const useParticipantStore = create<ParticipantState>()(
           const decrypted = decrypt(stored);
           return JSON.parse(decrypted);
         } catch (error) {
-          console.error("Error decrypting participant:", error);
           return null;
         }
       },
@@ -64,7 +63,6 @@ export const useParticipantStore = create<ParticipantState>()(
           const decrypted = decrypt(stored);
           return JSON.parse(decrypted);
         } catch (error) {
-          console.error("Error decrypting event participant:", error);
           return null;
         }
       },
@@ -75,7 +73,6 @@ export const useParticipantStore = create<ParticipantState>()(
           const decrypted = decrypt(stored);
           return JSON.parse(decrypted);
         } catch (error) {
-          console.error("Error decrypting user data:", error);
           return null;
         }
       },
