@@ -427,7 +427,7 @@ const PollsTab: React.FC<PollsTabProps> = ({ eventId, currentParticipantId, isHo
         ) : (
           polls.map((poll) => (
             <Card key={poll.id} className="bg-card text-card-foreground">
-              <CardHeader>
+              <CardHeader className="px-2 md:px-6">
                 <div className="flex items-start justify-between">
                   <div>
                     <CardTitle className="text-xl text-primary">{poll.title}</CardTitle>
@@ -483,7 +483,7 @@ const PollsTab: React.FC<PollsTabProps> = ({ eventId, currentParticipantId, isHo
                 </div>
               </CardHeader>
               <CardContent>
-                <div className="space-y-4">
+                <div className="space-y-4 px-2 md:px-6">
                   {poll.options?.map((option) => {
                     const percentage = poll.total_votes ? ((option.votes_count || 0) / poll.total_votes) * 100 : 0;
                     return (

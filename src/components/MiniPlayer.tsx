@@ -76,7 +76,7 @@ export default function MiniPlayer({ currentVideo, player, onPrevious, onNext, i
   };
 
   return (
-    <div className="fixed bottom-0 left-0 right-0 bg-zinc-800/90 backdrop-blur-md border-t border-zinc-700/50 p-2">
+    <div className="fixed bottom-0 left-0 right-0 bg-zinc-800/90 backdrop-blur-md border-t border-zinc-700/50 p-2 z-10">
       <div className="flex items-center justify-between max-w-7xl mx-auto">
         <div className="flex items-center space-x-4">
           <img

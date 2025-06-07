@@ -244,8 +244,8 @@ const EventPage: React.FC = () => {
   }
 
   return (
-    <div className="">
-      <div className="grid md:grid-cols-3 gap-6">
+    <div className="w-full px-2 md:px-6">
+      <div className="grid md:grid-cols-3 gap-6 w-full">
         <div className="md:col-span-1 space-y-6">
           <Card className="bg-card text-card-foreground shadow-xl rounded-lg overflow-hidden">
             <CardHeader className="bg-card">
@@ -293,7 +293,7 @@ const EventPage: React.FC = () => {
                 {participants.length > 0 ? (
                   <ul className="space-y-3">
                     {participants.map((p) => (
-                      <li key={p.id} className="flex items-center gap-3 p-2 md:p-3 bg-primary text-primary-foreground rounded-md shadow">
+                      <li key={p.id} className="flex items-center gap-3 p-2  bg-primary text-primary-foreground rounded-md shadow">
                         <Avatar className="h-10 w-10">
                           <AvatarImage src={`https://avatar.vercel.sh/${p.name}.png?size=40`} alt={p.name} />
                           <AvatarFallback>{p.name.substring(0, 2).toUpperCase()}</AvatarFallback>

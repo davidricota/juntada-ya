@@ -156,22 +156,36 @@ export default function PlaylistTab({
   const memoizedYouTubePlayer = React.useMemo(
     () => (
       <YouTubePlayer
-        key={`player-${currentVideoIndex}`}
+        key="youtube-player"
         playlistItems={playlist}
         initialVideoIndex={currentVideoIndex}
-        currentTab={currentTab}
         onPlayerReady={(player) => {
           playerRef.current = player;
           setIsPlayerReady(true);
           setPlayer(player);
+          // Restaurar el volumen y estado de mute
+          player.setVolume(volume * 100);
+          if (isMuted) {
+            player.mute();
+          }
         }}
         onVideoChange={(index) => {
           setCurrentVideoIndex(index);
         }}
       />
     ),
-    [currentVideoIndex, currentTab] // Solo se recrea cuando cambia el índice del video actual
+    [currentVideoIndex]
   );
+
+  // Efecto para manejar cambios en el video actual
+  useEffect(() => {
+    if (playerRef.current && playlist[currentVideoIndex]) {
+      playerRef.current.loadVideoById(playlist[currentVideoIndex].youtube_video_id);
+      if (isPlaying) {
+        playerRef.current.playVideo();
+      }
+    }
+  }, [currentVideoIndex, playlist]);
 
   const handleVideoSelect = (index: number) => {
     setCurrentVideoIndex(index);
@@ -323,32 +337,24 @@ export default function PlaylistTab({
     <div className="flex flex-col h-full">
       <div className={cn("transition-all duration-200", currentTab !== "playlist" && "opacity-0 w-0 h-0 overflow-hidden")}>
         <Card className="bg-card text-card-foreground shadow-lg">
-          <CardHeader>
+          <CardHeader className="px-2 md:px-6">
             <CardTitle className="text-xl flex items-center">
               <ListMusic className="mr-2 h-5 w-5 text-primary" />
               Playlist Colaborativa
             </CardTitle>
           </CardHeader>
-          <CardContent className="space-y-4">
+          <CardContent className="space-y-4 px-2 md:px-6">
             {playlist.length > 0 ? (
               <>
-                <YouTubePlayer
-                  playlistItems={playlist}
-                  initialVideoIndex={currentVideoIndex}
-                  onPlayerReady={(player) => {
-                    playerRef.current = player;
-                    setIsPlayerReady(true);
-                  }}
-                  onVideoChange={(index) => {
-                    setCurrentVideoIndex(index);
-                  }}
-                />
+                {memoizedYouTubePlayer}
                 <ScrollArea className="max-h-96 rounded-lg">
                   <Playlist
                     playlistItems={playlist}
                     currentVideoIndex={currentVideoIndex}
                     onVideoSelect={handleVideoSelect}
                     onVideoDelete={handleVideoDelete}
+                    currentParticipantId={currentParticipantId}
+                    isHost={isHost}
                   />
                 </ScrollArea>
               </>

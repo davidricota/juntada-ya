@@ -17,7 +17,8 @@ export interface Participant {
 export interface Expense {
   id: string;
   event_id: string;
-  participant_id: string;
+  paid_by_participant_id: string;
+  participant_name: string;
   title: string;
   amount: number;
   created_at: string;

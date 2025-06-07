@@ -88,7 +88,19 @@ export class ExpenseService {
   static subscribeToExpenses(eventId: string, callback: (payload: ExpenseChangePayload) => void) {
     return supabase
       .channel(`expenses_event_${eventId}`)
-      .on("postgres_changes", { event: "*", schema: "public", table: "expenses", filter: `event_id=eq.${eventId}` }, callback)
+      .on(
+        "postgres_changes",
+        {
+          event: "*",
+          schema: "public",
+          table: "expenses",
+          filter: `event_id=eq.${eventId}`,
+        },
+        (payload) => {
+          console.log("Raw payload received:", payload);
+          callback(payload as ExpenseChangePayload);
+        }
+      )
       .subscribe();
   }
 

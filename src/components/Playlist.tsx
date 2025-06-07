@@ -1,5 +1,5 @@
 import React from "react";
-import { Trash, Youtube } from "lucide-react";
+import { PlayCircleIcon, Trash, Youtube } from "lucide-react";
 import { PlaylistItem } from "@/types";
 import { cn } from "@/lib/utils";
 
@@ -8,13 +8,15 @@ interface PlayListProps {
   currentVideoIndex: number;
   onVideoSelect: (index: number) => void;
   onVideoDelete: (id: string, title: string) => void;
+  currentParticipantId: string | null;
+  isHost: boolean;
 }
 
-const Playlist: React.FC<PlayListProps> = ({ playlistItems, currentVideoIndex, onVideoSelect, onVideoDelete }) => {
+const Playlist: React.FC<PlayListProps> = ({ playlistItems, currentVideoIndex, onVideoSelect, onVideoDelete, currentParticipantId, isHost }) => {
   if (!playlistItems) return null;
 
   return (
-    <ul className="space-y-3 max-h-96 px-2 md:px-4">
+    <ul className="space-y-3 max-h-96 px-1 md:px-4">
       {playlistItems.map((item, index) => (
         <li
           key={`${item.id}-${index}`}
@@ -23,35 +25,27 @@ const Playlist: React.FC<PlayListProps> = ({ playlistItems, currentVideoIndex, o
             currentVideoIndex === index && "border-red-500/50 bg-red-500/10 text-red-500"
           )}
         >
-          <img
-            src={item.thumbnail_url || `https://img.youtube.com/vi/${item.youtube_video_id}/mqdefault.jpg`}
-            alt={item.title}
-            className="hidden md:block w-16 h-12 rounded object-cover shadow-sm"
-            onError={(e) => {
-              const target = e.target as HTMLImageElement;
-              target.src = `https://via.placeholder.com/48x36?text=${item.title.charAt(0)}`;
-            }}
-          />
+          <button onClick={() => onVideoSelect(index)} title="Reproducir" className="rounded-full hover:bg-muted transition-colors cursor-pointer">
+            <PlayCircleIcon
+              className={cn("h-4 w-4 md:h-10 md:w-10 text-muted group-hover:text-red-400", currentVideoIndex === index && "text-red-500")}
+            />
+          </button>
+
           <div className="flex-grow">
             <p className="font-semibold text-xs sm:text-sm leading-tight">{item.title}</p>
             <p className="text-[10px] sm:text-xs opacity-80">{item.channel_title}</p>
             <p className="hidden md:block text-xs opacity-60">Añadido por: {item.participant_name}</p>
           </div>
           <div className="flex gap-3 flex-col md:flex-row">
-            <button
-              onClick={() => onVideoSelect(index)}
-              title="Reproducir"
-              className=" rounded-full hover:bg-muted transition-colors cursor-pointer "
-            >
-              <Youtube className={cn("h-4 w-4 md:h-6 md:w-6 text-muted group-hover:text-red-400", currentVideoIndex === index && "text-red-500")} />
-            </button>
-            <button
-              onClick={() => onVideoDelete(item.id, item.title)}
-              title="Eliminar"
-              className=" rounded-full hover:bg-muted transition-colors cursor-pointer"
-            >
-              <Trash className={cn("h-4 w-4 md:h-6 md:w-6 text-muted group-hover:text-red-400", currentVideoIndex === index && "text-red-500")} />
-            </button>
+            {(item.added_by_participant_id === currentParticipantId || isHost) && (
+              <button
+                onClick={() => onVideoDelete(item.id, item.title)}
+                title="Eliminar"
+                className="rounded-full hover:bg-muted transition-colors cursor-pointer"
+              >
+                <Trash className={cn("h-3 w-3 md:h-4 md:w-4 text-muted group-hover:text-red-400", currentVideoIndex === index && "text-red-500")} />
+              </button>
+            )}
           </div>
         </li>
       ))}

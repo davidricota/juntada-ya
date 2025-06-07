@@ -28,7 +28,20 @@ const ExpensesTab: React.FC<ExpensesTabProps> = ({ eventId, participants, curren
 
   useEffect(() => {
     loadExpenses();
-    const subscription = ExpenseService.subscribeToExpenses(eventId, handleExpenseChange);
+    const subscription = ExpenseService.subscribeToExpenses(eventId, (payload: ExpenseChangePayload) => {
+      console.log("Expense change received:", payload);
+      if (payload.eventType === "INSERT" && payload.new) {
+        ExpenseService.getExpenseSummary(eventId).then(setSummary);
+      } else if (payload.eventType === "DELETE" && payload.old) {
+        console.log("Deleting expense:", payload.old);
+        setExpenses((prev) => {
+          const filtered = prev.filter((expense) => expense.id !== payload.old?.id);
+          console.log("Filtered expenses:", filtered);
+          return filtered;
+        });
+        ExpenseService.getExpenseSummary(eventId).then(setSummary);
+      }
+    });
     return () => {
       ExpenseService.unsubscribeFromExpenses(subscription);
     };
@@ -37,6 +50,8 @@ const ExpensesTab: React.FC<ExpensesTabProps> = ({ eventId, participants, curren
   const loadExpenses = async () => {
     try {
       const [expensesData, summaryData] = await Promise.all([ExpenseService.getExpenses(eventId), ExpenseService.getExpenseSummary(eventId)]);
+      console.log("Loaded expenses:", expensesData);
+      console.log("Loaded summary:", summaryData);
       setExpenses(expensesData);
       setSummary(summaryData);
     } catch (error) {
@@ -51,18 +66,22 @@ const ExpensesTab: React.FC<ExpensesTabProps> = ({ eventId, participants, curren
     }
   };
 
-  const handleExpenseChange = (payload: ExpenseChangePayload) => {
-    if (payload.eventType === "INSERT" && payload.new) {
-      setExpenses((prev) => [...prev, payload.new]);
-    } else if (payload.eventType === "DELETE" && payload.old) {
-      setExpenses((prev) => prev.filter((expense) => expense.id !== payload.old?.id));
-    }
-    loadExpenses(); // Recargar el resumen
-  };
-
   const handleAddExpense = async (title: string, amount: number, paidBy: string) => {
     try {
-      await ExpenseService.addExpense(eventId, paidBy, title, amount);
+      const newExpense = await ExpenseService.addExpense(eventId, paidBy, title, amount);
+      // Encontrar el nombre del participante que pagó
+      const paidByParticipant = participants.find((p) => p.id === paidBy);
+      // Agregar el gasto al estado con el nombre del participante
+      setExpenses((prev) => [
+        {
+          ...newExpense,
+          participant_name: paidByParticipant?.name || "Desconocido",
+        },
+        ...prev,
+      ]);
+      // Actualizar el resumen
+      const newSummary = await ExpenseService.getExpenseSummary(eventId);
+      setSummary(newSummary);
       setIsDialogOpen(false);
       toast({
         title: "¡Gasto Agregado!",
@@ -80,13 +99,22 @@ const ExpensesTab: React.FC<ExpensesTabProps> = ({ eventId, participants, curren
 
   const handleDeleteExpense = async (expenseId: string) => {
     try {
+      // Primero actualizamos el estado local
+      setExpenses((prev) => prev.filter((expense) => expense.id !== expenseId));
+      // Luego eliminamos en la base de datos
       await ExpenseService.removeExpense(expenseId);
+      // Actualizamos el resumen
+      const newSummary = await ExpenseService.getExpenseSummary(eventId);
+      setSummary(newSummary);
+
       toast({
         title: "Gasto Eliminado",
         description: "El gasto se ha eliminado correctamente.",
       });
     } catch (error) {
       console.error("Error deleting expense:", error);
+      // Si hay error, recargamos todo
+      loadExpenses();
       toast({
         title: "Error",
         description: "No se pudo eliminar el gasto. Inténtalo de nuevo.",
@@ -157,11 +185,11 @@ const ExpensesTab: React.FC<ExpensesTabProps> = ({ eventId, participants, curren
           <CardTitle className="text-xl">Historial de Gastos</CardTitle>
         </CardHeader>
         <CardContent>
-          <ScrollArea className="max-h-[400px] rounded-lg pr-4">
+          <ScrollArea className="h-full max-h-72 pr-4">
             {expenses.length === 0 ? (
               <p className="text-muted-foreground text-center py-6 italic">No hay gastos registrados.</p>
             ) : (
-              <div className="space-y-4">
+              <div className="max-h-72 space-y-4">
                 {expenses.map((expense) => (
                   <div key={expense.id} className="flex items-center justify-between p-4 bg-foreground border border-primary rounded-lg">
                     <div>
@@ -170,9 +198,11 @@ const ExpensesTab: React.FC<ExpensesTabProps> = ({ eventId, participants, curren
                         {formatCurrency(expense.amount)} - Pagado por: {expense.participant_name}
                       </p>
                     </div>
-                    <button onClick={() => handleDeleteExpense(expense.id)} className="p-2 hover:bg-destructive/10 rounded-full transition-colors">
-                      <Trash className="h-4 w-4 text-destructive" />
-                    </button>
+                    {(expense.paid_by_participant_id === currentParticipantId || isHost) && (
+                      <button onClick={() => handleDeleteExpense(expense.id)} className="p-2 hover:bg-destructive/10 rounded-full transition-colors">
+                        <Trash className="h-4 w-4 text-destructive" />
+                      </button>
+                    )}
                   </div>
                 ))}
               </div>
