@@ -1,10 +1,8 @@
 import { supabase } from "@/integrations/supabase/client";
 import CryptoJS from "crypto-js";
-import { User } from "@/types";
+import type { Database } from "@/integrations/supabase/types";
 
-// Cache para usuarios
-const userCache = new Map<string, { data: User; timestamp: number }>();
-const CACHE_TTL = 5 * 60 * 1000; // 5 minutos
+type UserRow = Database["public"]["Tables"]["users"]["Row"];
 
 export interface User {
   id: string;
@@ -13,6 +11,10 @@ export interface User {
   created_at: string;
   last_active_at: string;
 }
+
+// Cache para usuarios
+const userCache = new Map<string, { data: User; timestamp: number }>();
+const CACHE_TTL = 5 * 60 * 1000; // 5 minutos
 
 export class UserService {
   private static hashWhatsApp(whatsappNumber: string): string {
@@ -38,7 +40,12 @@ export class UserService {
       return cached.data;
     }
 
-    const { data, error } = await supabase.from("users").select("id, name, whatsapp, created_at").eq("whatsapp", whatsappNumber).single();
+    const whatsappHash = this.hashWhatsApp(whatsappNumber);
+    const { data, error } = await supabase
+      .from("users")
+      .select("*")
+      .eq("whatsapp_hash", whatsappHash)
+      .single();
 
     if (error) {
       if (error.code === "PGRST116") return null;
@@ -58,6 +65,7 @@ export class UserService {
       .insert({
         whatsapp_hash: whatsappHash,
         name,
+        last_active_at: new Date().toISOString(),
       })
       .select()
       .single();
@@ -81,15 +89,7 @@ export class UserService {
 
     if (!user) {
       // Si no existe, crear uno nuevo
-      const { data, error } = await supabase
-        .from("users")
-        .insert({ whatsapp: whatsappNumber, name })
-        .select("id, name, whatsapp, created_at")
-        .single();
-
-      if (error) throw error;
-      user = data;
-
+      user = await this.createUser(whatsappNumber, name);
       // Guardar en cache
       userCache.set(whatsappNumber, { data: user, timestamp: Date.now() });
     }
@@ -98,20 +98,27 @@ export class UserService {
   }
 
   static async updateUser(userId: string, updates: Partial<User>): Promise<User> {
-    const { data, error } = await supabase.from("users").update(updates).eq("id", userId).select("id, name, whatsapp, created_at").single();
+    const { data, error } = await supabase
+      .from("users")
+      .update(updates)
+      .eq("id", userId)
+      .select()
+      .single();
 
     if (error) throw error;
 
     // Actualizar cache
-    if (data.whatsapp) {
-      userCache.set(data.whatsapp, { data, timestamp: Date.now() });
-    }
+    const whatsappHash = data.whatsapp_hash;
+    userCache.set(whatsappHash, { data, timestamp: Date.now() });
 
     return data;
   }
 
   static async updateLastActive(userId: string): Promise<void> {
-    const { error } = await supabase.from("users").update({ last_active_at: new Date().toISOString() }).eq("id", userId);
+    const { error } = await supabase
+      .from("users")
+      .update({ last_active_at: new Date().toISOString() })
+      .eq("id", userId);
 
     if (error) throw error;
   }

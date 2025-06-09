@@ -1,6 +1,6 @@
 import { supabase } from "@/integrations/supabase/client";
 import { PlaylistItem, PlaylistChangePayload } from "@/types";
-import { RealtimeChannel } from "@supabase/supabase-js";
+import { RealtimeChannel, RealtimePostgresChangesPayload } from "@supabase/supabase-js";
 
 // Cache para playlists
 const playlistCache = new Map<string, { data: PlaylistItem[]; timestamp: number }>();
@@ -62,7 +62,10 @@ export class PlaylistService {
   static async addToPlaylist(
     eventId: string,
     participantId: string,
-    videoData: Omit<PlaylistItem, "id" | "event_id" | "added_by_participant_id" | "added_at" | "participant_name">
+    videoData: Omit<
+      PlaylistItem,
+      "id" | "event_id" | "added_by_participant_id" | "added_at" | "participant_name"
+    >
   ): Promise<PlaylistItem> {
     const { data, error } = await supabase
       .from("playlist_items")
@@ -111,7 +114,11 @@ export class PlaylistService {
   }
 
   static async removeFromPlaylist(itemId: string): Promise<void> {
-    const { data: item, error: fetchError } = await supabase.from("playlist_items").select("event_id").eq("id", itemId).single();
+    const { data: item, error: fetchError } = await supabase
+      .from("playlist_items")
+      .select("event_id")
+      .eq("id", itemId)
+      .single();
 
     if (fetchError) throw fetchError;
 
@@ -133,9 +140,30 @@ export class PlaylistService {
 
   static async getPlaylist(eventId: string): Promise<PlaylistItem[]> {
     try {
-      const { data, error } = await supabase.from("playlist_items").select("*").eq("event_id", eventId).order("added_at", { ascending: true });
+      const { data, error } = await supabase
+        .from("playlist_items")
+        .select(
+          `
+          id,
+          youtube_video_id,
+          title,
+          thumbnail_url,
+          channel_title,
+          added_by_participant_id,
+          event_id,
+          added_at,
+          participant:event_participants (
+            name
+          )
+        `
+        )
+        .eq("event_id", eventId)
+        .order("added_at", { ascending: true });
       if (error) throw error;
-      return data;
+      return data.map((item) => ({
+        ...item,
+        participant_name: item.participant?.name || "Desconocido",
+      }));
     } catch (error) {
       throw new Error("Error fetching playlist");
     }
@@ -145,11 +173,33 @@ export class PlaylistService {
     try {
       const { data, error } = await supabase
         .from("playlist_items")
-        .insert([{ event_id: eventId, youtube_video_id: videoId }])
-        .select()
+        .insert({
+          event_id: eventId,
+          youtube_video_id: videoId,
+          title: "Video sin título",
+          added_by_participant_id: "system",
+        })
+        .select(
+          `
+          id,
+          youtube_video_id,
+          title,
+          thumbnail_url,
+          channel_title,
+          added_by_participant_id,
+          event_id,
+          added_at,
+          participant:event_participants (
+            name
+          )
+        `
+        )
         .single();
       if (error) throw error;
-      return data;
+      return {
+        ...data,
+        participant_name: data.participant?.name || "Desconocido",
+      };
     } catch (error) {
       throw new Error("Error adding video to playlist");
     }
@@ -164,7 +214,9 @@ export class PlaylistService {
     }
   }
 
-  static async getVideoDetails(videoId: string): Promise<{ title: string; thumbnail_url: string; channel_title: string }> {
+  static async getVideoDetails(
+    videoId: string
+  ): Promise<{ title: string; thumbnail_url: string; channel_title: string }> {
     const { data, error } = await supabase
       .from("playlist_items")
       .select("title, thumbnail_url, channel_title")
@@ -179,7 +231,10 @@ export class PlaylistService {
     return data;
   }
 
-  static subscribeToPlaylist(eventId: string, callback: (payload: PlaylistChangePayload) => void): RealtimeChannel {
+  static subscribeToPlaylist(
+    eventId: string,
+    callback: (payload: PlaylistChangePayload) => void
+  ): RealtimeChannel {
     return supabase
       .channel(`playlist:${eventId}`)
       .on(
@@ -193,7 +248,7 @@ export class PlaylistService {
         (payload) => {
           // Invalidar cache cuando hay cambios
           playlistCache.delete(eventId);
-          callback(payload as PlaylistChangePayload);
+          callback(payload as unknown as PlaylistChangePayload);
         }
       )
       .subscribe();

@@ -1,5 +1,11 @@
 import { supabase } from "@/integrations/supabase/client";
 import { Expense, ExpenseChangePayload, ExpenseSummary } from "@/types";
+import { RealtimePostgresChangesPayload } from "@supabase/supabase-js";
+import type { Database } from "@/integrations/supabase/types";
+
+type ExpenseRow = Database["public"]["Tables"]["expenses"]["Row"] & {
+  event_participants: { name: string } | null;
+};
 
 export class ExpenseService {
   static async getExpenses(eventId: string): Promise<Expense[]> {
@@ -7,7 +13,12 @@ export class ExpenseService {
       .from("expenses")
       .select(
         `
-        *,
+        id,
+        event_id,
+        title,
+        amount,
+        paid_by_participant_id,
+        created_at,
         event_participants!paid_by_participant_id (
           name
         )
@@ -17,13 +28,18 @@ export class ExpenseService {
       .order("created_at", { ascending: false });
 
     if (error) throw error;
-    return data.map((expense) => ({
+    return (data || []).map((expense: ExpenseRow) => ({
       ...expense,
       participant_name: expense.event_participants?.name || "Desconocido",
     })) as Expense[];
   }
 
-  static async addExpense(eventId: string, participantId: string, title: string, amount: number): Promise<Expense> {
+  static async addExpense(
+    eventId: string,
+    participantId: string,
+    title: string,
+    amount: number
+  ): Promise<Expense> {
     const { data, error } = await supabase
       .from("expenses")
       .insert({
@@ -34,7 +50,12 @@ export class ExpenseService {
       })
       .select(
         `
-        *,
+        id,
+        event_id,
+        title,
+        amount,
+        paid_by_participant_id,
+        created_at,
         event_participants!paid_by_participant_id (
           name
         )
@@ -56,7 +77,10 @@ export class ExpenseService {
 
   static async getExpenseSummary(eventId: string): Promise<ExpenseSummary> {
     const expenses = await this.getExpenses(eventId);
-    const { data: participants, error } = await supabase.from("event_participants").select("id, name").eq("event_id", eventId);
+    const { data: participants, error } = await supabase
+      .from("event_participants")
+      .select("id, name")
+      .eq("event_id", eventId);
 
     if (error) throw error;
 
@@ -64,7 +88,9 @@ export class ExpenseService {
     const perPerson = total / participants.length;
 
     const participantSummary = participants.map((participant) => {
-      const paid = expenses.filter((expense) => expense.paid_by_participant_id === participant.id).reduce((sum, expense) => sum + expense.amount, 0);
+      const paid = expenses
+        .filter((expense) => expense.paid_by_participant_id === participant.id)
+        .reduce((sum, expense) => sum + expense.amount, 0);
 
       const owes = perPerson;
       const receives = paid - owes;
@@ -97,7 +123,7 @@ export class ExpenseService {
           filter: `event_id=eq.${eventId}`,
         },
         (payload) => {
-          callback(payload as ExpenseChangePayload);
+          callback(payload as unknown as ExpenseChangePayload);
         }
       )
       .subscribe();

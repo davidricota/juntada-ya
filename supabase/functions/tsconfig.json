@@ -1,0 +1,9 @@
+{
+  "compilerOptions": {
+    "lib": ["ES2022", "DOM"],
+    "strict": true
+  },
+  "rules": {
+    "@typescript-eslint/no-explicit-any": "off"
+  }
+}

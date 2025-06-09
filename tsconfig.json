@@ -5,10 +5,13 @@
     { "path": "./tsconfig.node.json" }
   ],
   "compilerOptions": {
+
     "baseUrl": ".",
     "paths": {
       "@/*": ["./src/*"]
     },
+     "lib": ["dom", "esnext"],
+    "types": ["deno.ns"],
     "noImplicitAny": false,
     "noUnusedParameters": false,
     "skipLibCheck": true,
