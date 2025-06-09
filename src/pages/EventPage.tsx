@@ -5,15 +5,22 @@ import { useToast } from "@/hooks/use-toast";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { LogOut, Users, Copy } from "lucide-react";
+import { LogOut, Users, Copy, Trash2 } from "lucide-react";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { EventService } from "@/services/eventService";
 import { PlaylistService } from "@/services/playlistService";
 import { RealtimeChannel } from "@supabase/supabase-js";
-import { EventType, Participant, ParticipantChangePayload, PlaylistItem, PlaylistChangePayload } from "@/types";
+import {
+  EventType,
+  Participant,
+  ParticipantChangePayload,
+  PlaylistItem,
+  PlaylistChangePayload,
+} from "@/types";
 import { SearchDialog } from "@/components/SearchDialog";
 import { useParticipantStore } from "@/stores/participantStore";
 import JoinEventCard from "@/components/JoinEventCard";
+import EventInfoTab from "@/components/EventInfoTab";
 
 // Lazy load components that are not immediately needed
 const PlaylistTab = lazy(() => import("@/components/PlaylistTab"));
@@ -36,6 +43,16 @@ const EventPage: React.FC = () => {
   const [isSearchOpen, setIsSearchOpen] = useState(false);
   const [isHost, setIsHost] = useState(false);
   const { getUserStorage, getUserId } = useParticipantStore();
+
+  const formatDate = (dateString: string | null | undefined) => {
+    if (!dateString) return "";
+    return new Date(dateString).toISOString().split("T")[0];
+  };
+
+  const formatTime = (timeString: string | null | undefined) => {
+    if (!timeString) return "";
+    return timeString.substring(0, 5); // Convierte "HH:mm:ss" a "HH:mm"
+  };
 
   useEffect(() => {
     if (!eventId) {
@@ -74,7 +91,8 @@ const EventPage: React.FC = () => {
         } else {
           toast({
             title: "Información",
-            description: "No estás registrado como participante en este evento. Para añadir canciones, únete primero usando el código del evento.",
+            description:
+              "No estás registrado como participante en este evento. Para añadir canciones, únete primero usando el código del evento.",
             variant: "default",
           });
         }
@@ -93,7 +111,11 @@ const EventPage: React.FC = () => {
         if (error instanceof Error) {
           toast({ title: "Error", description: error.message, variant: "destructive" });
         } else {
-          toast({ title: "Error", description: "Error al cargar los datos del evento.", variant: "destructive" });
+          toast({
+            title: "Error",
+            description: "Error al cargar los datos del evento.",
+            variant: "destructive",
+          });
         }
       } finally {
         setIsLoading(false);
@@ -104,33 +126,41 @@ const EventPage: React.FC = () => {
 
     // Subscribe to participants changes
 
-    const participantsSubscription = EventService.subscribeToParticipants(eventId, (payload: ParticipantChangePayload) => {
-      if (payload.eventType === "INSERT") {
-        fetchEventData();
+    const participantsSubscription = EventService.subscribeToParticipants(
+      eventId,
+      (payload: ParticipantChangePayload) => {
+        if (payload.eventType === "INSERT") {
+          fetchEventData();
+        }
       }
-    });
+    );
 
     // Subscribe to playlist changes
-    const playlistSubscription = PlaylistService.subscribeToPlaylist(eventId, (payload: PlaylistChangePayload) => {
-      if (payload.eventType === "DELETE") {
-        setPlaylist((prev) => prev.filter((item) => item.id !== payload.old.id));
-      } else if (payload.eventType === "INSERT") {
-        // En lugar de recargar todo, solo agregamos el nuevo item
-        const participant = participants.find((p) => p.id === payload.new.added_by_participant_id);
-        const newItem: PlaylistItem = {
-          id: payload.new.id,
-          youtube_video_id: payload.new.youtube_video_id,
-          title: payload.new.title,
-          thumbnail_url: payload.new.thumbnail_url,
-          channel_title: payload.new.channel_title,
-          added_by_participant_id: payload.new.added_by_participant_id,
-          event_id: payload.new.event_id,
-          added_at: payload.new.added_at,
-          participant_name: participant?.name || "Desconocido",
-        };
-        setPlaylist((prev) => [...prev, newItem]);
+    const playlistSubscription = PlaylistService.subscribeToPlaylist(
+      eventId,
+      (payload: PlaylistChangePayload) => {
+        if (payload.eventType === "DELETE") {
+          setPlaylist((prev) => prev.filter((item) => item.id !== payload.old.id));
+        } else if (payload.eventType === "INSERT") {
+          // En lugar de recargar todo, solo agregamos el nuevo item
+          const participant = participants.find(
+            (p) => p.id === payload.new.added_by_participant_id
+          );
+          const newItem: PlaylistItem = {
+            id: payload.new.id,
+            youtube_video_id: payload.new.youtube_video_id,
+            title: payload.new.title,
+            thumbnail_url: payload.new.thumbnail_url,
+            channel_title: payload.new.channel_title,
+            added_by_participant_id: payload.new.added_by_participant_id,
+            event_id: payload.new.event_id,
+            added_at: payload.new.added_at,
+            participant_name: participant?.name || "Desconocido",
+          };
+          setPlaylist((prev) => [...prev, newItem]);
+        }
       }
-    });
+    );
 
     setSubscriptions([participantsSubscription, playlistSubscription]);
 
@@ -160,7 +190,8 @@ const EventPage: React.FC = () => {
       if (!isParticipant) {
         toast({
           title: "Información",
-          description: "No estás registrado como participante en este evento. Para añadir canciones, únete primero usando el código del evento.",
+          description:
+            "No estás registrado como participante en este evento. Para añadir canciones, únete primero usando el código del evento.",
           variant: "default",
         });
       }
@@ -174,7 +205,12 @@ const EventPage: React.FC = () => {
     navigate("/");
   };
 
-  const handleSongSelected = async (videoData: Omit<PlaylistItem, "id" | "event_id" | "added_by_user_id" | "added_at" | "participant_name">) => {
+  const handleSongSelected = async (
+    videoData: Omit<
+      PlaylistItem,
+      "id" | "event_id" | "added_by_user_id" | "added_at" | "participant_name"
+    >
+  ) => {
     if (!eventId || !currentParticipantId) return;
 
     try {
@@ -207,11 +243,19 @@ const EventPage: React.FC = () => {
   const currentParticipant = participants.find((p) => p.id === currentParticipantId);
 
   if (isLoading) {
-    return <div className="container mx-auto p-4 text-center text-spotify-text-muted">Cargando evento...</div>;
+    return (
+      <div className="container mx-auto p-4 text-center text-spotify-text-muted">
+        Cargando evento...
+      </div>
+    );
   }
 
   if (!event) {
-    return <div className="container mx-auto p-4 text-center text-spotify-text-muted">Evento no encontrado.</div>;
+    return (
+      <div className="container mx-auto p-4 text-center text-spotify-text-muted">
+        Evento no encontrado.
+      </div>
+    );
   }
 
   return (
@@ -220,19 +264,23 @@ const EventPage: React.FC = () => {
         <div className="md:col-span-1 space-y-6">
           <Card className="bg-card text-card-foreground shadow-xl rounded-lg overflow-hidden">
             <CardHeader className="bg-card">
-              <CardTitle className="text-3xl md:text-4xl font-bold text-primary">{event.name}</CardTitle>
+              <CardTitle className="text-3xl md:text-4xl font-bold text-primary">
+                {event?.name}
+              </CardTitle>
               <CardDescription className="text-muted-foreground">
                 <div className="flex items-center gap-2">
-                  Código de Acceso: <span className="font-semibold text-primary">{event.access_code}</span>
+                  Código de Acceso:{" "}
+                  <span className="font-semibold text-primary">{event?.access_code}</span>
                   <Button
                     variant="ghost"
                     size="icon"
                     onClick={() => {
-                      const joinUrl = `${window.location.origin}/join/${event.access_code}`;
+                      const joinUrl = `${window.location.origin}/join/${event?.access_code}`;
                       navigator.clipboard.writeText(joinUrl);
                       toast({
                         title: "Código copiado",
-                        description: "El enlace para unirse al evento ha sido copiado al portapapeles.",
+                        description:
+                          "El enlace para unirse al evento ha sido copiado al portapapeles.",
                       });
                     }}
                     className="h-6 w-6"
@@ -243,9 +291,15 @@ const EventPage: React.FC = () => {
                 {currentParticipantName && (
                   <>
                     <div className="text-sm text-muted-foreground">
-                      Conectado como: <span className="font-medium text-card-foreground">{currentParticipantName}</span>
+                      Conectado como:{" "}
+                      <span className="font-medium text-card-foreground">
+                        {currentParticipantName}
+                      </span>
                     </div>
-                    <a onClick={handleLogout} className="font-bold cursor-pointer flex items-center gap-2 text-red-500">
+                    <a
+                      onClick={handleLogout}
+                      className="font-bold cursor-pointer flex items-center gap-2 text-red-500"
+                    >
                       <LogOut className="h-4 w-4" /> Abandonar Evento
                     </a>
                   </>
@@ -256,7 +310,8 @@ const EventPage: React.FC = () => {
           <Card className="bg-card text-card-foreground shadow-lg rounded-lg">
             <CardHeader>
               <CardTitle className="text-xl flex items-center text-primary">
-                <Users className="mr-2 h-5 w-5 text-primary" /> Participantes ({participants.length})
+                <Users className="mr-2 h-5 w-5 text-primary" /> Participantes ({participants.length}
+                )
               </CardTitle>
             </CardHeader>
             <CardContent>
@@ -264,9 +319,15 @@ const EventPage: React.FC = () => {
                 {participants.length > 0 ? (
                   <ul className="space-y-3">
                     {participants.map((p) => (
-                      <li key={p.id} className="flex items-center gap-3 p-2  bg-primary text-primary-foreground rounded-md shadow">
+                      <li
+                        key={p.id}
+                        className="flex items-center gap-3 p-2 bg-primary text-primary-foreground rounded-md shadow"
+                      >
                         <Avatar className="h-10 w-10">
-                          <AvatarImage src={`https://avatar.vercel.sh/${p.name}.png?size=40`} alt={p.name} />
+                          <AvatarImage
+                            src={`https://avatar.vercel.sh/${p.name}.png?size=40`}
+                            alt={p.name}
+                          />
                           <AvatarFallback>{p.name.substring(0, 2).toUpperCase()}</AvatarFallback>
                         </Avatar>
                         <span className="font-medium text-sm">{p.name}</span>
@@ -282,11 +343,19 @@ const EventPage: React.FC = () => {
         </div>
 
         <div className="md:col-span-2 space-y-6">
-          <Tabs defaultValue="playlist" className="w-full" onValueChange={(value) => setCurrentTab(value)}>
+          <Tabs
+            defaultValue="info"
+            className="w-full"
+            onValueChange={(value) => setCurrentTab(value)}
+          >
             <TabsList>
+              <TabsTrigger value="info" className="data-[state=inactive]:text-destructive">
+                Información
+              </TabsTrigger>
               <TabsTrigger value="playlist" className="data-[state=inactive]:text-destructive">
                 Playlist
               </TabsTrigger>
+
               <TabsTrigger value="polls" className="data-[state=inactive]:text-destructive">
                 Encuestas
               </TabsTrigger>
@@ -294,6 +363,21 @@ const EventPage: React.FC = () => {
                 Gastos
               </TabsTrigger>
             </TabsList>
+            <TabsContent value="info">
+              <Suspense fallback={<div className="text-center p-4">Cargando información...</div>}>
+                <EventInfoTab
+                  eventId={eventId}
+                  isHost={isHost}
+                  initialData={{
+                    address: event?.address || "",
+                    date: formatDate(event?.date),
+                    time: formatTime(event?.time),
+                    latitude: event?.latitude || 0,
+                    longitude: event?.longitude || 0,
+                  }}
+                />
+              </Suspense>
+            </TabsContent>
             <TabsContent value="playlist" forceMount>
               <Suspense fallback={<div className="text-center p-4">Cargando playlist...</div>}>
                 <PlaylistTab
@@ -302,7 +386,7 @@ const EventPage: React.FC = () => {
                   playlist={playlist}
                   onPlaylistChange={setPlaylist}
                   currentParticipantId={currentParticipantId}
-                  accessCode={event.access_code || ""}
+                  accessCode={event?.access_code || ""}
                   isHost={isHost}
                   isLoading={isLoading}
                   currentTab={currentTab}
@@ -310,17 +394,30 @@ const EventPage: React.FC = () => {
                 />
               </Suspense>
             </TabsContent>
+
             <TabsContent value="polls">
               <Suspense fallback={<div className="text-center p-4">Cargando encuestas...</div>}>
-                <PollsTab eventId={eventId} currentParticipantId={currentParticipantId} isHost={isHost} />
+                <PollsTab
+                  eventId={eventId}
+                  currentParticipantId={currentParticipantId}
+                  isHost={isHost}
+                />
               </Suspense>
             </TabsContent>
             <TabsContent value="gastos">
               <Suspense fallback={<div className="text-center p-4">Cargando gastos...</div>}>
                 {currentParticipantId ? (
-                  <ExpensesTab eventId={eventId} participants={participants} currentParticipantId={currentParticipantId} isHost={isHost} />
+                  <ExpensesTab
+                    eventId={eventId}
+                    participants={participants}
+                    currentParticipantId={currentParticipantId}
+                    isHost={isHost}
+                  />
                 ) : (
-                  <JoinEventCard accessCode={event.access_code || ""} message="unirte al evento para ver y agregar gastos" />
+                  <JoinEventCard
+                    accessCode={event?.access_code || ""}
+                    message="unirte al evento para ver y agregar gastos"
+                  />
                 )}
               </Suspense>
             </TabsContent>
@@ -338,7 +435,11 @@ const EventPage: React.FC = () => {
         </Button>
       </div>
 
-      <SearchDialog isOpen={isSearchOpen} onClose={() => setIsSearchOpen(false)} onSongSelected={handleSongSelected} />
+      <SearchDialog
+        isOpen={isSearchOpen}
+        onClose={() => setIsSearchOpen(false)}
+        onSongSelected={handleSongSelected}
+      />
     </div>
   );
 };

@@ -1,9 +1,14 @@
 export interface EventType {
   id: string;
   name: string;
+  host_user_id: string;
   access_code: string;
   created_at: string;
-  host_user_id: string;
+  address?: string;
+  date?: string;
+  time?: string;
+  latitude?: number;
+  longitude?: number;
 }
 
 export interface Participant {
