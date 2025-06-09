@@ -1,62 +1,24 @@
-import React, { useState } from "react";
-import { Card, CardContent, CardHeader, CardTitle } from "./ui/card";
-import { MapPin, Calendar, Clock, Edit2 } from "lucide-react";
-import { Button } from "./ui/button";
-import { Input } from "./ui/input";
-import { Label } from "./ui/label";
-import { toast } from "@/hooks/use-toast";
-import { supabase } from "@/integrations/supabase/client";
+import { useState } from "react";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Edit2, MapPin, Calendar, Clock } from "lucide-react";
+import { useEvent } from "@/hooks/useEvent";
 
 interface EventInfoTabProps {
   eventId: string;
   isHost: boolean;
-  initialData?: {
-    address: string;
-    date: string;
-    time: string;
-    latitude: number;
-    longitude: number;
-  };
 }
 
-export default function EventInfoTab({ eventId, isHost, initialData }: EventInfoTabProps) {
+export default function EventInfoTab({ eventId, isHost }: EventInfoTabProps) {
   const [isEditing, setIsEditing] = useState(false);
-  const [address, setAddress] = useState(initialData?.address || "");
-  const [date, setDate] = useState(initialData?.date || "");
-  const [time, setTime] = useState(initialData?.time || "");
-  const [coordinates, setCoordinates] = useState<{ lat: number; lng: number }>({
-    lat: initialData?.latitude || 0,
-    lng: initialData?.longitude || 0,
-  });
+  const [address, setAddress] = useState("");
+  const [date, setDate] = useState("");
+  const [time, setTime] = useState("");
+  const [coordinates, setCoordinates] = useState({ lat: 0, lng: 0 });
 
-  const handleSave = async () => {
-    try {
-      const { error } = await supabase
-        .from("events")
-        .update({
-          address,
-          date,
-          time,
-          latitude: coordinates.lat,
-          longitude: coordinates.lng,
-        })
-        .eq("id", eventId);
-
-      if (error) throw error;
-
-      setIsEditing(false);
-      toast({
-        title: "Información actualizada",
-        description: "Los datos del evento se han actualizado correctamente.",
-      });
-    } catch (error) {
-      toast({
-        title: "Error",
-        description: "No se pudo actualizar la información del evento.",
-        variant: "destructive",
-      });
-    }
-  };
+  const { event, updateEvent } = useEvent(eventId);
 
   const handleAddressSearch = async () => {
     try {
@@ -72,11 +34,22 @@ export default function EventInfoTab({ eventId, isHost, initialData }: EventInfo
         setCoordinates({ lat, lng });
       }
     } catch (error) {
-      toast({
-        title: "Error",
-        description: "No se pudo obtener la ubicación del mapa.",
-        variant: "destructive",
+      console.error("Error searching address:", error);
+    }
+  };
+
+  const handleSave = async () => {
+    try {
+      await updateEvent({
+        address,
+        date,
+        time,
+        latitude: coordinates.lat,
+        longitude: coordinates.lng,
       });
+      setIsEditing(false);
+    } catch (error) {
+      console.error("Error saving event info:", error);
     }
   };
 
@@ -101,7 +74,6 @@ export default function EventInfoTab({ eventId, isHost, initialData }: EventInfo
                     id="address"
                     value={address}
                     onChange={(e) => setAddress(e.target.value)}
-                    className="bg-primary-foreground border border-primary"
                     placeholder="Ingresa la dirección del evento"
                   />
                   <Button onClick={handleAddressSearch}>Buscar</Button>
@@ -114,7 +86,6 @@ export default function EventInfoTab({ eventId, isHost, initialData }: EventInfo
                     id="date"
                     type="date"
                     value={date}
-                    className="bg-primary-foreground border border-primary"
                     onChange={(e) => setDate(e.target.value)}
                   />
                 </div>
@@ -124,7 +95,6 @@ export default function EventInfoTab({ eventId, isHost, initialData }: EventInfo
                     id="time"
                     type="time"
                     value={time}
-                    className="bg-primary-foreground border border-primary"
                     onChange={(e) => setTime(e.target.value)}
                   />
                 </div>
@@ -137,7 +107,7 @@ export default function EventInfoTab({ eventId, isHost, initialData }: EventInfo
                 <MapPin className="h-5 w-5 text-primary mt-1" />
                 <div>
                   <h3 className="font-medium">Dirección</h3>
-                  <p className="text-muted-foreground">{address || "No especificada"}</p>
+                  <p className="text-muted-foreground">{event?.address || "No especificada"}</p>
                 </div>
               </div>
               <div className="grid grid-cols-2 gap-4">
@@ -145,21 +115,21 @@ export default function EventInfoTab({ eventId, isHost, initialData }: EventInfo
                   <Calendar className="h-5 w-5 text-primary mt-1" />
                   <div>
                     <h3 className="font-medium">Fecha</h3>
-                    <p className="text-muted-foreground">{date || "No especificada"}</p>
+                    <p className="text-muted-foreground">{event?.date || "No especificada"}</p>
                   </div>
                 </div>
                 <div className="flex items-start gap-2">
                   <Clock className="h-5 w-5 text-primary mt-1" />
                   <div>
                     <h3 className="font-medium">Hora</h3>
-                    <p className="text-muted-foreground">{time || "No especificada"}</p>
+                    <p className="text-muted-foreground">{event?.time || "No especificada"}</p>
                   </div>
                 </div>
               </div>
             </div>
           )}
 
-          {coordinates.lat !== 0 && coordinates.lng !== 0 && (
+          {coordinates.lat && coordinates.lng && (
             <div className="mt-4 h-[300px] rounded-lg overflow-hidden">
               <iframe
                 width="100%"

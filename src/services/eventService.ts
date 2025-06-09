@@ -2,10 +2,16 @@ import { supabase } from "@/integrations/supabase/client";
 import { EventType, Participant, ParticipantChangePayload } from "@/types";
 import { RealtimeChannel } from "@supabase/supabase-js";
 import { UserService } from "./userService";
+import type { Database } from "@/integrations/supabase/types";
 
 // Cache para eventos
-const eventCache = new Map<string, { data: EventType & { participants?: Participant[] }; timestamp: number }>();
+const eventCache = new Map<
+  string,
+  { data: EventType & { participants?: Participant[] }; timestamp: number }
+>();
 const CACHE_TTL = 5 * 60 * 1000; // 5 minutos
+
+type EventRow = Database["public"]["Tables"]["events"]["Row"];
 
 export class EventService {
   private static clearCache() {
@@ -17,63 +23,28 @@ export class EventService {
     }
   }
 
-  static async getEvent(eventId: string): Promise<EventType & { participants?: Participant[] }> {
-    // Limpiar cache expirado
-    this.clearCache();
+  static async getEvent(id: string): Promise<EventType> {
+    const { data, error } = await supabase.from("events").select("*").eq("id", id).single();
 
-    // Verificar cache
-    const cached = eventCache.get(eventId);
-    if (cached && Date.now() - cached.timestamp < CACHE_TTL) {
-      return cached.data;
-    }
-
-    try {
-      const { data, error } = await supabase
-        .from("events")
-        .select(
-          `
-          id,
-          name,
-          access_code,
-          host_user_id,
-          created_at,
-          participants:event_participants!inner (
-            id,
-            event_id,
-            user_id,
-            name,
-            created_at
-          )
-        `
-        )
-        .eq("id", eventId)
-        .single();
-
-      if (error) throw error;
-      if (!data) throw new Error("Event not found");
-
-      const result = {
-        id: data.id,
-        name: data.name,
-        access_code: data.access_code,
-        host_user_id: data.host_user_id,
-        created_at: data.created_at,
-        participants: data.participants || [],
-      };
-
-      // Guardar en cache
-      eventCache.set(eventId, { data: result, timestamp: Date.now() });
-
-      return result;
-    } catch (error) {
-      if (error instanceof Error) {
-        throw new Error(`Error fetching event: ${error.message}`);
-      }
-      throw new Error("Error fetching event");
-    }
+    if (error) throw error;
+    return data as EventType;
   }
 
-  static async getEventByAccessCode(accessCode: string): Promise<(EventType & { participants?: Participant[] }) | null> {
+  static async updateEvent(id: string, updates: Partial<EventType>): Promise<EventType> {
+    const { data, error } = await supabase
+      .from("events")
+      .update(updates)
+      .eq("id", id)
+      .select()
+      .single();
+
+    if (error) throw error;
+    return data as EventType;
+  }
+
+  static async getEventByAccessCode(
+    accessCode: string
+  ): Promise<(EventType & { participants?: Participant[] }) | null> {
     const { data, error } = await supabase
       .from("events")
       .select(
@@ -144,7 +115,11 @@ export class EventService {
     return data || [];
   }
 
-  static async joinEvent(eventId: string, whatsappNumber: string, name: string): Promise<Participant> {
+  static async joinEvent(
+    eventId: string,
+    whatsappNumber: string,
+    name: string
+  ): Promise<Participant> {
     const user = await UserService.getOrCreateUser(whatsappNumber, name);
     const { data, error } = await supabase
       .from("event_participants")
@@ -168,7 +143,10 @@ export class EventService {
     const user = await UserService.getUserByWhatsApp(whatsappNumber);
     if (!user) return;
 
-    const { error } = await supabase.from("event_participants").delete().match({ event_id: eventId, user_id: user.id });
+    const { error } = await supabase
+      .from("event_participants")
+      .delete()
+      .match({ event_id: eventId, user_id: user.id });
 
     if (error) throw error;
 
@@ -176,7 +154,10 @@ export class EventService {
     eventCache.delete(eventId);
   }
 
-  static async createEvent(name: string, hostUserId: string): Promise<{ id: string; access_code: string }> {
+  static async createEvent(
+    name: string,
+    hostUserId: string
+  ): Promise<{ id: string; access_code: string }> {
     const accessCode = Math.random().toString(36).substring(2, 8).toUpperCase();
     const { data, error } = await supabase
       .from("events")
@@ -188,7 +169,11 @@ export class EventService {
     return data;
   }
 
-  static async createHostParticipant(eventId: string, userId: string, name: string): Promise<{ id: string; name: string }> {
+  static async createHostParticipant(
+    eventId: string,
+    userId: string,
+    name: string
+  ): Promise<{ id: string; name: string }> {
     const { data, error } = await supabase
       .from("event_participants")
       .insert({ event_id: eventId, user_id: userId, name })
@@ -212,7 +197,10 @@ export class EventService {
     eventCache.delete(eventId);
   }
 
-  static subscribeToParticipants(eventId: string, callback: (payload: ParticipantChangePayload) => void): RealtimeChannel {
+  static subscribeToParticipants(
+    eventId: string,
+    callback: (payload: ParticipantChangePayload) => void
+  ): RealtimeChannel {
     return supabase
       .channel(`participants:${eventId}`)
       .on(
@@ -236,7 +224,9 @@ export class EventService {
     supabase.removeChannel(subscription);
   }
 
-  static async getEventsByHost(userId: string): Promise<(EventType & { participants?: Participant[] })[]> {
+  static async getEventsByHost(
+    userId: string
+  ): Promise<(EventType & { participants?: Participant[] })[]> {
     const { data, error } = await supabase
       .from("events")
       .select(
@@ -273,8 +263,13 @@ export class EventService {
     return results;
   }
 
-  static async getEventsByParticipant(userId: string): Promise<(EventType & { participants?: Participant[] })[]> {
-    const { data: participantData, error: participantError } = await supabase.from("event_participants").select("event_id").eq("user_id", userId);
+  static async getEventsByParticipant(
+    userId: string
+  ): Promise<(EventType & { participants?: Participant[] })[]> {
+    const { data: participantData, error: participantError } = await supabase
+      .from("event_participants")
+      .select("event_id")
+      .eq("user_id", userId);
 
     if (participantError) throw participantError;
     if (!participantData.length) return [];
