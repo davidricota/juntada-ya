@@ -39,7 +39,7 @@ const EventPage: React.FC = () => {
   const [currentParticipantId, setCurrentParticipantId] = useState<string | null>(null);
   const [currentParticipantName, setCurrentParticipantName] = useState<string | null>(null);
   const [subscriptions, setSubscriptions] = useState<RealtimeChannel[]>([]);
-  const [currentTab, setCurrentTab] = useState<string>("playlist");
+  const [currentTab, setCurrentTab] = useState<string>("info");
   const [isSearchOpen, setIsSearchOpen] = useState(false);
   const [isHost, setIsHost] = useState(false);
   const { getUserStorage, getUserId } = useParticipantStore();
