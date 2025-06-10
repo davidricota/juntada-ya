@@ -1,51 +1,14 @@
-import React from "react";
+import { BrowserRouter as Router } from "react-router-dom";
+import { Toaster } from "sonner";
+import { AppRoutes } from "./routes";
 
-import { Toaster } from "@/components/ui/toaster";
-import { Toaster as Sonner } from "@/components/ui/sonner";
-import { TooltipProvider } from "@/components/ui/tooltip";
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, Routes, Route } from "react-router-dom";
-import { PlayerProvider } from "@/contexts/PlayerContext";
-import { AuthProvider } from "@/contexts/AuthContext";
-
-import MainLayout from "./components/layout/MainLayout";
-import NotFound from "./pages/NotFound";
-import HomePage from "./pages/Index";
-import CreateEventPage from "./pages/CreateEventPage";
-import JoinEventPage from "./pages/JoinEventPage";
-import EventPage from "./pages/EventPage";
-import MyEventsPage from "./pages/MyEventsPage";
-import LoginPage from "./pages/LoginPage";
-
-const queryClient = new QueryClient();
-
-const App = () => {
+function App() {
   return (
-    <QueryClientProvider client={queryClient}>
-      <TooltipProvider>
-        <AuthProvider>
-          <PlayerProvider>
-            <Toaster />
-            <Sonner />
-            <BrowserRouter>
-              <MainLayout>
-                <Routes>
-                  <Route path="/" element={<HomePage />} />
-                  <Route path="/create-event" element={<CreateEventPage />} />
-                  <Route path="/join" element={<JoinEventPage />} />
-                  <Route path="/join/:accessCode" element={<JoinEventPage />} />
-                  <Route path="/event/:eventId" element={<EventPage />} />
-                  <Route path="/my-events" element={<MyEventsPage />} />
-                  <Route path="/login" element={<LoginPage />} />
-                  <Route path="*" element={<NotFound />} />
-                </Routes>
-              </MainLayout>
-            </BrowserRouter>
-          </PlayerProvider>
-        </AuthProvider>
-      </TooltipProvider>
-    </QueryClientProvider>
+    <Router>
+      <AppRoutes />
+      <Toaster />
+    </Router>
   );
-};
+}
 
 export default App;

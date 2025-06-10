@@ -25,7 +25,7 @@ const Header: React.FC = () => {
         <div className="flex justify-between items-center">
           <div className="flex items-center space-x-8">
             <Link to="/" className="text-2xl font-bold text-primary">
-              Juntada Ya
+              Plancito
             </Link>
             <nav className="hidden md:flex space-x-6">
               <Link
@@ -44,15 +44,17 @@ const Header: React.FC = () => {
                       location.pathname === "/my-events" ? "text-primary" : "text-muted-foreground"
                     }`}
                   >
-                    Mis Eventos
+                    Mis Plancitos
                   </Link>
                   <Link
                     to="/create-event"
                     className={`text-sm font-medium transition-colors hover:text-primary ${
-                      location.pathname === "/create-event" ? "text-primary" : "text-muted-foreground"
+                      location.pathname === "/create-event"
+                        ? "text-primary"
+                        : "text-muted-foreground"
                     }`}
                   >
-                    Crear Evento
+                    Crear Plan
                   </Link>
                 </>
               )}
@@ -61,12 +63,20 @@ const Header: React.FC = () => {
           <div className="flex items-center space-x-4">
             {userStorage ? (
               <>
-                <Button variant="ghost" onClick={handleLogout} className="hidden md:flex items-center gap-2">
+                <Button
+                  variant="ghost"
+                  onClick={handleLogout}
+                  className="hidden md:flex items-center gap-2"
+                >
                   <LogOut className="h-4 w-4" />
                   Cerrar Sesión
                 </Button>
                 <Button variant="ghost" onClick={toggleMobileMenu} className="md:hidden">
-                  {isMobileMenuOpen ? <X className="h-6 w-6" /> : <Menu className="h-6 w-6 text-primary" />}
+                  {isMobileMenuOpen ? (
+                    <X className="h-6 w-6" />
+                  ) : (
+                    <Menu className="h-6 w-6 text-primary" />
+                  )}
                 </Button>
               </>
             ) : (
@@ -99,18 +109,23 @@ const Header: React.FC = () => {
                     }`}
                     onClick={() => setIsMobileMenuOpen(false)}
                   >
-                    Mis Eventos
+                    Mis Plancitos
                   </Link>
                   <Link
                     to="/create-event"
                     className={`text-sm font-medium transition-colors hover:text-primary ${
-                      location.pathname === "/create-event" ? "text-primary" : "text-muted-foreground"
+                      location.pathname === "/create-event"
+                        ? "text-primary"
+                        : "text-muted-foreground"
                     }`}
                     onClick={() => setIsMobileMenuOpen(false)}
                   >
-                    Crear Evento
+                    Crear Plan
                   </Link>
-                  <Button onClick={handleLogout} className="bg-primary text-primary-foreground flex items-center gap-2 justify-center">
+                  <Button
+                    onClick={handleLogout}
+                    className="bg-primary text-primary-foreground flex items-center gap-2 justify-center"
+                  >
                     <LogOut className="h-4 w-4" />
                     Cerrar Sesión
                   </Button>
