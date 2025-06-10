@@ -2,34 +2,32 @@ import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardFooter,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import PhoneInput from "react-phone-input-2";
 import { UserService } from "@/services/userService";
 import { encrypt } from "@/lib/encryption";
+import { useMutation } from "@tanstack/react-query";
 
 const LoginPage: React.FC = () => {
   const [phone, setPhone] = useState("");
-  const [loading, setLoading] = useState(false);
   const { login } = useAuth();
   const navigate = useNavigate();
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setLoading(true);
-
-    try {
-      // Formatear número de teléfono (eliminar espacios, guiones, etc.)
-      const formattedPhone = phone.replace(/\D/g, "");
-
-      if (formattedPhone.length < 10) {
-        throw new Error("Por favor ingresa un número de teléfono válido");
-      }
-
-      // Obtener o crear el usuario
+  const loginMutation = useMutation({
+    mutationFn: async (formattedPhone: string) => {
       const user = await UserService.getOrCreateUser(formattedPhone, "Usuario");
-
+      return user;
+    },
+    onSuccess: (user, formattedPhone) => {
       // Guardar user_data en localStorage
       const userStorage = { id: user.id, whatsapp: formattedPhone };
       localStorage.setItem("user_data", encrypt(JSON.stringify(userStorage)));
@@ -37,11 +35,24 @@ const LoginPage: React.FC = () => {
       login(formattedPhone);
       toast.success("Inicio de sesión exitoso");
       navigate("/my-events");
-    } catch (error) {
+    },
+    onError: () => {
       toast.error("Error al iniciar sesión. Por favor intenta de nuevo.");
-    } finally {
-      setLoading(false);
+    },
+  });
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+
+    // Formatear número de teléfono (eliminar espacios, guiones, etc.)
+    const formattedPhone = phone.replace(/\D/g, "");
+
+    if (formattedPhone.length < 10) {
+      toast.error("Por favor ingresa un número de teléfono válido");
+      return;
     }
+
+    loginMutation.mutate(formattedPhone);
   };
 
   return (
@@ -49,7 +60,9 @@ const LoginPage: React.FC = () => {
       <Card className="w-full max-w-md">
         <CardHeader>
           <CardTitle>Iniciar Sesión con WhatsApp</CardTitle>
-          <CardDescription>Ingresa tu número de WhatsApp para acceder a tus eventos</CardDescription>
+          <CardDescription>
+            Ingresa tu número de WhatsApp para acceder a tus eventos
+          </CardDescription>
         </CardHeader>
         <form onSubmit={handleSubmit}>
           <CardContent>
@@ -88,8 +101,8 @@ const LoginPage: React.FC = () => {
             </div>
           </CardContent>
           <CardFooter>
-            <Button type="submit" className="w-full" disabled={loading}>
-              {loading ? "Iniciando sesión..." : "Iniciar Sesión"}
+            <Button type="submit" className="w-full" disabled={loginMutation.isPending}>
+              {loginMutation.isPending ? "Iniciando sesión..." : "Iniciar Sesión"}
             </Button>
           </CardFooter>
         </form>

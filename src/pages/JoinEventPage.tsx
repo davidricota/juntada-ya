@@ -4,7 +4,14 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardFooter,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
 import { useParticipantStore } from "@/stores/participantStore";
 import { EventService } from "@/services/eventService";
 import { UserService } from "@/services/userService";
@@ -12,13 +19,13 @@ import PhoneInput from "react-phone-input-2";
 import "react-phone-input-2/lib/style.css";
 import { cn } from "@/lib/utils";
 import { encrypt } from "@/lib/encryption";
+import { useMutation } from "@tanstack/react-query";
 
 const JoinEventPage: React.FC = () => {
   const { accessCode: urlAccessCode } = useParams();
   const [accessCode, setAccessCode] = useState(urlAccessCode || "");
   const [participantName, setParticipantName] = useState("");
   const [participantWhatsapp, setParticipantWhatsapp] = useState("");
-  const [isLoading, setIsLoading] = useState(false);
   const navigate = useNavigate();
   const { toast } = useToast();
   const { getName, getWhatsapp, setParticipant, setEventParticipant } = useParticipantStore();
@@ -31,35 +38,47 @@ const JoinEventPage: React.FC = () => {
     if (storedWhatsapp) setParticipantWhatsapp(storedWhatsapp);
   }, [getName, getWhatsapp]);
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!accessCode.trim()) {
-      toast({ title: "Error", description: "El código de acceso no puede estar vacío.", variant: "destructive" });
-      return;
-    }
+  const joinEventMutation = useMutation({
+    mutationFn: async () => {
+      if (!accessCode.trim()) {
+        throw new Error("El código de acceso no puede estar vacío.");
+      }
 
-    if (!participantName.trim() || !participantWhatsapp) {
-      toast({ title: "Error", description: "Por favor completa tu nombre y número de WhatsApp.", variant: "destructive" });
-      return;
-    }
+      if (!participantName.trim() || !participantWhatsapp) {
+        throw new Error("Por favor completa tu nombre y número de WhatsApp.");
+      }
 
-    setIsLoading(true);
-
-    try {
       // Buscar el evento por código de acceso
       const event = await EventService.getEventByAccessCode(accessCode);
       if (!event) {
-        toast({ title: "Error", description: "Código de acceso inválido.", variant: "destructive" });
-        return;
+        throw new Error("Código de acceso inválido.");
       }
 
       // Obtener o crear el usuario
       const user = await UserService.getOrCreateUser(participantWhatsapp, participantName);
       if (!user) {
-        toast({ title: "Error", description: "No se pudo crear o obtener el usuario.", variant: "destructive" });
-        return;
+        throw new Error("No se pudo crear o obtener el usuario.");
       }
 
+      // Verificar si ya es participante
+      const existingParticipant = await EventService.isParticipant(event.id, participantWhatsapp);
+      if (existingParticipant) {
+        return { event, user, isExisting: true };
+      }
+
+      // Si no es participante, unirse al evento
+      const participant = await EventService.joinEvent(
+        event.id,
+        participantWhatsapp,
+        participantName
+      );
+      if (!participant) {
+        throw new Error("No se pudo unir al evento.");
+      }
+
+      return { event, user, isExisting: false };
+    },
+    onSuccess: ({ event, user, isExisting }) => {
       // Guardar la información del usuario en localStorage
       setParticipant(participantName, participantWhatsapp);
 
@@ -70,32 +89,27 @@ const JoinEventPage: React.FC = () => {
       };
       localStorage.setItem("user_data", encrypt(JSON.stringify(userData)));
 
-      // Verificar si ya es participante
-      const existingParticipant = await EventService.isParticipant(event.id, participantWhatsapp);
-      if (existingParticipant) {
-        // Si ya es participante, guardar la información y redirigir
-        setEventParticipant(event.id, user.id, participantName);
-        navigate(`/event/${event.id}`);
-        return;
-      }
-
-      // Si no es participante, unirse al evento
-      const participant = await EventService.joinEvent(event.id, participantWhatsapp, participantName);
-      if (!participant) {
-        toast({ title: "Error", description: "No se pudo unir al evento.", variant: "destructive" });
-        return;
-      }
-
       // Guardar la información del participante en localStorage
       setEventParticipant(event.id, user.id, participantName);
 
-      toast({ title: "¡Bienvenido!", description: `Te has unido al evento ${event.name}` });
+      if (!isExisting) {
+        toast({ title: "¡Bienvenido!", description: `Te has unido al evento ${event.name}` });
+      }
+
       navigate(`/event/${event.id}`);
-    } catch (error) {
-      toast({ title: "Error", description: "No se pudo unir al evento. Inténtalo de nuevo.", variant: "destructive" });
-    } finally {
-      setIsLoading(false);
-    }
+    },
+    onError: (error: Error) => {
+      toast({
+        title: "Error",
+        description: error.message || "No se pudo unir al evento. Inténtalo de nuevo.",
+        variant: "destructive",
+      });
+    },
+  });
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    joinEventMutation.mutate();
   };
 
   return (
@@ -103,7 +117,9 @@ const JoinEventPage: React.FC = () => {
       <Card className="w-full max-w-md bg-card text-card-foreground">
         <CardHeader>
           <CardTitle className="text-2xl">Unirse a un Evento</CardTitle>
-          <CardDescription className="text-muted-foreground">Ingresa el código de acceso y tus datos para unirte.</CardDescription>
+          <CardDescription className="text-muted-foreground">
+            Ingresa el código de acceso y tus datos para unirte.
+          </CardDescription>
         </CardHeader>
         <form onSubmit={handleSubmit}>
           <CardContent className="space-y-4">
@@ -174,8 +190,12 @@ const JoinEventPage: React.FC = () => {
             </div>
           </CardContent>
           <CardFooter>
-            <Button type="submit" disabled={isLoading} className="w-full bg-primary hover:bg-primary/90 text-primary-foreground font-semibold">
-              {isLoading ? "Uniéndose..." : "Unirse al Evento"}
+            <Button
+              type="submit"
+              disabled={joinEventMutation.isPending}
+              className="w-full bg-primary hover:bg-primary/90 text-primary-foreground font-semibold"
+            >
+              {joinEventMutation.isPending ? "Uniéndose..." : "Unirse al Evento"}
             </Button>
           </CardFooter>
         </form>

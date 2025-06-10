@@ -4,7 +4,14 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardFooter,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
 import { useParticipantStore } from "@/stores/participantStore";
 import PhoneInput from "react-phone-input-2";
 import "react-phone-input-2/lib/style.css";
@@ -13,12 +20,12 @@ import { EventService } from "@/services/eventService";
 import { UserService } from "@/services/userService";
 import { encrypt } from "@/lib/encryption";
 import { Copy } from "lucide-react";
+import { useMutation } from "@tanstack/react-query";
 
 const CreateEventPage: React.FC = () => {
   const [eventName, setEventName] = useState("");
   const [participantName, setParticipantName] = useState("");
   const [participantWhatsapp, setParticipantWhatsapp] = useState("");
-  const [isLoading, setIsLoading] = useState(false);
   const [accessCode, setAccessCode] = useState<string | null>(null);
   const [eventId, setEventId] = useState<string | null>(null);
   const navigate = useNavigate();
@@ -33,21 +40,16 @@ const CreateEventPage: React.FC = () => {
     if (storedWhatsapp) setParticipantWhatsapp(storedWhatsapp);
   }, [getName, getWhatsapp]);
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!eventName.trim()) {
-      toast({ title: "Error", description: "El nombre del evento no puede estar vacío.", variant: "destructive" });
-      return;
-    }
+  const createEventMutation = useMutation({
+    mutationFn: async () => {
+      if (!eventName.trim()) {
+        throw new Error("El nombre del evento no puede estar vacío.");
+      }
 
-    if (!participantName.trim() || !participantWhatsapp) {
-      toast({ title: "Error", description: "Por favor completa tu nombre y número de WhatsApp.", variant: "destructive" });
-      return;
-    }
+      if (!participantName.trim() || !participantWhatsapp) {
+        throw new Error("Por favor completa tu nombre y número de WhatsApp.");
+      }
 
-    setIsLoading(true);
-
-    try {
       // Crear o obtener el usuario
       const user = await UserService.getOrCreateUser(participantWhatsapp, participantName);
 
@@ -58,28 +60,42 @@ const CreateEventPage: React.FC = () => {
       // Crear el participante (host) del evento
       const participantData = await EventService.createHostParticipant(eventId, user.id, user.name);
 
+      return { eventData, user, participantData };
+    },
+    onSuccess: ({ eventData, user, participantData }) => {
       // Guardar la información del usuario
       const userStorage = { id: user.id, whatsapp: participantWhatsapp };
       localStorage.setItem("user_data", encrypt(JSON.stringify(userStorage)));
 
       // Guardar la información del participante del evento
-      setEventParticipant(eventId, user.id, participantData.name);
+      setEventParticipant(eventData.id, user.id, participantData.name);
 
       // Guardar la información del participante en el store
       setParticipant(participantName, participantWhatsapp);
 
       setAccessCode(eventData.access_code);
-      setEventId(eventId);
-      toast({ title: "¡Evento Creado!", description: `Nombre: ${eventName}, Código: ${eventData.access_code}` });
+      setEventId(eventData.id);
+      toast({
+        title: "¡Evento Creado!",
+        description: `Nombre: ${eventName}, Código: ${eventData.access_code}`,
+      });
 
       setTimeout(() => {
-        navigate(`/event/${eventId}`);
+        navigate(`/event/${eventData.id}`);
       }, 2000);
-    } catch (error) {
-      toast({ title: "Error", description: "No se pudo crear el evento. Inténtalo de nuevo.", variant: "destructive" });
-    } finally {
-      setIsLoading(false);
-    }
+    },
+    onError: (error: Error) => {
+      toast({
+        title: "Error",
+        description: error.message || "No se pudo crear el evento. Inténtalo de nuevo.",
+        variant: "destructive",
+      });
+    },
+  });
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    createEventMutation.mutate();
   };
 
   if (accessCode && eventId) {
@@ -88,7 +104,9 @@ const CreateEventPage: React.FC = () => {
         <Card className="w-full max-w-md bg-card text-card-foreground">
           <CardHeader>
             <CardTitle className="text-2xl">¡Evento Creado Exitosamente!</CardTitle>
-            <CardDescription>Comparte este código con tus amigos para que puedan unirse.</CardDescription>
+            <CardDescription>
+              Comparte este código con tus amigos para que puedan unirse.
+            </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
             <div>
@@ -107,7 +125,8 @@ const CreateEventPage: React.FC = () => {
                     navigator.clipboard.writeText(joinUrl);
                     toast({
                       title: "Código copiado",
-                      description: "El enlace para unirse al evento ha sido copiado al portapapeles.",
+                      description:
+                        "El enlace para unirse al evento ha sido copiado al portapapeles.",
                     });
                   }}
                   className="h-8 w-8"
@@ -142,7 +161,9 @@ const CreateEventPage: React.FC = () => {
       <Card className="w-full max-w-md bg-card text-card-foreground">
         <CardHeader>
           <CardTitle className="text-2xl">Crear Nuevo Evento</CardTitle>
-          <CardDescription className="text-muted-foreground">Dale un nombre a tu evento y completa tus datos para empezar.</CardDescription>
+          <CardDescription className="text-muted-foreground">
+            Dale un nombre a tu evento y completa tus datos para empezar.
+          </CardDescription>
         </CardHeader>
         <form onSubmit={handleSubmit}>
           <CardContent className="space-y-4">
@@ -212,8 +233,12 @@ const CreateEventPage: React.FC = () => {
             </div>
           </CardContent>
           <CardFooter>
-            <Button type="submit" disabled={isLoading} className="w-full bg-primary hover:bg-primary/90 text-primary-foreground font-semibold">
-              {isLoading ? "Creando..." : "Crear Evento"}
+            <Button
+              type="submit"
+              disabled={createEventMutation.isPending}
+              className="w-full bg-primary hover:bg-primary/90 text-primary-foreground font-semibold"
+            >
+              {createEventMutation.isPending ? "Creando..." : "Crear Evento"}
             </Button>
           </CardFooter>
         </form>
