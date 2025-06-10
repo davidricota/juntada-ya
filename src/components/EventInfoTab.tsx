@@ -1,24 +1,101 @@
-import { useState } from "react";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Edit2, MapPin, Calendar, Clock } from "lucide-react";
-import { useEvent } from "@/hooks/useEvent";
+import React, { useState, useEffect } from "react";
+import { Card, CardContent, CardHeader, CardTitle } from "./ui/card";
+import { MapPin, Calendar, Clock, Edit2 } from "lucide-react";
+import { Button } from "./ui/button";
+import { Input } from "./ui/input";
+import { Label } from "./ui/label";
+import { toast } from "@/hooks/use-toast";
+import { supabase } from "@/integrations/supabase/client";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 
 interface EventInfoTabProps {
   eventId: string;
   isHost: boolean;
+  initialData?: {
+    address: string;
+    date: string;
+    time: string;
+    latitude: number;
+    longitude: number;
+  };
 }
 
-export default function EventInfoTab({ eventId, isHost }: EventInfoTabProps) {
+const fetchEventInfo = async (eventId: string) => {
+  const { data, error } = await supabase
+    .from("events")
+    .select("address, date, time, latitude, longitude")
+    .eq("id", eventId)
+    .single();
+
+  if (error) throw error;
+  return data;
+};
+
+export default function EventInfoTab({ eventId, isHost, initialData }: EventInfoTabProps) {
   const [isEditing, setIsEditing] = useState(false);
+  const [showMap, setShowMap] = useState(false);
+  const queryClient = useQueryClient();
+
+  const { data: eventInfo, isLoading } = useQuery({
+    queryKey: ["eventInfo", eventId],
+    queryFn: () => fetchEventInfo(eventId),
+    initialData,
+    staleTime: 1000 * 60 * 60, // 1 hour
+    gcTime: 1000 * 60 * 60, // 1 hour
+  });
+
   const [address, setAddress] = useState("");
   const [date, setDate] = useState("");
   const [time, setTime] = useState("");
-  const [coordinates, setCoordinates] = useState({ lat: 0, lng: 0 });
+  const [coordinates, setCoordinates] = useState<{ lat: number; lng: number }>({
+    lat: 0,
+    lng: 0,
+  });
 
-  const { event, updateEvent } = useEvent(eventId);
+  // Actualizar estados cuando cambia eventInfo
+  useEffect(() => {
+    if (eventInfo) {
+      setAddress(eventInfo.address || "");
+      setDate(eventInfo.date || "");
+      setTime(eventInfo.time || "");
+      setCoordinates({
+        lat: eventInfo.latitude || 0,
+        lng: eventInfo.longitude || 0,
+      });
+    }
+  }, [eventInfo]);
+
+  const handleSave = async () => {
+    try {
+      const { error } = await supabase
+        .from("events")
+        .update({
+          address,
+          date,
+          time,
+          latitude: coordinates.lat,
+          longitude: coordinates.lng,
+        })
+        .eq("id", eventId);
+
+      if (error) throw error;
+
+      // Invalidate and refetch
+      await queryClient.invalidateQueries({ queryKey: ["eventInfo", eventId] });
+
+      setIsEditing(false);
+      toast({
+        title: "Información actualizada",
+        description: "Los datos del evento se han actualizado correctamente.",
+      });
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "No se pudo actualizar la información del evento.",
+        variant: "destructive",
+      });
+    }
+  };
 
   const handleAddressSearch = async () => {
     try {
@@ -34,22 +111,11 @@ export default function EventInfoTab({ eventId, isHost }: EventInfoTabProps) {
         setCoordinates({ lat, lng });
       }
     } catch (error) {
-      console.error("Error searching address:", error);
-    }
-  };
-
-  const handleSave = async () => {
-    try {
-      await updateEvent({
-        address,
-        date,
-        time,
-        latitude: coordinates.lat,
-        longitude: coordinates.lng,
+      toast({
+        title: "Error",
+        description: "No se pudo obtener la ubicación del mapa.",
+        variant: "destructive",
       });
-      setIsEditing(false);
-    } catch (error) {
-      console.error("Error saving event info:", error);
     }
   };
 
@@ -74,6 +140,7 @@ export default function EventInfoTab({ eventId, isHost }: EventInfoTabProps) {
                     id="address"
                     value={address}
                     onChange={(e) => setAddress(e.target.value)}
+                    className="bg-primary-foreground border border-primary"
                     placeholder="Ingresa la dirección del evento"
                   />
                   <Button onClick={handleAddressSearch}>Buscar</Button>
@@ -86,6 +153,7 @@ export default function EventInfoTab({ eventId, isHost }: EventInfoTabProps) {
                     id="date"
                     type="date"
                     value={date}
+                    className="bg-primary-foreground border border-primary"
                     onChange={(e) => setDate(e.target.value)}
                   />
                 </div>
@@ -95,11 +163,27 @@ export default function EventInfoTab({ eventId, isHost }: EventInfoTabProps) {
                     id="time"
                     type="time"
                     value={time}
+                    className="bg-primary-foreground border border-primary"
                     onChange={(e) => setTime(e.target.value)}
                   />
                 </div>
               </div>
               <Button onClick={handleSave}>Guardar Cambios</Button>
+
+              {coordinates.lat !== 0 && coordinates.lng !== 0 && (
+                <div className="mt-4 h-[300px] rounded-lg overflow-hidden">
+                  <iframe
+                    width="100%"
+                    height="100%"
+                    frameBorder="0"
+                    style={{ border: 0 }}
+                    src={`https://www.google.com/maps/embed/v1/place?key=${
+                      import.meta.env.VITE_GOOGLE_MAPS_API_KEY
+                    }&q=${coordinates.lat},${coordinates.lng}`}
+                    allowFullScreen
+                  />
+                </div>
+              )}
             </div>
           ) : (
             <div className="space-y-4">
@@ -107,7 +191,7 @@ export default function EventInfoTab({ eventId, isHost }: EventInfoTabProps) {
                 <MapPin className="h-5 w-5 text-primary mt-1" />
                 <div>
                   <h3 className="font-medium">Dirección</h3>
-                  <p className="text-muted-foreground">{event?.address || "No especificada"}</p>
+                  <p className="text-muted-foreground">{address || "No especificada"}</p>
                 </div>
               </div>
               <div className="grid grid-cols-2 gap-4">
@@ -115,32 +199,43 @@ export default function EventInfoTab({ eventId, isHost }: EventInfoTabProps) {
                   <Calendar className="h-5 w-5 text-primary mt-1" />
                   <div>
                     <h3 className="font-medium">Fecha</h3>
-                    <p className="text-muted-foreground">{event?.date || "No especificada"}</p>
+                    <p className="text-muted-foreground">{date || "No especificada"}</p>
                   </div>
                 </div>
                 <div className="flex items-start gap-2">
                   <Clock className="h-5 w-5 text-primary mt-1" />
                   <div>
                     <h3 className="font-medium">Hora</h3>
-                    <p className="text-muted-foreground">{event?.time || "No especificada"}</p>
+                    <p className="text-muted-foreground">{time || "No especificada"}</p>
                   </div>
                 </div>
               </div>
-            </div>
-          )}
 
-          {coordinates.lat && coordinates.lng && (
-            <div className="mt-4 h-[300px] rounded-lg overflow-hidden">
-              <iframe
-                width="100%"
-                height="100%"
-                frameBorder="0"
-                style={{ border: 0 }}
-                src={`https://www.google.com/maps/embed/v1/place?key=${
-                  import.meta.env.VITE_GOOGLE_MAPS_API_KEY
-                }&q=${coordinates.lat},${coordinates.lng}`}
-                allowFullScreen
-              />
+              {coordinates.lat !== 0 && coordinates.lng !== 0 && (
+                <div className="space-y-2">
+                  <Button
+                    variant="outline"
+                    className="w-full text-primary-foreground"
+                    onClick={() => setShowMap(!showMap)}
+                  >
+                    {showMap ? "Ocultar Mapa" : "Ver Mapa"}
+                  </Button>
+                  {showMap && (
+                    <div className="h-[300px] rounded-lg overflow-hidden">
+                      <iframe
+                        width="100%"
+                        height="100%"
+                        frameBorder="0"
+                        style={{ border: 0 }}
+                        src={`https://www.google.com/maps/embed/v1/place?key=${
+                          import.meta.env.VITE_GOOGLE_MAPS_API_KEY
+                        }&q=${coordinates.lat},${coordinates.lng}`}
+                        allowFullScreen
+                      />
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
           )}
         </CardContent>

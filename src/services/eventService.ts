@@ -24,7 +24,22 @@ export class EventService {
   }
 
   static async getEvent(id: string): Promise<EventType> {
-    const { data, error } = await supabase.from("events").select("*").eq("id", id).single();
+    const { data, error } = await supabase
+      .from("events")
+      .select(
+        `
+        *,
+        participants:event_participants (
+          id,
+          event_id,
+          user_id,
+          name,
+          created_at
+        )
+      `
+      )
+      .eq("id", id)
+      .single();
 
     if (error) throw error;
     return data as EventType;

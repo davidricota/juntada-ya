@@ -52,7 +52,7 @@ export interface Poll {
   event_id: string;
   title: string;
   description?: string;
-  created_by_user_id: string;
+  created_by_participant_id: string;
   created_at: string;
   closed_at?: string;
   allow_multiple_votes: boolean;
@@ -69,9 +69,11 @@ export interface PollVote {
   id: string;
   poll_id: string;
   option_id: string;
-  user_id: string;
+  participant_id: string;
   created_at: string;
+  user_id: string;
 }
+
 export interface PollChangePayload {
   eventType: "INSERT" | "DELETE";
   new?: Poll;

@@ -1,14 +1,22 @@
 import React, { useState, useEffect } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
 import { Plus, Vote, X, Check, Loader2 } from "lucide-react";
 import { PollService } from "@/services/pollService";
 import { useToast } from "@/hooks/use-toast";
 import { Poll, PollOption, PollVote } from "@/types";
 import { PollForm } from "@/components/PollForm";
-import { Skeleton } from "@/components/ui/skeleton";
 
 interface PollsTabProps {
   eventId: string;
@@ -17,59 +25,18 @@ interface PollsTabProps {
 }
 
 interface PollWithDetails extends Poll {
-  created_by_participant_id: string;
   creator_name?: string;
-  options?: PollOptionWithVotes[];
   total_votes?: number;
+  options: (PollOption & {
+    votes_count: number;
+    has_voted: boolean;
+  })[];
 }
 
 interface PollOptionWithVotes extends PollOption {
-  votes_count?: number;
-  has_voted?: boolean;
+  votes_count: number;
+  has_voted: boolean;
 }
-
-const PollSkeleton = () => (
-  <Card className="bg-card text-card-foreground animate-pulse">
-    <CardHeader>
-      <div className="flex items-start justify-between">
-        <div className="space-y-2">
-          <Skeleton className="h-6 w-56" />
-          <Skeleton className="h-4 w-72" />
-          <div className="flex items-center gap-2">
-            <Skeleton className="h-4 w-20" />
-            <Skeleton className="h-4 w-4 rounded-full" />
-            <Skeleton className="h-4 w-24" />
-          </div>
-        </div>
-        <div className="flex gap-2">
-          <Skeleton className="h-8 w-8 rounded-md" />
-          <Skeleton className="h-8 w-8 rounded-md" />
-        </div>
-      </div>
-    </CardHeader>
-    <CardContent>
-      <div className="space-y-3">
-        {[1, 2, 3].map((i) => (
-          <div key={i} className="space-y-2">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <Skeleton className="h-8 w-8 rounded-md" />
-                <Skeleton className="h-5 w-36" />
-              </div>
-              <Skeleton className="h-4 w-20" />
-            </div>
-            <div className="h-2 bg-secondary rounded-full overflow-hidden">
-              <Skeleton className="h-full w-2/3" />
-            </div>
-          </div>
-        ))}
-        <div className="flex justify-end">
-          <Skeleton className="h-4 w-24" />
-        </div>
-      </div>
-    </CardContent>
-  </Card>
-);
 
 const PollsTab: React.FC<PollsTabProps> = ({ eventId, currentParticipantId, isHost }) => {
   const [polls, setPolls] = useState<PollWithDetails[]>([]);
@@ -77,8 +44,11 @@ const PollsTab: React.FC<PollsTabProps> = ({ eventId, currentParticipantId, isHo
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editingPoll, setEditingPoll] = useState<PollWithDetails | null>(null);
   const { toast } = useToast();
+  const queryClient = useQueryClient();
 
   useEffect(() => {
+    if (!eventId) return;
+
     fetchPolls();
 
     // Suscribirse a cambios en las encuestas
@@ -97,11 +67,17 @@ const PollsTab: React.FC<PollsTabProps> = ({ eventId, currentParticipantId, isHo
           ...option,
           votes_count: pollVotes.filter((vote) => vote.option_id === option.id).length,
           has_voted: currentParticipantId
-            ? pollVotes.some((vote) => vote.option_id === option.id && vote.participant_id === currentParticipantId)
+            ? pollVotes.some(
+                (vote) =>
+                  vote.option_id === option.id && vote.participant_id === currentParticipantId
+              )
             : false,
         }));
 
-        const totalVotes = optionsWithVotes.reduce((sum, option) => sum + (option.votes_count || 0), 0);
+        const totalVotes = optionsWithVotes.reduce(
+          (sum, option) => sum + (option.votes_count || 0),
+          0
+        );
 
         setPolls((prev) => [
           {
@@ -124,7 +100,10 @@ const PollsTab: React.FC<PollsTabProps> = ({ eventId, currentParticipantId, isHo
               p.id === poll.id
                 ? {
                     ...p,
-                    options: [...(p.options || []), { ...payload.new, votes_count: 0, has_voted: false }],
+                    options: [
+                      ...(p.options || []),
+                      { ...payload.new, votes_count: 0, has_voted: false },
+                    ],
                   }
                 : p
             )
@@ -144,11 +123,51 @@ const PollsTab: React.FC<PollsTabProps> = ({ eventId, currentParticipantId, isHo
       })
     );
 
+    // Suscribirse a cambios en los votos
+    const pollVotesSubscriptions = polls.map((poll) =>
+      PollService.subscribeToPollVotes(poll.id, async () => {
+        // Recargar los votos de esta encuesta
+        const [pollOptions, pollVotes] = await Promise.all([
+          PollService.getPollOptions(poll.id),
+          PollService.getPollVotes(poll.id),
+        ]);
+
+        const optionsWithVotes = pollOptions.map((option) => ({
+          ...option,
+          votes_count: pollVotes.filter((vote) => vote.option_id === option.id).length,
+          has_voted: currentParticipantId
+            ? pollVotes.some(
+                (vote) =>
+                  vote.option_id === option.id && vote.participant_id === currentParticipantId
+              )
+            : false,
+        }));
+
+        const totalVotes = optionsWithVotes.reduce(
+          (sum, option) => sum + (option.votes_count || 0),
+          0
+        );
+
+        setPolls((prev) =>
+          prev.map((p) =>
+            p.id === poll.id
+              ? {
+                  ...p,
+                  options: optionsWithVotes,
+                  total_votes: totalVotes,
+                }
+              : p
+          )
+        );
+      })
+    );
+
     return () => {
       PollService.unsubscribeFromPolls(pollsSubscription);
       pollOptionsSubscriptions.forEach((sub) => PollService.unsubscribeFromPollOptions(sub));
+      pollVotesSubscriptions.forEach((sub) => PollService.unsubscribeFromPollVotes(sub));
     };
-  }, [eventId, currentParticipantId]);
+  }, [eventId, currentParticipantId, polls]);
 
   const fetchPolls = async () => {
     try {
@@ -166,11 +185,17 @@ const PollsTab: React.FC<PollsTabProps> = ({ eventId, currentParticipantId, isHo
             ...option,
             votes_count: pollVotes.filter((vote) => vote.option_id === option.id).length,
             has_voted: currentParticipantId
-              ? pollVotes.some((vote) => vote.option_id === option.id && vote.participant_id === currentParticipantId)
+              ? pollVotes.some(
+                  (vote) =>
+                    vote.option_id === option.id && vote.participant_id === currentParticipantId
+                )
               : false,
           }));
 
-          const totalVotes = optionsWithVotes.reduce((sum, option) => sum + (option.votes_count || 0), 0);
+          const totalVotes = optionsWithVotes.reduce(
+            (sum, option) => sum + (option.votes_count || 0),
+            0
+          );
 
           return {
             ...poll,
@@ -193,7 +218,12 @@ const PollsTab: React.FC<PollsTabProps> = ({ eventId, currentParticipantId, isHo
     }
   };
 
-  const handleCreatePoll = async (formData: { title: string; description: string; allowMultipleVotes: boolean; options: string[] }) => {
+  const handleCreatePoll = async (formData: {
+    title: string;
+    description: string;
+    allowMultipleVotes: boolean;
+    options: string[];
+  }) => {
     if (!currentParticipantId) {
       toast({
         title: "Error",
@@ -206,106 +236,32 @@ const PollsTab: React.FC<PollsTabProps> = ({ eventId, currentParticipantId, isHo
     try {
       if (editingPoll) {
         // Actualizar encuesta existente
-        const updatedPoll = await PollService.updatePoll(editingPoll.id, {
-          title: formData.title.trim(),
-          description: formData.description.trim() || null,
-          allow_multiple_votes: formData.allowMultipleVotes,
-        });
-
-        // Obtener las opciones actuales
-        const existingOptions = await PollService.getPollOptions(editingPoll.id);
-        const existingVotes = await PollService.getPollVotes(editingPoll.id);
-
-        // Crear un mapa de las opciones existentes por título
-        const existingOptionsMap = new Map(existingOptions.map((opt) => [opt.title, opt]));
-
-        // Procesar las nuevas opciones
-        const newOptions = [];
-        const optionsToDelete = existingOptions.filter((opt) => !formData.options.some((title) => title.trim() === opt.title));
-
-        // Primero eliminamos las opciones que ya no existen
-        await Promise.all(optionsToDelete.map((opt) => PollService.removePollOption(opt.id)));
-
-        // Luego procesamos las opciones nuevas o existentes
-        for (const title of formData.options) {
-          const trimmedTitle = title.trim();
-          if (existingOptionsMap.has(trimmedTitle)) {
-            // La opción ya existe, la mantenemos
-            const existingOption = existingOptionsMap.get(trimmedTitle)!;
-            newOptions.push(existingOption);
-          } else {
-            // Es una nueva opción, la creamos
-            const newOption = await PollService.addPollOption(editingPoll.id, {
-              title: trimmedTitle,
-            });
-            newOptions.push(newOption);
-          }
-        }
-
-        // Preparar opciones con votos
-        const optionsWithVotes = newOptions.map((option) => ({
-          ...option,
-          votes_count: existingVotes.filter((vote) => vote.option_id === option.id).length,
-          has_voted: currentParticipantId
-            ? existingVotes.some((vote) => vote.option_id === option.id && vote.participant_id === currentParticipantId)
-            : false,
-        }));
-
-        const totalVotes = optionsWithVotes.reduce((sum, option) => sum + (option.votes_count || 0), 0);
-
-        // Actualizar el estado local
-        setPolls((prev) =>
-          prev.map((poll) =>
-            poll.id === editingPoll.id
-              ? {
-                  ...poll,
-                  ...updatedPoll,
-                  options: optionsWithVotes,
-                  total_votes: totalVotes,
-                }
-              : poll
-          )
+        await PollService.createPoll(
+          eventId,
+          currentParticipantId,
+          formData.title.trim(),
+          formData.description.trim() || undefined,
+          formData.options,
+          formData.allowMultipleVotes
         );
 
+        await queryClient.invalidateQueries({ queryKey: ["polls", eventId] });
         toast({
           title: "¡Encuesta actualizada!",
           description: "La encuesta se ha actualizado exitosamente.",
         });
       } else {
         // Crear nueva encuesta
-        const poll = await PollService.createPoll(eventId, currentParticipantId, {
-          title: formData.title.trim(),
-          description: formData.description.trim() || null,
-          allow_multiple_votes: formData.allowMultipleVotes,
-        });
-
-        // Crear opciones
-        const newOptions = await Promise.all(
-          formData.options.map((title) =>
-            PollService.addPollOption(poll.id, {
-              title: title.trim(),
-            })
-          )
+        await PollService.createPoll(
+          eventId,
+          currentParticipantId,
+          formData.title.trim(),
+          formData.description.trim() || undefined,
+          formData.options,
+          formData.allowMultipleVotes
         );
 
-        // Preparar opciones con votos (todos en 0 para nueva encuesta)
-        const optionsWithVotes = newOptions.map((option) => ({
-          ...option,
-          votes_count: 0,
-          has_voted: false,
-        }));
-
-        // Actualizar el estado local
-        setPolls((prev) => [
-          {
-            ...poll,
-            options: optionsWithVotes,
-            total_votes: 0,
-            creator_name: "Tú", // Para nueva encuesta, sabemos que es el usuario actual
-          },
-          ...prev,
-        ]);
-
+        await queryClient.invalidateQueries({ queryKey: ["polls", eventId] });
         toast({
           title: "¡Encuesta creada!",
           description: "La encuesta se ha creado exitosamente.",
@@ -331,19 +287,13 @@ const PollsTab: React.FC<PollsTabProps> = ({ eventId, currentParticipantId, isHo
 
   const handleDeletePoll = async (pollId: string) => {
     try {
-      // Primero actualizamos el estado local
-      setPolls((prev) => prev.filter((poll) => poll.id !== pollId));
-
-      // Luego eliminamos en la base de datos
       await PollService.deletePoll(pollId);
-
+      await queryClient.invalidateQueries({ queryKey: ["polls", eventId] });
       toast({
         title: "Encuesta eliminada",
         description: "La encuesta se ha eliminado correctamente.",
       });
     } catch (error) {
-      // Si hay error, recargamos todo
-      fetchPolls();
       toast({
         title: "Error",
         description: "No se pudo eliminar la encuesta. Inténtalo de nuevo.",
@@ -353,7 +303,9 @@ const PollsTab: React.FC<PollsTabProps> = ({ eventId, currentParticipantId, isHo
   };
 
   const canEditPoll = (poll: PollWithDetails) => {
-    return isHost || (currentParticipantId && poll.created_by_participant_id === currentParticipantId);
+    return (
+      isHost || (currentParticipantId && poll.created_by_participant_id === currentParticipantId)
+    );
   };
 
   const handleVote = async (pollId: string, optionId: string, allowMultiple: boolean) => {
@@ -370,14 +322,6 @@ const PollsTab: React.FC<PollsTabProps> = ({ eventId, currentParticipantId, isHo
       const poll = polls.find((p) => p.id === pollId);
       if (!poll) return;
 
-      // Si no permite múltiples votos, primero removemos el voto anterior si existe
-      if (!allowMultiple) {
-        const previousVote = poll.options?.find((opt) => opt.has_voted);
-        if (previousVote) {
-          await PollService.removeVote(pollId, currentParticipantId, previousVote.id);
-        }
-      }
-
       // Agregamos el nuevo voto
       await PollService.vote(pollId, currentParticipantId, optionId);
 
@@ -390,7 +334,12 @@ const PollsTab: React.FC<PollsTabProps> = ({ eventId, currentParticipantId, isHo
                 // Si no permite múltiples votos, actualizamos todos los votos
                 return {
                   ...opt,
-                  votes_count: opt.id === optionId ? (opt.votes_count || 0) + 1 : opt.has_voted ? (opt.votes_count || 0) - 1 : opt.votes_count,
+                  votes_count:
+                    opt.id === optionId
+                      ? (opt.votes_count || 0) + 1
+                      : opt.has_voted
+                      ? (opt.votes_count || 0) - 1
+                      : opt.votes_count,
                   has_voted: opt.id === optionId,
                 };
               } else {
@@ -405,7 +354,8 @@ const PollsTab: React.FC<PollsTabProps> = ({ eventId, currentParticipantId, isHo
               }
             });
 
-            const totalVotes = updatedOptions?.reduce((sum, opt) => sum + (opt.votes_count || 0), 0) || 0;
+            const totalVotes =
+              updatedOptions?.reduce((sum, opt) => sum + (opt.votes_count || 0), 0) || 0;
 
             return {
               ...p,
@@ -435,33 +385,7 @@ const PollsTab: React.FC<PollsTabProps> = ({ eventId, currentParticipantId, isHo
 
     try {
       await PollService.removeVote(pollId, currentParticipantId, optionId);
-
-      // Actualizamos el estado local inmediatamente
-      setPolls((prevPolls) =>
-        prevPolls.map((poll) => {
-          if (poll.id === pollId) {
-            const updatedOptions = poll.options?.map((option) => {
-              if (option.id === optionId) {
-                return {
-                  ...option,
-                  votes_count: (option.votes_count || 0) - 1,
-                  has_voted: false,
-                };
-              }
-              return option;
-            });
-
-            const totalVotes = updatedOptions?.reduce((sum, opt) => sum + (opt.votes_count || 0), 0) || 0;
-
-            return {
-              ...poll,
-              options: updatedOptions,
-              total_votes: totalVotes,
-            };
-          }
-          return poll;
-        })
-      );
+      await queryClient.invalidateQueries({ queryKey: ["polls", eventId] });
 
       toast({
         title: "Voto eliminado",
@@ -497,7 +421,9 @@ const PollsTab: React.FC<PollsTabProps> = ({ eventId, currentParticipantId, isHo
             <DialogHeader>
               <DialogTitle>{editingPoll ? "Editar Encuesta" : "Nueva Encuesta"}</DialogTitle>
               <DialogDescription>
-                {editingPoll ? "Modifica los detalles de la encuesta." : "Crea una nueva encuesta para que los participantes voten."}
+                {editingPoll
+                  ? "Modifica los detalles de la encuesta."
+                  : "Crea una nueva encuesta para que los participantes voten."}
               </DialogDescription>
             </DialogHeader>
             <PollForm
@@ -524,7 +450,9 @@ const PollsTab: React.FC<PollsTabProps> = ({ eventId, currentParticipantId, isHo
           <Card className="bg-card text-card-foreground">
             <CardContent className="flex flex-col items-center justify-center p-6 text-center">
               <div className="text-lg text-muted-foreground">No hay encuestas creadas</div>
-              <div className="text-sm text-muted-foreground">¡Sé el primero en crear una encuesta!</div>
+              <div className="text-sm text-muted-foreground">
+                ¡Sé el primero en crear una encuesta!
+              </div>
             </CardContent>
           </Card>
         ) : (
@@ -534,9 +462,14 @@ const PollsTab: React.FC<PollsTabProps> = ({ eventId, currentParticipantId, isHo
                 <div className="flex items-start justify-between">
                   <div>
                     <CardTitle className="text-xl text-primary">{poll.title}</CardTitle>
-                    {poll.description && <CardDescription className="text-muted-foreground">{poll.description}</CardDescription>}
+                    {poll.description && (
+                      <CardDescription className="text-muted-foreground">
+                        {poll.description}
+                      </CardDescription>
+                    )}
                     <div className="text-sm text-muted-foreground">
-                      Creada por {poll.creator_name} · {new Date(poll.created_at).toLocaleDateString()}
+                      Creada por {poll.creator_name} ·{" "}
+                      {new Date(poll.created_at).toLocaleDateString()}
                     </div>
                   </div>
                   {canEditPoll(poll) && (
@@ -588,7 +521,9 @@ const PollsTab: React.FC<PollsTabProps> = ({ eventId, currentParticipantId, isHo
               <CardContent className="p-2 md:p-6">
                 <div className="space-y-4">
                   {poll.options?.map((option) => {
-                    const percentage = poll.total_votes ? ((option.votes_count || 0) / poll.total_votes) * 100 : 0;
+                    const percentage = poll.total_votes
+                      ? ((option.votes_count || 0) / poll.total_votes) * 100
+                      : 0;
                     return (
                       <div key={option.id} className="space-y-2">
                         <div className="flex items-center justify-between">
@@ -597,11 +532,21 @@ const PollsTab: React.FC<PollsTabProps> = ({ eventId, currentParticipantId, isHo
                               variant={option.has_voted ? "default" : "outline"}
                               size="sm"
                               onClick={() =>
-                                option.has_voted ? removeVote(poll.id, option.id) : handleVote(poll.id, option.id, poll.allow_multiple_votes)
+                                option.has_voted
+                                  ? removeVote(poll.id, option.id)
+                                  : handleVote(poll.id, option.id, poll.allow_multiple_votes)
                               }
-                              className={option.has_voted ? "bg-primary text-primary-foreground" : "bg-card text-primary"}
+                              className={
+                                option.has_voted
+                                  ? "bg-primary text-primary-foreground"
+                                  : "bg-card text-primary"
+                              }
                             >
-                              {option.has_voted ? <Check className="h-4 w-4 mr-2" /> : <Vote className="h-4 w-4 mr-2" />}
+                              {option.has_voted ? (
+                                <Check className="h-4 w-4 mr-2" />
+                              ) : (
+                                <Vote className="h-4 w-4 mr-2" />
+                              )}
                               {option.title}
                             </Button>
                           </div>
@@ -610,7 +555,10 @@ const PollsTab: React.FC<PollsTabProps> = ({ eventId, currentParticipantId, isHo
                           </div>
                         </div>
                         <div className="h-2 bg-secondary rounded-full overflow-hidden">
-                          <div className="h-full bg-primary transition-all duration-500 ease-in-out" style={{ width: `${percentage}%` }} />
+                          <div
+                            className="h-full bg-primary transition-all duration-500 ease-in-out"
+                            style={{ width: `${percentage}%` }}
+                          />
                         </div>
                       </div>
                     );

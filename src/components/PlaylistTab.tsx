@@ -10,6 +10,7 @@ import { Participant, PlaylistItem, PlaylistChangePayload } from "@/types";
 import YouTubeSongSearch from "./YouTubeSongSearch";
 import { YouTubeVideo } from "@/services/youtubeService";
 import JoinEventCard from "./JoinEventCard";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 
 import { usePlayer } from "@/contexts/PlayerContext";
 import { cn } from "@/lib/utils";
@@ -43,23 +44,49 @@ export interface PlaylistTabProps {
   onRemoveSong: (itemId: string) => Promise<void>;
 }
 
+const fetchPlaylist = async (eventId: string): Promise<PlaylistItem[]> => {
+  const playlist = await PlaylistService.getPlaylist(eventId);
+  return playlist;
+};
+
 export default function PlaylistTab({
   eventId,
   participants,
-  playlist,
+  playlist: initialPlaylist,
   onPlaylistChange,
   currentParticipantId,
   accessCode,
   isHost,
-  isLoading,
+  isLoading: initialLoading,
   currentTab,
   onRemoveSong,
 }: PlaylistTabProps) {
   const [currentVideoIndex, setCurrentVideoIndex] = useState(0);
   const [isPlayerReady, setIsPlayerReady] = useState(false);
   const playerRef = useRef<YouTubePlayer | null>(null);
-  const { setCurrentVideo, isPlaying, setIsPlaying, progress, setProgress, duration, setDuration, volume, setVolume, isMuted, setIsMuted } =
-    usePlayer();
+  const queryClient = useQueryClient();
+
+  const { data: playlist = initialPlaylist, isLoading: isPlaylistLoading } = useQuery({
+    queryKey: ["playlist", eventId],
+    queryFn: () => fetchPlaylist(eventId),
+    initialData: initialPlaylist,
+    staleTime: 1000 * 30, // 30 seconds
+    gcTime: 1000 * 60 * 5, // 5 minutes
+  });
+
+  const {
+    setCurrentVideo,
+    isPlaying,
+    setIsPlaying,
+    progress,
+    setProgress,
+    duration,
+    setDuration,
+    volume,
+    setVolume,
+    isMuted,
+    setIsMuted,
+  } = usePlayer();
   const { isMinimized: usePlayerMinimized } = usePlayer();
   const [player, setPlayer] = useState<YouTubePlayer | null>(null);
   const { eventId: useParamsEventId } = useParams<{ eventId: string }>();
@@ -94,17 +121,18 @@ export default function PlaylistTab({
   useEffect(() => {
     const subscription = PlaylistService.subscribeToPlaylist(eventId, async (payload) => {
       if (payload.eventType === "INSERT" && payload.new) {
-        const videoDetails = await PlaylistService.getVideoDetails(payload.new.video_id);
-        onPlaylistChange((prev) => [...prev, { ...payload.new, ...videoDetails }]);
+        // Invalidate and refetch
+        await queryClient.invalidateQueries({ queryKey: ["playlist", eventId] });
       } else if (payload.eventType === "DELETE" && payload.old) {
-        onPlaylistChange((prev) => prev.filter((item) => item.id !== payload.old.id));
+        // Invalidate and refetch
+        await queryClient.invalidateQueries({ queryKey: ["playlist", eventId] });
       }
     });
 
     return () => {
       PlaylistService.unsubscribeFromPlaylist(subscription);
     };
-  }, [eventId, onPlaylistChange]);
+  }, [eventId, queryClient]);
 
   // Update progress in real-time
   useEffect(() => {
@@ -164,27 +192,18 @@ export default function PlaylistTab({
   const handleVideoDelete = async (id: string, title: string) => {
     try {
       // Actualizar el estado local inmediatamente
-      onPlaylistChange((prevItems) => {
-        const newItems = prevItems.filter((item) => item.id !== id);
-        // Si el video actual fue eliminado, movemos al siguiente
-        if (currentVideoIndex >= newItems.length) {
-          setCurrentVideoIndex(Math.max(0, newItems.length - 1));
-        }
-        return newItems;
-      });
+      const newItems = playlist.filter((item) => item.id !== id);
+      // Si el video actual fue eliminado, movemos al siguiente
+      if (currentVideoIndex >= newItems.length) {
+        setCurrentVideoIndex(Math.max(0, newItems.length - 1));
+      }
 
       // Luego intentar eliminar en la base de datos
       await onRemoveSong(id);
+      // Invalidate and refetch
+      await queryClient.invalidateQueries({ queryKey: ["playlist", eventId] });
       toast({ title: "Canción Eliminada", description: `${title}` });
     } catch (error) {
-      // Si hay error, revertir el cambio local
-      onPlaylistChange((prevItems) => {
-        const deletedItem = playlist.find((item) => item.id === id);
-        if (deletedItem) {
-          return [...prevItems, deletedItem];
-        }
-        return prevItems;
-      });
       toast({
         title: "Error",
         description: "No se pudo eliminar la canción. Inténtalo de nuevo.",
@@ -210,7 +229,8 @@ export default function PlaylistTab({
         thumbnail_url: song.thumbnail,
         channel_title: song.channelTitle,
       });
-      // No actualizamos el estado aquí, dejamos que la suscripción lo maneje
+      // Invalidate and refetch
+      await queryClient.invalidateQueries({ queryKey: ["playlist", eventId] });
       toast({ title: "¡Canción Agregada!", description: `${song.title} se añadió a la playlist.` });
     } catch (error) {
       toast({
@@ -280,7 +300,7 @@ export default function PlaylistTab({
     setPlayer(player);
   };
 
-  if (isLoading) {
+  if (isPlaylistLoading || initialLoading) {
     return (
       <div className="flex flex-col h-full">
         <Card className="bg-card text-card-foreground shadow-lg">
@@ -302,7 +322,12 @@ export default function PlaylistTab({
 
   return (
     <div className="flex flex-col h-full">
-      <div className={cn("transition-all duration-200", currentTab !== "playlist" && "opacity-0 w-0 h-0 overflow-hidden")}>
+      <div
+        className={cn(
+          "transition-all duration-200",
+          currentTab !== "playlist" && "opacity-0 w-0 h-0 overflow-hidden"
+        )}
+      >
         <Card className="bg-card text-card-foreground shadow-lg">
           <CardHeader className="p-2 md:p-6">
             <CardTitle className="text-xl flex items-center">
@@ -313,7 +338,14 @@ export default function PlaylistTab({
           <CardContent className="space-y-4 p-2 md:p-6">
             {playlist.length > 0 ? (
               <>
-                <div className={cn("transition-all duration-200", isPlayerReady ? "opacity-100" : "opacity-0")}>{memoizedYouTubePlayer}</div>
+                <div
+                  className={cn(
+                    "transition-all duration-200",
+                    isPlayerReady ? "opacity-100" : "opacity-0"
+                  )}
+                >
+                  {memoizedYouTubePlayer}
+                </div>
                 <ScrollArea className="max-h-96 rounded-lg">
                   <Playlist
                     playlistItems={playlist}
@@ -326,14 +358,19 @@ export default function PlaylistTab({
                 </ScrollArea>
               </>
             ) : (
-              <p className="text-muted-foreground text-center py-6 italic">¡La playlist está vacía! Agrega la primera canción.</p>
+              <p className="text-muted-foreground text-center py-6 italic">
+                ¡La playlist está vacía! Agrega la primera canción.
+              </p>
             )}
           </CardContent>
         </Card>
         {currentParticipantId ? (
           <YouTubeSongSearch onSongSelected={handleSongSelected} />
         ) : (
-          <JoinEventCard accessCode={accessCode} message="unirte al evento para agregar canciones" />
+          <JoinEventCard
+            accessCode={accessCode}
+            message="unirte al evento para agregar canciones"
+          />
         )}
       </div>
       {currentTab !== "playlist" && playlist.length > 0 && (

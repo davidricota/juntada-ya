@@ -1,4 +1,4 @@
-import React, { useEffect, useState, lazy, Suspense } from "react";
+import React, { useEffect, useState, lazy, Suspense, useRef } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
@@ -8,7 +8,6 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { LogOut, Users, Copy, Trash2 } from "lucide-react";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { EventService } from "@/services/eventService";
-import { PlaylistService } from "@/services/playlistService";
 import { RealtimeChannel } from "@supabase/supabase-js";
 import {
   EventType,
@@ -21,38 +20,75 @@ import { SearchDialog } from "@/components/SearchDialog";
 import { useParticipantStore } from "@/stores/participantStore";
 import JoinEventCard from "@/components/JoinEventCard";
 import EventInfoTab from "@/components/EventInfoTab";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { PlaylistService } from "@/services/playlistService";
 
 // Lazy load components that are not immediately needed
 const PlaylistTab = lazy(() => import("@/components/PlaylistTab"));
 const PollsTab = lazy(() => import("@/components/PollsTab"));
 const ExpensesTab = lazy(() => import("@/components/ExpensesTab"));
 
+const fetchEvent = async (eventId: string) => {
+  const event = await EventService.getEvent(eventId);
+  return event;
+};
+
+const fetchParticipants = async (eventId: string) => {
+  const participants = await EventService.getEventParticipants(eventId);
+  return participants;
+};
+
+const fetchPlaylist = async (eventId: string) => {
+  const playlist = await PlaylistService.getPlaylist(eventId);
+  return playlist;
+};
+
 const EventPage: React.FC = () => {
   const { eventId } = useParams<{ eventId: string }>();
   const navigate = useNavigate();
   const { toast } = useToast();
+  const queryClient = useQueryClient();
 
-  const [event, setEvent] = useState<(EventType & { participants?: Participant[] }) | null>(null);
-  const [participants, setParticipants] = useState<Participant[]>([]);
-  const [playlist, setPlaylist] = useState<PlaylistItem[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
   const [currentParticipantId, setCurrentParticipantId] = useState<string | null>(null);
   const [currentParticipantName, setCurrentParticipantName] = useState<string | null>(null);
   const [subscriptions, setSubscriptions] = useState<RealtimeChannel[]>([]);
   const [currentTab, setCurrentTab] = useState<string>("info");
   const [isSearchOpen, setIsSearchOpen] = useState(false);
-  const [isHost, setIsHost] = useState(false);
   const { getUserStorage, getUserId } = useParticipantStore();
+  const userIdRef = useRef<string | null>(null);
 
-  const formatDate = (dateString: string | null | undefined) => {
-    if (!dateString) return "";
-    return new Date(dateString).toISOString().split("T")[0];
-  };
+  const { data: event, isLoading: isEventLoading } = useQuery({
+    queryKey: ["event", eventId],
+    queryFn: () => fetchEvent(eventId!),
+    enabled: !!eventId,
+  });
 
-  const formatTime = (timeString: string | null | undefined) => {
-    if (!timeString) return "";
-    return timeString.substring(0, 5); // Convierte "HH:mm:ss" a "HH:mm"
-  };
+  const { data: participants = [], isLoading: isParticipantsLoading } = useQuery({
+    queryKey: ["participants", eventId],
+    queryFn: () => fetchParticipants(eventId!),
+    enabled: !!eventId,
+  });
+
+  const { data: playlist = [], isLoading: isPlaylistLoading } = useQuery({
+    queryKey: ["playlist", eventId],
+    queryFn: () => fetchPlaylist(eventId!),
+    enabled: !!eventId,
+  });
+
+  const isHost = event?.host_user_id === getUserId();
+
+  const isLoading = isEventLoading || isParticipantsLoading || isPlaylistLoading;
+
+  // Update current participant when participants change
+  useEffect(() => {
+    if (!participants.length || !userIdRef.current) return;
+
+    const currentParticipant = participants.find((p) => p.user_id === userIdRef.current);
+    if (currentParticipant) {
+      setCurrentParticipantId(currentParticipant.id);
+      setCurrentParticipantName(currentParticipant.name);
+    }
+  }, [participants]);
 
   useEffect(() => {
     if (!eventId) {
@@ -62,75 +98,30 @@ const EventPage: React.FC = () => {
 
     const userStorage = getUserStorage();
     const userId = getUserId();
+    userIdRef.current = userId;
 
     if (!userStorage || !userId) {
       navigate("/");
       return;
     }
 
-    const fetchEventData = async () => {
-      setIsLoading(true);
-      try {
-        const eventData = await EventService.getEvent(eventId);
-
-        if (!eventData) {
-          toast({ title: "Error", description: "Evento no encontrado.", variant: "destructive" });
-          navigate("/");
-          return;
-        }
-
-        setEvent(eventData);
-        setParticipants(eventData.participants || []);
-
-        // Encontrar el participante actual usando user_id
-        const currentParticipant = eventData.participants?.find((p) => p.user_id === userId);
-
-        if (currentParticipant) {
-          setCurrentParticipantId(currentParticipant.id);
-          setCurrentParticipantName(currentParticipant.name);
-        } else {
-          toast({
-            title: "Información",
-            description:
-              "No estás registrado como participante en este evento. Para añadir canciones, únete primero usando el código del evento.",
-            variant: "default",
-          });
-        }
-
-        // Verificar si el usuario es el host
-        const isUserHost = eventData.host_user_id === userId;
-
-        setIsHost(isUserHost);
-
-        // Fetch playlist items
-
-        const playlistData = await PlaylistService.getPlaylistItems(eventId);
-
-        setPlaylist(playlistData);
-      } catch (error) {
-        if (error instanceof Error) {
-          toast({ title: "Error", description: error.message, variant: "destructive" });
-        } else {
-          toast({
-            title: "Error",
-            description: "Error al cargar los datos del evento.",
-            variant: "destructive",
-          });
-        }
-      } finally {
-        setIsLoading(false);
+    // Check if user is already a participant
+    const checkParticipant = async () => {
+      const currentParticipant = participants.find((p) => p.user_id === userId);
+      if (currentParticipant) {
+        setCurrentParticipantId(currentParticipant.id);
+        setCurrentParticipantName(currentParticipant.name);
       }
     };
 
-    fetchEventData();
+    checkParticipant();
 
     // Subscribe to participants changes
-
     const participantsSubscription = EventService.subscribeToParticipants(
       eventId,
-      (payload: ParticipantChangePayload) => {
+      async (payload: ParticipantChangePayload) => {
         if (payload.eventType === "INSERT") {
-          fetchEventData();
+          await queryClient.invalidateQueries({ queryKey: ["participants", eventId] });
         }
       }
     );
@@ -138,26 +129,9 @@ const EventPage: React.FC = () => {
     // Subscribe to playlist changes
     const playlistSubscription = PlaylistService.subscribeToPlaylist(
       eventId,
-      (payload: PlaylistChangePayload) => {
-        if (payload.eventType === "DELETE") {
-          setPlaylist((prev) => prev.filter((item) => item.id !== payload.old.id));
-        } else if (payload.eventType === "INSERT") {
-          // En lugar de recargar todo, solo agregamos el nuevo item
-          const participant = participants.find(
-            (p) => p.id === payload.new.added_by_participant_id
-          );
-          const newItem: PlaylistItem = {
-            id: payload.new.id,
-            youtube_video_id: payload.new.youtube_video_id,
-            title: payload.new.title,
-            thumbnail_url: payload.new.thumbnail_url,
-            channel_title: payload.new.channel_title,
-            added_by_participant_id: payload.new.added_by_participant_id,
-            event_id: payload.new.event_id,
-            added_at: payload.new.added_at,
-            participant_name: participant?.name || "Desconocido",
-          };
-          setPlaylist((prev) => [...prev, newItem]);
+      async (payload: PlaylistChangePayload) => {
+        if (payload.eventType === "INSERT" || payload.eventType === "DELETE") {
+          await queryClient.invalidateQueries({ queryKey: ["playlist", eventId] });
         }
       }
     );
@@ -173,35 +147,11 @@ const EventPage: React.FC = () => {
         }
       });
     };
-  }, [eventId, navigate, toast]);
-
-  useEffect(() => {
-    const storedParticipantId = localStorage.getItem("currentParticipantId");
-    setCurrentParticipantId(storedParticipantId);
-  }, [navigate]);
-
-  useEffect(() => {
-    if (!isLoading && participants.length > 0) {
-      const userStorage = getUserStorage();
-      if (!userStorage) {
-        return;
-      }
-      const isParticipant = participants.some((p) => p.user_id === userStorage.id);
-      if (!isParticipant) {
-        toast({
-          title: "Información",
-          description:
-            "No estás registrado como participante en este evento. Para añadir canciones, únete primero usando el código del evento.",
-          variant: "default",
-        });
-      }
-    }
-  }, [isLoading, participants]);
+  }, [eventId, navigate, queryClient]);
 
   const handleLogout = () => {
     const { clearParticipant } = useParticipantStore.getState();
     clearParticipant();
-    EventService.leaveEvent(eventId, currentParticipantId);
     navigate("/");
   };
 
@@ -214,9 +164,13 @@ const EventPage: React.FC = () => {
     if (!eventId || !currentParticipantId) return;
 
     try {
-      const newItem = await PlaylistService.addToPlaylist(eventId, currentParticipantId, videoData);
-      setPlaylist((prev) => [...prev, newItem]);
+      await PlaylistService.addToPlaylist(eventId, currentParticipantId, videoData);
+      await queryClient.invalidateQueries({ queryKey: ["playlist", eventId] });
       setIsSearchOpen(false);
+      toast({
+        title: "¡Canción Agregada!",
+        description: `${videoData.title} se añadió a la playlist.`,
+      });
     } catch (error) {
       toast({
         title: "Error",
@@ -228,8 +182,12 @@ const EventPage: React.FC = () => {
 
   const handleRemoveSong = async (itemId: string) => {
     try {
-      await PlaylistService.removeFromPlaylist(itemId);
-      setPlaylist((prev) => prev.filter((item) => item.id !== itemId));
+      await PlaylistService.removeFromPlaylist(eventId!, itemId);
+      await queryClient.invalidateQueries({ queryKey: ["playlist", eventId] });
+      toast({
+        title: "Canción Eliminada",
+        description: "La canción ha sido eliminada de la playlist",
+      });
     } catch (error) {
       toast({
         title: "Error",
@@ -355,7 +313,6 @@ const EventPage: React.FC = () => {
               <TabsTrigger value="playlist" className="data-[state=inactive]:text-destructive">
                 Playlist
               </TabsTrigger>
-
               <TabsTrigger value="polls" className="data-[state=inactive]:text-destructive">
                 Encuestas
               </TabsTrigger>
@@ -365,17 +322,7 @@ const EventPage: React.FC = () => {
             </TabsList>
             <TabsContent value="info">
               <Suspense fallback={<div className="text-center p-4">Cargando información...</div>}>
-                <EventInfoTab
-                  eventId={eventId}
-                  isHost={isHost}
-                  initialData={{
-                    address: event?.address || "",
-                    date: formatDate(event?.date),
-                    time: formatTime(event?.time),
-                    latitude: event?.latitude || 0,
-                    longitude: event?.longitude || 0,
-                  }}
-                />
+                <EventInfoTab eventId={eventId} isHost={isHost} />
               </Suspense>
             </TabsContent>
             <TabsContent value="playlist" forceMount>
@@ -384,7 +331,7 @@ const EventPage: React.FC = () => {
                   eventId={eventId}
                   participants={participants}
                   playlist={playlist}
-                  onPlaylistChange={setPlaylist}
+                  onPlaylistChange={() => {}}
                   currentParticipantId={currentParticipantId}
                   accessCode={event?.access_code || ""}
                   isHost={isHost}
@@ -394,7 +341,6 @@ const EventPage: React.FC = () => {
                 />
               </Suspense>
             </TabsContent>
-
             <TabsContent value="polls">
               <Suspense fallback={<div className="text-center p-4">Cargando encuestas...</div>}>
                 <PollsTab

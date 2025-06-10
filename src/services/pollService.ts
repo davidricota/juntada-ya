@@ -1,35 +1,17 @@
-import { supabase } from "@/integrations/supabase/client";
+import { supabase } from "@/lib/supabase";
 import { Poll, PollChangePayload, PollOption, PollVote } from "@/types";
 import { RealtimePostgresChangesPayload } from "@supabase/supabase-js";
 
 export class PollService {
   static async getPolls(eventId: string): Promise<Poll[]> {
-    const { data, error } = await supabase
+    const { data: polls, error } = await supabase
       .from("polls")
-      .select(
-        `
-        id,
-        event_id,
-        title,
-        description,
-        created_by_participant_id,
-        created_at,
-        closed_at,
-        allow_multiple_votes,
-        event_participants!inner(user_id)
-      `
-      )
+      .select("*")
       .eq("event_id", eventId)
       .order("created_at", { ascending: false });
 
-    if (error) {
-      throw new Error("Error al obtener las encuestas");
-    }
-
-    return (data || []).map((poll) => ({
-      ...poll,
-      created_by_user_id: poll.event_participants.user_id,
-    }));
+    if (error) throw error;
+    return polls;
   }
 
   static async getPollOptions(pollId: string): Promise<PollOption[]> {
@@ -39,173 +21,51 @@ export class PollService {
       .eq("poll_id", pollId)
       .order("created_at", { ascending: true });
 
-    if (error) {
-      throw new Error("Error al obtener las opciones de la encuesta");
-    }
-
-    return data || [];
+    if (error) throw error;
+    return data;
   }
 
   static async getPollVotes(pollId: string): Promise<PollVote[]> {
-    const { data, error } = await supabase
-      .from("poll_votes")
-      .select(
-        `
-        id,
-        poll_id,
-        option_id,
-        participant_id,
-        created_at,
-        event_participants!inner(user_id)
-      `
-      )
-      .eq("poll_id", pollId);
-
-    if (error) {
-      throw new Error("Error al obtener los votos de la encuesta");
-    }
-
-    return (data || []).map((vote) => ({
-      ...vote,
-      user_id: vote.event_participants.user_id,
-    }));
-  }
-
-  static async createPoll(
-    eventId: string,
-    participantId: string,
-    poll: Omit<Poll, "id" | "event_id" | "created_by_participant_id" | "created_at" | "closed_at">
-  ): Promise<Poll> {
-    const { data, error } = await supabase
-      .from("polls")
-      .insert({
-        event_id: eventId,
-        created_by_participant_id: participantId,
-        ...poll,
-      })
-      .select(
-        `
-        id,
-        event_id,
-        title,
-        description,
-        created_by_participant_id,
-        created_at,
-        closed_at,
-        allow_multiple_votes,
-        event_participants!inner(user_id)
-      `
-      )
-      .single();
-
-    if (error) {
-      throw new Error("Error al crear la encuesta");
-    }
-
-    return {
-      ...data,
-      created_by_user_id: data.event_participants.user_id,
-    };
-  }
-
-  static async updatePoll(
-    pollId: string,
-    poll: Partial<
-      Omit<Poll, "id" | "event_id" | "created_by_participant_id" | "created_at" | "closed_at">
-    >
-  ): Promise<Poll> {
-    const { data: existingPoll, error: checkError } = await supabase
-      .from("polls")
-      .select(
-        `
-        id,
-        event_id,
-        title,
-        description,
-        created_by_participant_id,
-        created_at,
-        closed_at,
-        allow_multiple_votes,
-        event_participants!inner(user_id)
-      `
-      )
-      .eq("id", pollId)
-      .single();
-
-    if (checkError) {
-      throw new Error("Error al verificar la encuesta");
-    }
-
-    if (!existingPoll) {
-      throw new Error("La encuesta no existe");
-    }
-
-    const { data, error } = await supabase
-      .from("polls")
-      .update({
-        title: poll.title,
-        description: poll.description,
-        allow_multiple_votes: poll.allow_multiple_votes,
-      })
-      .eq("id", pollId)
-      .select(
-        `
-        id,
-        event_id,
-        title,
-        description,
-        created_by_participant_id,
-        created_at,
-        closed_at,
-        allow_multiple_votes,
-        event_participants!inner(user_id)
-      `
-      )
-      .single();
-
-    if (error) {
-      throw new Error("Error al actualizar la encuesta");
-    }
-
-    if (!data) {
-      throw new Error("No se pudo actualizar la encuesta");
-    }
-
-    return {
-      ...data,
-      created_by_user_id: data.event_participants.user_id,
-    };
-  }
-
-  static async deletePoll(pollId: string): Promise<void> {
-    const { error: deleteError } = await supabase.from("polls").delete().eq("id", pollId);
-
-    if (deleteError) {
-      throw new Error("Error al eliminar la encuesta");
-    }
-  }
-
-  static async addPollOption(
-    pollId: string,
-    option: Omit<PollOption, "id" | "poll_id" | "created_at">
-  ): Promise<PollOption> {
-    const { data, error } = await supabase
-      .from("poll_options")
-      .insert({
-        poll_id: pollId,
-        ...option,
-      })
-      .select()
-      .single();
+    const { data, error } = await supabase.from("poll_votes").select("*").eq("poll_id", pollId);
 
     if (error) throw error;
     return data;
   }
 
-  static async removePollOption(optionId: string): Promise<void> {
-    const { error } = await supabase.from("poll_options").delete().eq("id", optionId);
+  static async createPoll(
+    eventId: string,
+    participantId: string,
+    title: string,
+    description: string | undefined,
+    options: string[],
+    allowMultipleVotes: boolean
+  ): Promise<Poll> {
+    // Crear la encuesta
+    const { data: poll, error: pollError } = await supabase
+      .from("polls")
+      .insert({
+        event_id: eventId,
+        created_by_participant_id: participantId,
+        title,
+        description,
+        allow_multiple_votes: allowMultipleVotes,
+      })
+      .select()
+      .single();
 
-    if (error) throw error;
+    if (pollError) throw pollError;
+
+    // Crear las opciones
+    await Promise.all(
+      options.map((text) =>
+        supabase.from("poll_options").insert({
+          poll_id: poll.id,
+          title: text,
+        })
+      )
+    );
+
+    return poll;
   }
 
   static async vote(pollId: string, participantId: string, optionId: string): Promise<void> {
@@ -273,6 +133,40 @@ export class PollService {
     }
   }
 
+  static async closePoll(pollId: string): Promise<void> {
+    const { error } = await supabase.from("polls").update({ is_closed: true }).eq("id", pollId);
+
+    if (error) throw error;
+  }
+
+  static async deletePoll(pollId: string): Promise<void> {
+    const { error } = await supabase.from("polls").delete().eq("id", pollId);
+    if (error) throw error;
+  }
+
+  static async addPollOption(
+    pollId: string,
+    option: Omit<PollOption, "id" | "poll_id" | "created_at">
+  ): Promise<PollOption> {
+    const { data, error } = await supabase
+      .from("poll_options")
+      .insert({
+        poll_id: pollId,
+        ...option,
+      })
+      .select()
+      .single();
+
+    if (error) throw error;
+    return data;
+  }
+
+  static async removePollOption(optionId: string): Promise<void> {
+    const { error } = await supabase.from("poll_options").delete().eq("id", optionId);
+
+    if (error) throw error;
+  }
+
   static async removeVote(pollId: string, participantId: string, optionId: string): Promise<void> {
     const { data: existingVote, error: checkError } = await supabase
       .from("poll_votes")
@@ -299,17 +193,6 @@ export class PollService {
 
     if (error) {
       throw new Error("Error al eliminar el voto");
-    }
-  }
-
-  static async closePoll(pollId: string): Promise<void> {
-    const { error } = await supabase
-      .from("polls")
-      .update({ closed_at: new Date().toISOString() })
-      .eq("id", pollId);
-
-    if (error) {
-      throw new Error("Error al cerrar la encuesta");
     }
   }
 
