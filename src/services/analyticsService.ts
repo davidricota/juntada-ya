@@ -1,20 +1,31 @@
 interface DataLayerEvent {
   event: string;
   page?: string;
+  page_path?: string;
+  page_location?: string;
+  page_title?: string;
   eventCategory?: string;
   eventAction?: string;
   eventLabel?: string;
+  event_category?: string;
+  event_action?: string;
+  event_label?: string;
   errorMessage?: string;
   errorStack?: string;
+  error_message?: string;
+  error_stack?: string;
   fatal?: boolean;
   gtm?: {
     start: number;
   };
+  "gtm.start"?: number;
+  "ga4.config"?: string;
 }
 
 declare global {
   interface Window {
     dataLayer: DataLayerEvent[];
+    gtag: (command: string, ...args: unknown[]) => void;
   }
 }
 
@@ -22,11 +33,13 @@ class AnalyticsService {
   private static instance: AnalyticsService;
   private isInitialized = false;
   private readonly gtmId: string;
+  private readonly gaId: string;
 
   private constructor() {
     // Inicializar dataLayer si no existe
     window.dataLayer = window.dataLayer || [];
     this.gtmId = import.meta.env.VITE_GA_MEASUREMENT_ID;
+    this.gaId = "G-N2LF4MP83S"; // ID de GA4
   }
 
   static getInstance(): AnalyticsService {
@@ -64,6 +77,13 @@ class AnalyticsService {
     iframe.style.visibility = "hidden";
     noscript.appendChild(iframe);
     document.body.insertBefore(noscript, document.body.firstChild);
+
+    // Configurar GA4 a través de GTM
+    window.dataLayer.push({
+      event: "gtm.js",
+      "gtm.start": new Date().getTime(),
+      "ga4.config": this.gaId,
+    });
   }
 
   initialize() {
@@ -85,6 +105,9 @@ class AnalyticsService {
     window.dataLayer.push({
       event: "pageview",
       page: path,
+      page_path: path,
+      page_location: window.location.href,
+      page_title: document.title,
     });
   }
 
@@ -93,9 +116,9 @@ class AnalyticsService {
     if (!import.meta.env.PROD) return;
     window.dataLayer.push({
       event: "customEvent",
-      eventCategory: category,
-      eventAction: action,
-      eventLabel: label,
+      event_category: category,
+      event_action: action,
+      event_label: label,
     });
   }
 
@@ -109,8 +132,8 @@ class AnalyticsService {
     if (!import.meta.env.PROD) return;
     window.dataLayer.push({
       event: "error",
-      errorMessage: error.message,
-      errorStack: error.stack,
+      error_message: error.message,
+      error_stack: error.stack,
       fatal: fatal,
     });
   }
