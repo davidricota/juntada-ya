@@ -3,11 +3,11 @@ import { Poll, PollChangePayload, PollOption, PollVote } from "@/types";
 import { RealtimePostgresChangesPayload } from "@supabase/supabase-js";
 
 export class PollService {
-  static async getPolls(eventId: string): Promise<Poll[]> {
+  static async getPolls(planId: string): Promise<Poll[]> {
     const { data: polls, error } = await supabase
       .from("polls")
       .select("*")
-      .eq("event_id", eventId)
+      .eq("event_id", planId)
       .order("created_at", { ascending: false });
 
     if (error) throw error;
@@ -33,7 +33,7 @@ export class PollService {
   }
 
   static async createPoll(
-    eventId: string,
+    planId: string,
     participantId: string,
     title: string,
     description: string | undefined,
@@ -44,7 +44,7 @@ export class PollService {
     const { data: poll, error: pollError } = await supabase
       .from("polls")
       .insert({
-        event_id: eventId,
+        event_id: planId,
         created_by_participant_id: participantId,
         title,
         description,
@@ -210,16 +210,16 @@ export class PollService {
     return data;
   }
 
-  static subscribeToPolls(eventId: string, callback: (payload: PollChangePayload) => void) {
+  static subscribeToPolls(planId: string, callback: (payload: PollChangePayload) => void) {
     return supabase
-      .channel(`poll_event_${eventId}`)
+      .channel(`poll_event_${planId}`)
       .on(
         "postgres_changes",
         {
           event: "*",
           schema: "public",
           table: "polls",
-          filter: `event_id=eq.${eventId}`,
+          filter: `event_id=eq.${planId}`,
         },
         (payload) => {
           callback(payload as unknown as PollChangePayload);

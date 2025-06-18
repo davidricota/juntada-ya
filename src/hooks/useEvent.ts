@@ -3,7 +3,7 @@ import { EventService } from "@/services/eventService";
 import { EventType } from "@/types";
 import { useParticipantStore } from "@/stores/participantStore";
 
-export function useEvent(eventId: string) {
+export function useEvent(planId: string) {
   const queryClient = useQueryClient();
   const { getUserId } = useParticipantStore();
 
@@ -12,14 +12,14 @@ export function useEvent(eventId: string) {
     isLoading,
     error,
   } = useQuery({
-    queryKey: ["event", eventId],
-    queryFn: () => EventService.getEvent(eventId),
+    queryKey: ["event", planId],
+    queryFn: () => EventService.getEvent(planId),
   });
 
   const { mutate: updateEvent } = useMutation({
-    mutationFn: (updates: Partial<EventType>) => EventService.updateEvent(eventId, updates),
+    mutationFn: (updates: Partial<EventType>) => EventService.updateEvent(planId, updates),
     onSuccess: (updatedEvent) => {
-      queryClient.setQueryData(["event", eventId], updatedEvent);
+      queryClient.setQueryData(["event", planId], updatedEvent);
     },
   });
 

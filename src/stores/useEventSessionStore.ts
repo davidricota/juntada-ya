@@ -13,26 +13,26 @@ interface EventSession {
 
 interface EventSessionState {
   sessions: Record<string, EventSession>;
-  setSession: (eventId: string, session: EventSession) => void;
-  getSession: (eventId: string) => EventSession | undefined;
-  clearSession: (eventId: string) => void;
+  setSession: (planId: string, session: EventSession) => void;
+  getSession: (planId: string) => EventSession | undefined;
+  clearSession: (planId: string) => void;
 }
 
 export const useEventSessionStore = create(
   persist<EventSessionState>(
     (set, get) => ({
       sessions: {},
-      setSession: (eventId, session) =>
+      setSession: (planId, session) =>
         set((state) => ({
           sessions: {
             ...state.sessions,
-            [eventId]: session,
+            [planId]: session,
           },
         })),
-      getSession: (eventId) => get().sessions[eventId],
-      clearSession: (eventId) =>
+      getSession: (planId) => get().sessions[planId],
+      clearSession: (planId) =>
         set((state) => {
-          const { [eventId]: _, ...rest } = state.sessions;
+          const { [planId]: _, ...rest } = state.sessions;
           return { sessions: rest };
         }),
     }),

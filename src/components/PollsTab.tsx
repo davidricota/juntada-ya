@@ -19,7 +19,7 @@ import { Poll, PollOption, PollVote } from "@/types";
 import { PollForm } from "@/components/PollForm";
 
 interface PollsTabProps {
-  eventId: string;
+  planId: string;
   currentParticipantId: string | null;
   isHost: boolean;
 }
@@ -38,7 +38,7 @@ interface PollOptionWithVotes extends PollOption {
   has_voted: boolean;
 }
 
-const PollsTab: React.FC<PollsTabProps> = ({ eventId, currentParticipantId, isHost }) => {
+const PollsTab: React.FC<PollsTabProps> = ({ planId, currentParticipantId, isHost }) => {
   const [polls, setPolls] = useState<PollWithDetails[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
@@ -47,12 +47,12 @@ const PollsTab: React.FC<PollsTabProps> = ({ eventId, currentParticipantId, isHo
   const queryClient = useQueryClient();
 
   useEffect(() => {
-    if (!eventId) return;
+    if (!planId) return;
 
     fetchPolls();
 
     // Suscribirse a cambios en las encuestas
-    const pollsSubscription = PollService.subscribeToPolls(eventId, async (payload) => {
+    const pollsSubscription = PollService.subscribeToPolls(planId, async (payload) => {
       if (payload.eventType === "DELETE") {
         setPolls((prev) => prev.filter((poll) => poll.id !== payload.old.id));
       } else if (payload.eventType === "INSERT" && payload.new) {
@@ -167,11 +167,11 @@ const PollsTab: React.FC<PollsTabProps> = ({ eventId, currentParticipantId, isHo
       pollOptionsSubscriptions.forEach((sub) => PollService.unsubscribeFromPollOptions(sub));
       pollVotesSubscriptions.forEach((sub) => PollService.unsubscribeFromPollVotes(sub));
     };
-  }, [eventId, currentParticipantId, polls]);
+  }, [planId, currentParticipantId, polls]);
 
   const fetchPolls = async () => {
     try {
-      const pollsData = await PollService.getPolls(eventId);
+      const pollsData = await PollService.getPolls(planId);
 
       const processedPolls: PollWithDetails[] = await Promise.all(
         pollsData.map(async (poll) => {
@@ -237,7 +237,7 @@ const PollsTab: React.FC<PollsTabProps> = ({ eventId, currentParticipantId, isHo
       if (editingPoll) {
         // Actualizar encuesta existente
         await PollService.createPoll(
-          eventId,
+          planId,
           currentParticipantId,
           formData.title.trim(),
           formData.description.trim() || undefined,
@@ -245,7 +245,7 @@ const PollsTab: React.FC<PollsTabProps> = ({ eventId, currentParticipantId, isHo
           formData.allowMultipleVotes
         );
 
-        await queryClient.invalidateQueries({ queryKey: ["polls", eventId] });
+        await queryClient.invalidateQueries({ queryKey: ["polls", planId] });
         toast({
           title: "¡Encuesta actualizada!",
           description: "La encuesta se ha actualizado exitosamente.",
@@ -253,7 +253,7 @@ const PollsTab: React.FC<PollsTabProps> = ({ eventId, currentParticipantId, isHo
       } else {
         // Crear nueva encuesta
         await PollService.createPoll(
-          eventId,
+          planId,
           currentParticipantId,
           formData.title.trim(),
           formData.description.trim() || undefined,
@@ -261,7 +261,7 @@ const PollsTab: React.FC<PollsTabProps> = ({ eventId, currentParticipantId, isHo
           formData.allowMultipleVotes
         );
 
-        await queryClient.invalidateQueries({ queryKey: ["polls", eventId] });
+        await queryClient.invalidateQueries({ queryKey: ["polls", planId] });
         toast({
           title: "¡Encuesta creada!",
           description: "La encuesta se ha creado exitosamente.",
@@ -288,7 +288,7 @@ const PollsTab: React.FC<PollsTabProps> = ({ eventId, currentParticipantId, isHo
   const handleDeletePoll = async (pollId: string) => {
     try {
       await PollService.deletePoll(pollId);
-      await queryClient.invalidateQueries({ queryKey: ["polls", eventId] });
+      await queryClient.invalidateQueries({ queryKey: ["polls", planId] });
       toast({
         title: "Encuesta eliminada",
         description: "La encuesta se ha eliminado correctamente.",
@@ -385,7 +385,7 @@ const PollsTab: React.FC<PollsTabProps> = ({ eventId, currentParticipantId, isHo
 
     try {
       await PollService.removeVote(pollId, currentParticipantId, optionId);
-      await queryClient.invalidateQueries({ queryKey: ["polls", eventId] });
+      await queryClient.invalidateQueries({ queryKey: ["polls", planId] });
 
       toast({
         title: "Voto eliminado",

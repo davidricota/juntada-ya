@@ -8,7 +8,7 @@ type ExpenseRow = Database["public"]["Tables"]["expenses"]["Row"] & {
 };
 
 export class ExpenseService {
-  static async getExpenses(eventId: string): Promise<Expense[]> {
+  static async getExpenses(planId: string): Promise<Expense[]> {
     const { data, error } = await supabase
       .from("expenses")
       .select(
@@ -24,7 +24,7 @@ export class ExpenseService {
         )
       `
       )
-      .eq("event_id", eventId)
+      .eq("event_id", planId)
       .order("created_at", { ascending: false });
 
     if (error) throw error;
@@ -35,7 +35,7 @@ export class ExpenseService {
   }
 
   static async addExpense(
-    eventId: string,
+    planId: string,
     participantId: string,
     title: string,
     amount: number
@@ -43,7 +43,7 @@ export class ExpenseService {
     const { data, error } = await supabase
       .from("expenses")
       .insert({
-        event_id: eventId,
+        event_id: planId,
         paid_by_participant_id: participantId,
         title,
         amount,
@@ -75,12 +75,12 @@ export class ExpenseService {
     if (error) throw error;
   }
 
-  static async getExpenseSummary(eventId: string): Promise<ExpenseSummary> {
-    const expenses = await this.getExpenses(eventId);
+  static async getExpenseSummary(planId: string): Promise<ExpenseSummary> {
+    const expenses = await this.getExpenses(planId);
     const { data: participants, error } = await supabase
       .from("event_participants")
       .select("id, name")
-      .eq("event_id", eventId);
+      .eq("event_id", planId);
 
     if (error) throw error;
 
@@ -111,16 +111,16 @@ export class ExpenseService {
     };
   }
 
-  static subscribeToExpenses(eventId: string, callback: (payload: ExpenseChangePayload) => void) {
+  static subscribeToExpenses(planId: string, callback: (payload: ExpenseChangePayload) => void) {
     return supabase
-      .channel(`expenses_event_${eventId}`)
+      .channel(`expenses_event_${planId}`)
       .on(
         "postgres_changes",
         {
           event: "*",
           schema: "public",
           table: "expenses",
-          filter: `event_id=eq.${eventId}`,
+          filter: `event_id=eq.${planId}`,
         },
         (payload) => {
           callback(payload as unknown as ExpenseChangePayload);

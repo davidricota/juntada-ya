@@ -11,13 +11,18 @@ import ExpenseForm from "./ExpenseForm";
 import { ScrollArea } from "@/components/ui/scroll-area";
 
 interface ExpensesTabProps {
-  eventId: string;
+  planId: string;
   participants: Participant[];
   currentParticipantId: string;
   isHost: boolean;
 }
 
-const ExpensesTab: React.FC<ExpensesTabProps> = ({ eventId, participants, currentParticipantId, isHost }) => {
+const ExpensesTab: React.FC<ExpensesTabProps> = ({
+  planId,
+  participants,
+  currentParticipantId,
+  isHost,
+}) => {
   const [expenses, setExpenses] = useState<Expense[]>([]);
   const [summary, setSummary] = useState<ExpenseSummary | null>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -26,25 +31,31 @@ const ExpensesTab: React.FC<ExpensesTabProps> = ({ eventId, participants, curren
 
   useEffect(() => {
     loadExpenses();
-    const subscription = ExpenseService.subscribeToExpenses(eventId, (payload: ExpenseChangePayload) => {
-      if (payload.eventType === "INSERT" && payload.new) {
-        ExpenseService.getExpenseSummary(eventId).then(setSummary);
-      } else if (payload.eventType === "DELETE" && payload.old) {
-        setExpenses((prev) => {
-          const filtered = prev.filter((expense) => expense.id !== payload.old?.id);
-          return filtered;
-        });
-        ExpenseService.getExpenseSummary(eventId).then(setSummary);
+    const subscription = ExpenseService.subscribeToExpenses(
+      planId,
+      (payload: ExpenseChangePayload) => {
+        if (payload.eventType === "INSERT" && payload.new) {
+          ExpenseService.getExpenseSummary(planId).then(setSummary);
+        } else if (payload.eventType === "DELETE" && payload.old) {
+          setExpenses((prev) => {
+            const filtered = prev.filter((expense) => expense.id !== payload.old?.id);
+            return filtered;
+          });
+          ExpenseService.getExpenseSummary(planId).then(setSummary);
+        }
       }
-    });
+    );
     return () => {
       ExpenseService.unsubscribeFromExpenses(subscription);
     };
-  }, [eventId]);
+  }, [planId]);
 
   const loadExpenses = async () => {
     try {
-      const [expensesData, summaryData] = await Promise.all([ExpenseService.getExpenses(eventId), ExpenseService.getExpenseSummary(eventId)]);
+      const [expensesData, summaryData] = await Promise.all([
+        ExpenseService.getExpenses(planId),
+        ExpenseService.getExpenseSummary(planId),
+      ]);
 
       setExpenses(expensesData);
       setSummary(summaryData);
@@ -61,7 +72,7 @@ const ExpensesTab: React.FC<ExpensesTabProps> = ({ eventId, participants, curren
 
   const handleAddExpense = async (title: string, amount: number, paidBy: string) => {
     try {
-      const newExpense = await ExpenseService.addExpense(eventId, paidBy, title, amount);
+      const newExpense = await ExpenseService.addExpense(planId, paidBy, title, amount);
       // Encontrar el nombre del participante que pagó
       const paidByParticipant = participants.find((p) => p.id === paidBy);
       // Agregar el gasto al estado con el nombre del participante
@@ -73,7 +84,7 @@ const ExpensesTab: React.FC<ExpensesTabProps> = ({ eventId, participants, curren
         ...prev,
       ]);
       // Actualizar el resumen
-      const newSummary = await ExpenseService.getExpenseSummary(eventId);
+      const newSummary = await ExpenseService.getExpenseSummary(planId);
       setSummary(newSummary);
       setIsDialogOpen(false);
       toast({
@@ -96,7 +107,7 @@ const ExpensesTab: React.FC<ExpensesTabProps> = ({ eventId, participants, curren
       // Luego eliminamos en la base de datos
       await ExpenseService.removeExpense(expenseId);
       // Actualizamos el resumen
-      const newSummary = await ExpenseService.getExpenseSummary(eventId);
+      const newSummary = await ExpenseService.getExpenseSummary(planId);
       setSummary(newSummary);
 
       toast({
@@ -156,7 +167,15 @@ const ExpensesTab: React.FC<ExpensesTabProps> = ({ eventId, participants, curren
                 {summary.participants.map((participant) => (
                   <div key={participant.id} className="flex justify-between items-center">
                     <span className="text-muted-foreground">{participant.name}:</span>
-                    <span className={participant.receives > 0 ? "text-green-500" : participant.receives < 0 ? "text-red-500" : ""}>
+                    <span
+                      className={
+                        participant.receives > 0
+                          ? "text-green-500"
+                          : participant.receives < 0
+                          ? "text-red-500"
+                          : ""
+                      }
+                    >
                       {participant.receives > 0
                         ? `Recibe ${formatCurrency(participant.receives)}`
                         : participant.receives < 0
@@ -178,11 +197,16 @@ const ExpensesTab: React.FC<ExpensesTabProps> = ({ eventId, participants, curren
         <CardContent className="p-2 md:p-6">
           <ScrollArea className="h-full max-h-72 pr-4">
             {expenses.length === 0 ? (
-              <p className="text-muted-foreground text-center py-6 italic">No hay gastos registrados.</p>
+              <p className="text-muted-foreground text-center py-6 italic">
+                No hay gastos registrados.
+              </p>
             ) : (
               <div className="max-h-72 space-y-4">
                 {expenses.map((expense) => (
-                  <div key={expense.id} className="flex items-center justify-between p-4 bg-foreground border border-primary rounded-lg">
+                  <div
+                    key={expense.id}
+                    className="flex items-center justify-between p-4 bg-foreground border border-primary rounded-lg"
+                  >
                     <div>
                       <h3 className="font-semibold">{expense.title}</h3>
                       <p className="text-sm text-muted-foreground">
@@ -190,7 +214,10 @@ const ExpensesTab: React.FC<ExpensesTabProps> = ({ eventId, participants, curren
                       </p>
                     </div>
                     {(expense.paid_by_participant_id === currentParticipantId || isHost) && (
-                      <button onClick={() => handleDeleteExpense(expense.id)} className="p-2 hover:bg-destructive/10 rounded-full transition-colors">
+                      <button
+                        onClick={() => handleDeleteExpense(expense.id)}
+                        className="p-2 hover:bg-destructive/10 rounded-full transition-colors"
+                      >
                         <Trash className="h-4 w-4 text-destructive" />
                       </button>
                     )}

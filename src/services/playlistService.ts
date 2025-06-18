@@ -16,12 +16,12 @@ export class PlaylistService {
     }
   }
 
-  static async getPlaylistItems(eventId: string): Promise<PlaylistItem[]> {
+  static async getPlaylistItems(planId: string): Promise<PlaylistItem[]> {
     // Limpiar cache expirado
     this.clearCache();
 
     // Verificar cache
-    const cached = playlistCache.get(eventId);
+    const cached = playlistCache.get(planId);
     if (cached && Date.now() - cached.timestamp < CACHE_TTL) {
       return cached.data;
     }
@@ -43,7 +43,7 @@ export class PlaylistService {
         )
       `
       )
-      .eq("event_id", eventId)
+      .eq("event_id", planId)
       .order("added_at", { ascending: true });
 
     if (error) throw error;
@@ -54,13 +54,13 @@ export class PlaylistService {
     }));
 
     // Guardar en cache
-    playlistCache.set(eventId, { data: items, timestamp: Date.now() });
+    playlistCache.set(planId, { data: items, timestamp: Date.now() });
 
     return items;
   }
 
   static async addToPlaylist(
-    eventId: string,
+    planId: string,
     participantId: string,
     videoData: Omit<
       PlaylistItem,
@@ -70,7 +70,7 @@ export class PlaylistService {
     const { data, error } = await supabase
       .from("playlist_items")
       .insert({
-        event_id: eventId,
+        event_id: planId,
         added_by_participant_id: participantId,
         youtube_video_id: videoData.youtube_video_id,
         title: videoData.title,
@@ -102,9 +102,9 @@ export class PlaylistService {
     };
 
     // Actualizar cache
-    const cached = playlistCache.get(eventId);
+    const cached = playlistCache.get(planId);
     if (cached) {
-      playlistCache.set(eventId, {
+      playlistCache.set(planId, {
         data: [...cached.data, item],
         timestamp: Date.now(),
       });
@@ -138,7 +138,7 @@ export class PlaylistService {
     }
   }
 
-  static async getPlaylist(eventId: string): Promise<PlaylistItem[]> {
+  static async getPlaylist(planId: string): Promise<PlaylistItem[]> {
     try {
       const { data, error } = await supabase
         .from("playlist_items")
@@ -157,7 +157,7 @@ export class PlaylistService {
           )
         `
         )
-        .eq("event_id", eventId)
+        .eq("event_id", planId)
         .order("added_at", { ascending: true });
       if (error) throw error;
       return data.map((item) => ({
@@ -169,12 +169,12 @@ export class PlaylistService {
     }
   }
 
-  static async addVideo(eventId: string, videoId: string): Promise<PlaylistItem> {
+  static async addVideo(planId: string, videoId: string): Promise<PlaylistItem> {
     try {
       const { data, error } = await supabase
         .from("playlist_items")
         .insert({
-          event_id: eventId,
+          event_id: planId,
           youtube_video_id: videoId,
           title: "Video sin título",
           added_by_participant_id: "system",
@@ -232,22 +232,22 @@ export class PlaylistService {
   }
 
   static subscribeToPlaylist(
-    eventId: string,
+    planId: string,
     callback: (payload: PlaylistChangePayload) => void
   ): RealtimeChannel {
     return supabase
-      .channel(`playlist:${eventId}`)
+      .channel(`playlist:${planId}`)
       .on(
         "postgres_changes",
         {
           event: "*",
           schema: "public",
           table: "playlist_items",
-          filter: `event_id=eq.${eventId}`,
+          filter: `event_id=eq.${planId}`,
         },
         (payload) => {
           // Invalidar cache cuando hay cambios
-          playlistCache.delete(eventId);
+          playlistCache.delete(planId);
           callback(payload as unknown as PlaylistChangePayload);
         }
       )

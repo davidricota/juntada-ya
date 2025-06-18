@@ -9,7 +9,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 
 interface EventInfoTabProps {
-  eventId: string;
+  planId: string;
   isHost: boolean;
   initialData?: {
     address: string;
@@ -20,25 +20,25 @@ interface EventInfoTabProps {
   };
 }
 
-const fetchEventInfo = async (eventId: string) => {
+const fetchEventInfo = async (planId: string) => {
   const { data, error } = await supabase
     .from("events")
     .select("address, date, time, latitude, longitude")
-    .eq("id", eventId)
+    .eq("id", planId)
     .single();
 
   if (error) throw error;
   return data;
 };
 
-export default function EventInfoTab({ eventId, isHost, initialData }: EventInfoTabProps) {
+export default function EventInfoTab({ planId, isHost, initialData }: EventInfoTabProps) {
   const [isEditing, setIsEditing] = useState(false);
   const [showMap, setShowMap] = useState(false);
   const queryClient = useQueryClient();
 
   const { data: eventInfo, isLoading } = useQuery({
-    queryKey: ["eventInfo", eventId],
-    queryFn: () => fetchEventInfo(eventId),
+    queryKey: ["eventInfo", planId],
+    queryFn: () => fetchEventInfo(planId),
     initialData,
     staleTime: 1000 * 60 * 60, // 1 hour
     gcTime: 1000 * 60 * 60, // 1 hour
@@ -76,12 +76,12 @@ export default function EventInfoTab({ eventId, isHost, initialData }: EventInfo
           latitude: coordinates.lat,
           longitude: coordinates.lng,
         })
-        .eq("id", eventId);
+        .eq("id", planId);
 
       if (error) throw error;
 
       // Invalidate and refetch
-      await queryClient.invalidateQueries({ queryKey: ["eventInfo", eventId] });
+      await queryClient.invalidateQueries({ queryKey: ["eventInfo", planId] });
 
       setIsEditing(false);
       toast({

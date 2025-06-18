@@ -1,14 +1,21 @@
 import React, { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardFooter,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
 import { EventService } from "@/services/eventService";
 import { useParticipantStore } from "@/stores/participantStore";
 import { EventType, Participant } from "@/types";
 import { Copy, Plus, Trash2 } from "lucide-react";
 
-const MyEventsPage: React.FC = () => {
+const MyPlansPage: React.FC = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
   const [events, setEvents] = useState<(EventType & { participants?: Participant[] })[]>([]);
@@ -37,23 +44,33 @@ const MyEventsPage: React.FC = () => {
 
       // Combinar y eliminar duplicados
       const allEvents = [...hostedEvents, ...participantEvents];
-      const uniqueEvents = Array.from(new Map(allEvents.map((event) => [event.id, event])).values());
+      const uniqueEvents = Array.from(
+        new Map(allEvents.map((event) => [event.id, event])).values()
+      );
 
       setEvents(uniqueEvents);
     } catch (error) {
-      toast({ title: "Error", description: "Error al cargar los eventos.", variant: "destructive" });
+      toast({
+        title: "Error",
+        description: "Error al cargar los plancitos.",
+        variant: "destructive",
+      });
     } finally {
       setLoading(false);
     }
   };
 
-  const handleDeleteEvent = async (eventId: string) => {
+  const handleDeleteEvent = async (planId: string) => {
     try {
-      await EventService.deleteEvent(eventId);
-      toast({ title: "Éxito", description: "Evento eliminado correctamente." });
+      await EventService.deleteEvent(planId);
+      toast({ title: "Éxito", description: "Plancito eliminado correctamente." });
       fetchEvents();
     } catch (error) {
-      toast({ title: "Error", description: "Error al eliminar el evento.", variant: "destructive" });
+      toast({
+        title: "Error",
+        description: "Error al eliminar el plancito.",
+        variant: "destructive",
+      });
     }
   };
 
@@ -67,18 +84,22 @@ const MyEventsPage: React.FC = () => {
   };
 
   if (loading) {
-    return <div className="container mx-auto p-4 text-center text-muted-foreground">Cargando eventos...</div>;
+    return (
+      <div className="container mx-auto p-4 text-center text-muted-foreground">
+        Cargando plancitos...
+      </div>
+    );
   }
 
   return (
     <div className="container mx-auto px-4 py-8">
       <div className="flex justify-between items-center mb-8">
-        <h1 className="text-3xl font-bold">Mis Eventos</h1>
+        <h1 className="text-3xl font-bold">Mis Plancitos</h1>
         <Button
-          onClick={() => navigate("/create-event")}
+          onClick={() => navigate("/create")}
           className="bg-primary text-primary-foreground border border-primary-foreground hover:bg-primary/90"
         >
-          <Plus className="mr-2 h-4 w-4" /> Nuevo Evento
+          <Plus className="mr-2 h-4 w-4" /> Nuevo Plancito
         </Button>
       </div>
 
@@ -90,7 +111,12 @@ const MyEventsPage: React.FC = () => {
               <CardDescription>
                 <div className="flex items-center gap-2">
                   Código: {event.access_code}
-                  <Button variant="ghost" size="icon" onClick={() => handleCopyCode(event.access_code)} className="h-6 w-6">
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    onClick={() => handleCopyCode(event.access_code)}
+                    className="h-6 w-6"
+                  >
                     <Copy className="h-4 w-4" />
                   </Button>
                 </div>
@@ -99,14 +125,24 @@ const MyEventsPage: React.FC = () => {
               </CardDescription>
             </CardHeader>
             <CardContent>
-              <p className="text-sm text-muted-foreground">Participantes: {event.participants?.length || 0}</p>
+              <p className="text-sm text-muted-foreground">
+                Participantes: {event.participants?.length || 0}
+              </p>
             </CardContent>
             <CardFooter className="flex justify-between">
-              <Button variant="outline" onClick={() => navigate(`/event/${event.id}`)} className="text-primary-foreground">
-                Ver Evento
+              <Button
+                variant="outline"
+                onClick={() => navigate(`/plan/${event.id}`)}
+                className="text-primary-foreground"
+              >
+                Ver Plancito
               </Button>
               {event.host_user_id === getUserStorage()?.id && (
-                <Button variant="destructive" onClick={() => handleDeleteEvent(event.id)} className="flex items-center gap-2">
+                <Button
+                  variant="destructive"
+                  onClick={() => handleDeleteEvent(event.id)}
+                  className="flex items-center gap-2"
+                >
                   <Trash2 className="h-4 w-4" />
                   Eliminar
                 </Button>
@@ -118,9 +154,11 @@ const MyEventsPage: React.FC = () => {
 
       {events.length === 0 && (
         <div className="text-center py-8">
-          <p className="text-muted-foreground">No has creado ni te has unido a ningún evento aún.</p>
-          <Button className="mt-4" onClick={() => navigate("/create-event")}>
-            Crear tu Primer Evento
+          <p className="text-muted-foreground">
+            No has creado ni te has unido a ningún plancito aún.
+          </p>
+          <Button className="mt-4" onClick={() => navigate("/create")}>
+            Crear tu Primer Plancito
           </Button>
         </div>
       )}
@@ -128,4 +166,4 @@ const MyEventsPage: React.FC = () => {
   );
 };
 
-export default MyEventsPage;
+export default MyPlansPage;

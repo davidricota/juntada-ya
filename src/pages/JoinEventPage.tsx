@@ -96,7 +96,7 @@ const JoinEventPage: React.FC = () => {
         toast({ title: "¡Bienvenido!", description: `Te has unido al evento ${event.name}` });
       }
 
-      navigate(`/event/${event.id}`);
+      navigate(`/plan/${event.id}`);
     },
     onError: (error: Error) => {
       toast({

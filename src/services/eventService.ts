@@ -101,14 +101,14 @@ export class EventService {
     return result;
   }
 
-  static async isParticipant(eventId: string, whatsappNumber: string): Promise<Participant | null> {
+  static async isParticipant(planId: string, whatsappNumber: string): Promise<Participant | null> {
     const user = await UserService.getUserByWhatsApp(whatsappNumber);
     if (!user) return null;
 
     const { data, error } = await supabase
       .from("event_participants")
       .select("id, event_id, user_id, name, created_at")
-      .eq("event_id", eventId)
+      .eq("event_id", planId)
       .eq("user_id", user.id)
       .single();
 
@@ -119,11 +119,11 @@ export class EventService {
     return data;
   }
 
-  static async getEventParticipants(eventId: string): Promise<Participant[]> {
+  static async getEventParticipants(planId: string): Promise<Participant[]> {
     const { data, error } = await supabase
       .from("event_participants")
       .select("id, event_id, user_id, name, created_at")
-      .eq("event_id", eventId)
+      .eq("event_id", planId)
       .order("created_at", { ascending: true });
 
     if (error) throw error;
@@ -131,7 +131,7 @@ export class EventService {
   }
 
   static async joinEvent(
-    eventId: string,
+    planId: string,
     whatsappNumber: string,
     name: string
   ): Promise<Participant> {
@@ -139,7 +139,7 @@ export class EventService {
     const { data, error } = await supabase
       .from("event_participants")
       .insert({
-        event_id: eventId,
+        event_id: planId,
         user_id: user.id,
         name,
       })
@@ -149,24 +149,24 @@ export class EventService {
     if (error) throw error;
 
     // Invalidar cache del evento
-    eventCache.delete(eventId);
+    eventCache.delete(planId);
 
     return data;
   }
 
-  static async leaveEvent(eventId: string, whatsappNumber: string): Promise<void> {
+  static async leaveEvent(planId: string, whatsappNumber: string): Promise<void> {
     const user = await UserService.getUserByWhatsApp(whatsappNumber);
     if (!user) return;
 
     const { error } = await supabase
       .from("event_participants")
       .delete()
-      .match({ event_id: eventId, user_id: user.id });
+      .match({ event_id: planId, user_id: user.id });
 
     if (error) throw error;
 
     // Invalidar cache del evento
-    eventCache.delete(eventId);
+    eventCache.delete(planId);
   }
 
   static async createEvent(
@@ -185,50 +185,50 @@ export class EventService {
   }
 
   static async createHostParticipant(
-    eventId: string,
+    planId: string,
     userId: string,
     name: string
   ): Promise<{ id: string; name: string }> {
     const { data, error } = await supabase
       .from("event_participants")
-      .insert({ event_id: eventId, user_id: userId, name })
+      .insert({ event_id: planId, user_id: userId, name })
       .select("id, name")
       .single();
 
     if (error) throw error;
 
     // Invalidar cache del evento
-    eventCache.delete(eventId);
+    eventCache.delete(planId);
 
     return data;
   }
 
-  static async deleteEvent(eventId: string): Promise<void> {
-    const { error } = await supabase.from("events").delete().eq("id", eventId);
+  static async deleteEvent(planId: string): Promise<void> {
+    const { error } = await supabase.from("events").delete().eq("id", planId);
 
     if (error) throw error;
 
     // Invalidar cache del evento
-    eventCache.delete(eventId);
+    eventCache.delete(planId);
   }
 
   static subscribeToParticipants(
-    eventId: string,
+    planId: string,
     callback: (payload: ParticipantChangePayload) => void
   ): RealtimeChannel {
     return supabase
-      .channel(`participants:${eventId}`)
+      .channel(`participants:${planId}`)
       .on(
         "postgres_changes",
         {
           event: "*",
           schema: "public",
           table: "event_participants",
-          filter: `event_id=eq.${eventId}`,
+          filter: `event_id=eq.${planId}`,
         },
         (payload) => {
           // Invalidar cache cuando hay cambios
-          eventCache.delete(eventId);
+          eventCache.delete(planId);
           callback(payload as unknown as ParticipantChangePayload);
         }
       )
@@ -289,7 +289,7 @@ export class EventService {
     if (participantError) throw participantError;
     if (!participantData.length) return [];
 
-    const eventIds = participantData.map((p) => p.event_id);
+    const planIds = participantData.map((p) => p.event_id);
 
     const { data: eventsData, error: eventsError } = await supabase
       .from("events")
@@ -309,7 +309,7 @@ export class EventService {
         )
       `
       )
-      .in("id", eventIds)
+      .in("id", planIds)
       .order("created_at", { ascending: false });
 
     if (eventsError) throw eventsError;

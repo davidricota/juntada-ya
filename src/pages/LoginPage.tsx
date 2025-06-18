@@ -34,7 +34,7 @@ const LoginPage: React.FC = () => {
 
       login(formattedPhone);
       toast.success("Inicio de sesión exitoso");
-      navigate("/my-events");
+      navigate("/my-plans");
     },
     onError: () => {
       toast.error("Error al iniciar sesión. Por favor intenta de nuevo.");
@@ -61,7 +61,7 @@ const LoginPage: React.FC = () => {
         <CardHeader>
           <CardTitle>Iniciar Sesión con WhatsApp</CardTitle>
           <CardDescription>
-            Ingresa tu número de WhatsApp para acceder a tus eventos
+            Ingresa tu número de WhatsApp para acceder a tus plancitos
           </CardDescription>
         </CardHeader>
         <form onSubmit={handleSubmit}>
