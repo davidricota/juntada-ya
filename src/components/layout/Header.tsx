@@ -39,19 +39,17 @@ const Header: React.FC = () => {
               {userStorage && (
                 <>
                   <Link
-                    to="/my-events"
+                    to="/my-plans"
                     className={`text-sm font-medium transition-colors hover:text-primary ${
-                      location.pathname === "/my-events" ? "text-primary" : "text-muted-foreground"
+                      location.pathname === "/my-plans" ? "text-primary" : "text-muted-foreground"
                     }`}
                   >
-                    Mis Plancitos
+                    Mis Planes
                   </Link>
                   <Link
-                    to="/create-event"
+                    to="/create"
                     className={`text-sm font-medium transition-colors hover:text-primary ${
-                      location.pathname === "/create-event"
-                        ? "text-primary"
-                        : "text-muted-foreground"
+                      location.pathname === "/create" ? "text-primary" : "text-muted-foreground"
                     }`}
                   >
                     Crear Plan
@@ -103,20 +101,18 @@ const Header: React.FC = () => {
               {userStorage && (
                 <>
                   <Link
-                    to="/my-events"
+                    to="/my-plans"
                     className={`text-sm font-medium transition-colors hover:text-primary ${
-                      location.pathname === "/my-events" ? "text-primary" : "text-muted-foreground"
+                      location.pathname === "/my-plans" ? "text-primary" : "text-muted-foreground"
                     }`}
                     onClick={() => setIsMobileMenuOpen(false)}
                   >
-                    Mis Plancitos
+                    Mis Planes
                   </Link>
                   <Link
-                    to="/create-event"
+                    to="/create"
                     className={`text-sm font-medium transition-colors hover:text-primary ${
-                      location.pathname === "/create-event"
-                        ? "text-primary"
-                        : "text-muted-foreground"
+                      location.pathname === "/create" ? "text-primary" : "text-muted-foreground"
                     }`}
                     onClick={() => setIsMobileMenuOpen(false)}
                   >

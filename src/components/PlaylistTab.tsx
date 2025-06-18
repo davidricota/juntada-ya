@@ -32,7 +32,7 @@ interface YouTubePlayer {
 }
 
 export interface PlaylistTabProps {
-  eventId: string;
+  planId: string;
   participants: Participant[];
   playlist: PlaylistItem[];
   onPlaylistChange: Dispatch<SetStateAction<PlaylistItem[]>>;
@@ -44,13 +44,13 @@ export interface PlaylistTabProps {
   onRemoveSong: (itemId: string) => Promise<void>;
 }
 
-const fetchPlaylist = async (eventId: string): Promise<PlaylistItem[]> => {
-  const playlist = await PlaylistService.getPlaylist(eventId);
+const fetchPlaylist = async (planId: string): Promise<PlaylistItem[]> => {
+  const playlist = await PlaylistService.getPlaylist(planId);
   return playlist;
 };
 
 export default function PlaylistTab({
-  eventId,
+  planId,
   participants,
   playlist: initialPlaylist,
   onPlaylistChange,
@@ -67,8 +67,8 @@ export default function PlaylistTab({
   const queryClient = useQueryClient();
 
   const { data: playlist = initialPlaylist, isLoading: isPlaylistLoading } = useQuery({
-    queryKey: ["playlist", eventId],
-    queryFn: () => fetchPlaylist(eventId),
+    queryKey: ["playlist", planId],
+    queryFn: () => fetchPlaylist(planId),
     initialData: initialPlaylist,
     staleTime: 1000 * 30, // 30 seconds
     gcTime: 1000 * 60 * 5, // 5 minutes
@@ -89,7 +89,7 @@ export default function PlaylistTab({
   } = usePlayer();
   const { isMinimized: usePlayerMinimized } = usePlayer();
   const [player, setPlayer] = useState<YouTubePlayer | null>(null);
-  const { eventId: useParamsEventId } = useParams<{ eventId: string }>();
+  const { planId: useParamsplanId } = useParams<{ planId: string }>();
 
   // Update currentVideoIndex when video changes
   useEffect(() => {
@@ -119,20 +119,20 @@ export default function PlaylistTab({
 
   // Subscribe to playlist changes
   useEffect(() => {
-    const subscription = PlaylistService.subscribeToPlaylist(eventId, async (payload) => {
+    const subscription = PlaylistService.subscribeToPlaylist(planId, async (payload) => {
       if (payload.eventType === "INSERT" && payload.new) {
         // Invalidate and refetch
-        await queryClient.invalidateQueries({ queryKey: ["playlist", eventId] });
+        await queryClient.invalidateQueries({ queryKey: ["playlist", planId] });
       } else if (payload.eventType === "DELETE" && payload.old) {
         // Invalidate and refetch
-        await queryClient.invalidateQueries({ queryKey: ["playlist", eventId] });
+        await queryClient.invalidateQueries({ queryKey: ["playlist", planId] });
       }
     });
 
     return () => {
       PlaylistService.unsubscribeFromPlaylist(subscription);
     };
-  }, [eventId, queryClient]);
+  }, [planId, queryClient]);
 
   // Update progress in real-time
   useEffect(() => {
@@ -201,7 +201,7 @@ export default function PlaylistTab({
       // Luego intentar eliminar en la base de datos
       await onRemoveSong(id);
       // Invalidate and refetch
-      await queryClient.invalidateQueries({ queryKey: ["playlist", eventId] });
+      await queryClient.invalidateQueries({ queryKey: ["playlist", planId] });
       toast({ title: "Canción Eliminada", description: `${title}` });
     } catch (error) {
       toast({
@@ -223,14 +223,14 @@ export default function PlaylistTab({
     }
 
     try {
-      await PlaylistService.addToPlaylist(eventId, currentParticipantId, {
+      await PlaylistService.addToPlaylist(planId, currentParticipantId, {
         youtube_video_id: song.id,
         title: song.title,
         thumbnail_url: song.thumbnail,
         channel_title: song.channelTitle,
       });
       // Invalidate and refetch
-      await queryClient.invalidateQueries({ queryKey: ["playlist", eventId] });
+      await queryClient.invalidateQueries({ queryKey: ["playlist", planId] });
       toast({ title: "¡Canción Agregada!", description: `${song.title} se añadió a la playlist.` });
     } catch (error) {
       toast({

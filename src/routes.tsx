@@ -8,10 +8,10 @@ import { useAnalytics } from "@/hooks/useAnalytics";
 import MainLayout from "./components/layout/MainLayout";
 import NotFound from "./pages/NotFound";
 import HomePage from "./pages/Index";
-import CreateEventPage from "./pages/CreateEventPage";
+import CreatePlanPage from "./pages/CreatePlanPage";
 import JoinEventPage from "./pages/JoinEventPage";
-import EventPage from "./pages/EventPage";
-import MyEventsPage from "./pages/MyEventsPage";
+import PlanPage from "./pages/PlanPage";
+import MyPlansPage from "./pages/MyPlansPage";
 import LoginPage from "./pages/LoginPage";
 
 const queryClient = new QueryClient();
@@ -28,11 +28,11 @@ export const AppRoutes = () => {
             <MainLayout>
               <Routes>
                 <Route path="/" element={<HomePage />} />
-                <Route path="/create-event" element={<CreateEventPage />} />
+                <Route path="/create" element={<CreatePlanPage />} />
                 <Route path="/join" element={<JoinEventPage />} />
                 <Route path="/join/:accessCode" element={<JoinEventPage />} />
-                <Route path="/event/:eventId" element={<EventPage />} />
-                <Route path="/my-events" element={<MyEventsPage />} />
+                <Route path="/plan/:planId" element={<PlanPage />} />
+                <Route path="/my-plans" element={<MyPlansPage />} />
                 <Route path="/login" element={<LoginPage />} />
                 <Route path="*" element={<NotFound />} />
               </Routes>

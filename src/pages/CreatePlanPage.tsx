@@ -22,12 +22,12 @@ import { encrypt } from "@/lib/encryption";
 import { Copy } from "lucide-react";
 import { useMutation } from "@tanstack/react-query";
 
-const CreateEventPage: React.FC = () => {
+const CreatePlanPage: React.FC = () => {
   const [eventName, setEventName] = useState("");
   const [participantName, setParticipantName] = useState("");
   const [participantWhatsapp, setParticipantWhatsapp] = useState("");
   const [accessCode, setAccessCode] = useState<string | null>(null);
-  const [eventId, setEventId] = useState<string | null>(null);
+  const [planId, setplanId] = useState<string | null>(null);
   const navigate = useNavigate();
   const { toast } = useToast();
   const { getName, getWhatsapp, setParticipant, setEventParticipant } = useParticipantStore();
@@ -43,7 +43,7 @@ const CreateEventPage: React.FC = () => {
   const createEventMutation = useMutation({
     mutationFn: async () => {
       if (!eventName.trim()) {
-        throw new Error("El nombre del evento no puede estar vacío.");
+        throw new Error("El nombre del plancito no puede estar vacío.");
       }
 
       if (!participantName.trim() || !participantWhatsapp) {
@@ -55,10 +55,10 @@ const CreateEventPage: React.FC = () => {
 
       // Crear el evento usando el ID del usuario
       const eventData = await EventService.createEvent(eventName, user.id);
-      const eventId = eventData.id;
+      const planId = eventData.id;
 
       // Crear el participante (host) del evento
-      const participantData = await EventService.createHostParticipant(eventId, user.id, user.name);
+      const participantData = await EventService.createHostParticipant(planId, user.id, user.name);
 
       return { eventData, user, participantData };
     },
@@ -74,20 +74,20 @@ const CreateEventPage: React.FC = () => {
       setParticipant(participantName, participantWhatsapp);
 
       setAccessCode(eventData.access_code);
-      setEventId(eventData.id);
+      setplanId(eventData.id);
       toast({
-        title: "¡Evento Creado!",
+        title: "¡Plancito Creado!",
         description: `Nombre: ${eventName}, Código: ${eventData.access_code}`,
       });
 
       setTimeout(() => {
-        navigate(`/event/${eventData.id}`);
+        navigate(`/plan/${eventData.id}`);
       }, 2000);
     },
     onError: (error: Error) => {
       toast({
         title: "Error",
-        description: error.message || "No se pudo crear el evento. Inténtalo de nuevo.",
+        description: error.message || "No se pudo crear el plancito. Inténtalo de nuevo.",
         variant: "destructive",
       });
     },
@@ -98,19 +98,19 @@ const CreateEventPage: React.FC = () => {
     createEventMutation.mutate();
   };
 
-  if (accessCode && eventId) {
+  if (accessCode && planId) {
     return (
       <div className="flex flex-col items-center justify-center p-4">
         <Card className="w-full max-w-md bg-card text-card-foreground">
           <CardHeader>
-            <CardTitle className="text-2xl">¡Evento Creado Exitosamente!</CardTitle>
+            <CardTitle className="text-2xl">¡Plancito Creado Exitosamente!</CardTitle>
             <CardDescription>
               Comparte este código con tus amigos para que puedan unirse.
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
             <div>
-              <p className="text-sm text-muted-foreground">Nombre del Evento:</p>
+              <p className="text-sm text-muted-foreground">Nombre del Plancito:</p>
               <p className="text-lg font-semibold">{eventName}</p>
             </div>
             <div>
@@ -126,7 +126,7 @@ const CreateEventPage: React.FC = () => {
                     toast({
                       title: "Código copiado",
                       description:
-                        "El enlace para unirse al evento ha sido copiado al portapapeles.",
+                        "El enlace para unirse al plancito ha sido copiado al portapapeles.",
                     });
                   }}
                   className="h-8 w-8"
@@ -138,10 +138,10 @@ const CreateEventPage: React.FC = () => {
           </CardContent>
           <CardFooter className="flex flex-col gap-2">
             <Button
-              onClick={() => navigate(`/event/${eventId}`)}
+              onClick={() => navigate(`/plan/${planId}`)}
               className="w-full bg-primary hover:bg-primary/90 text-primary-foreground font-semibold"
             >
-              Ir al Evento
+              Ir al Plancito
             </Button>
             <Button
               onClick={() => navigate("/")}
@@ -160,16 +160,16 @@ const CreateEventPage: React.FC = () => {
     <div className="flex flex-col items-center justify-center p-4">
       <Card className="w-full max-w-md bg-card text-card-foreground">
         <CardHeader>
-          <CardTitle className="text-2xl">Crear Nuevo Evento</CardTitle>
+          <CardTitle className="text-2xl">Crear Nuevo Plancito</CardTitle>
           <CardDescription className="text-muted-foreground">
-            Dale un nombre a tu evento y completa tus datos para empezar.
+            Dale un nombre a tu plancito y completa tus datos para empezar.
           </CardDescription>
         </CardHeader>
         <form onSubmit={handleSubmit}>
           <CardContent className="space-y-4">
             <div className="space-y-1">
               <Label htmlFor="eventName" className="text-muted-foreground">
-                Nombre del Evento
+                Nombre del Plancito
               </Label>
               <Input
                 id="eventName"
@@ -238,7 +238,7 @@ const CreateEventPage: React.FC = () => {
               disabled={createEventMutation.isPending}
               className="w-full bg-primary hover:bg-primary/90 text-primary-foreground font-semibold"
             >
-              {createEventMutation.isPending ? "Creando..." : "Crear Evento"}
+              {createEventMutation.isPending ? "Creando..." : "Crear Plancito"}
             </Button>
           </CardFooter>
         </form>
@@ -247,4 +247,4 @@ const CreateEventPage: React.FC = () => {
   );
 };
 
-export default CreateEventPage;
+export default CreatePlanPage;

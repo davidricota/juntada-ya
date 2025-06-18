@@ -21,9 +21,9 @@ interface UserStorage {
 interface ParticipantState {
   participant: Participant | null;
   setParticipant: (name: string, phone: string, userId?: string) => void;
-  setEventParticipant: (eventId: string, participantId: string, name: string) => void;
+  setEventParticipant: (planId: string, participantId: string, name: string) => void;
   getParticipant: () => Participant | null;
-  getEventParticipant: (eventId: string) => EventParticipant | null;
+  getEventParticipant: (planId: string) => EventParticipant | null;
   getUserStorage: () => UserStorage | null;
   getName: () => string | null;
   getWhatsapp: () => string | null;
@@ -41,10 +41,10 @@ export const useParticipantStore = create<ParticipantState>()(
         set({ participant: { name, phone, userId } });
         localStorage.setItem("participant_data", encrypted);
       },
-      setEventParticipant: (eventId, participantId, name) => {
+      setEventParticipant: (planId, participantId, name) => {
         const eventParticipant = { id: participantId, name };
         const encrypted = encrypt(JSON.stringify(eventParticipant));
-        localStorage.setItem(`event_${eventId}_participant`, encrypted);
+        localStorage.setItem(`event_${planId}_participant`, encrypted);
       },
       getParticipant: () => {
         const stored = localStorage.getItem("participant_data");
@@ -56,8 +56,8 @@ export const useParticipantStore = create<ParticipantState>()(
           return null;
         }
       },
-      getEventParticipant: (eventId) => {
-        const stored = localStorage.getItem(`event_${eventId}_participant`);
+      getEventParticipant: (planId) => {
+        const stored = localStorage.getItem(`event_${planId}_participant`);
         if (!stored) return null;
         try {
           const decrypted = decrypt(stored);

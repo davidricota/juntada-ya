@@ -28,23 +28,23 @@ const PlaylistTab = lazy(() => import("@/components/PlaylistTab"));
 const PollsTab = lazy(() => import("@/components/PollsTab"));
 const ExpensesTab = lazy(() => import("@/components/ExpensesTab"));
 
-const fetchEvent = async (eventId: string) => {
-  const event = await EventService.getEvent(eventId);
+const fetchEvent = async (planId: string) => {
+  const event = await EventService.getEvent(planId);
   return event;
 };
 
-const fetchParticipants = async (eventId: string) => {
-  const participants = await EventService.getEventParticipants(eventId);
+const fetchParticipants = async (planId: string) => {
+  const participants = await EventService.getEventParticipants(planId);
   return participants;
 };
 
-const fetchPlaylist = async (eventId: string) => {
-  const playlist = await PlaylistService.getPlaylist(eventId);
+const fetchPlaylist = async (planId: string) => {
+  const playlist = await PlaylistService.getPlaylist(planId);
   return playlist;
 };
 
-const EventPage: React.FC = () => {
-  const { eventId } = useParams<{ eventId: string }>();
+const PlanPage: React.FC = () => {
+  const { planId } = useParams<{ planId: string }>();
   const navigate = useNavigate();
   const { toast } = useToast();
   const queryClient = useQueryClient();
@@ -58,21 +58,21 @@ const EventPage: React.FC = () => {
   const userIdRef = useRef<string | null>(null);
 
   const { data: event, isLoading: isEventLoading } = useQuery({
-    queryKey: ["event", eventId],
-    queryFn: () => fetchEvent(eventId!),
-    enabled: !!eventId,
+    queryKey: ["event", planId],
+    queryFn: () => fetchEvent(planId!),
+    enabled: !!planId,
   });
 
   const { data: participants = [], isLoading: isParticipantsLoading } = useQuery({
-    queryKey: ["participants", eventId],
-    queryFn: () => fetchParticipants(eventId!),
-    enabled: !!eventId,
+    queryKey: ["participants", planId],
+    queryFn: () => fetchParticipants(planId!),
+    enabled: !!planId,
   });
 
   const { data: playlist = [], isLoading: isPlaylistLoading } = useQuery({
-    queryKey: ["playlist", eventId],
-    queryFn: () => fetchPlaylist(eventId!),
-    enabled: !!eventId,
+    queryKey: ["playlist", planId],
+    queryFn: () => fetchPlaylist(planId!),
+    enabled: !!planId,
   });
 
   const isHost = event?.host_user_id === getUserId();
@@ -91,7 +91,8 @@ const EventPage: React.FC = () => {
   }, [participants]);
 
   useEffect(() => {
-    if (!eventId) {
+    console.log("!planId");
+    if (!planId) {
       navigate("/");
       return;
     }
@@ -101,6 +102,7 @@ const EventPage: React.FC = () => {
     userIdRef.current = userId;
 
     if (!userStorage || !userId) {
+      console.log("!userStorage || !userId");
       navigate("/");
       return;
     }
@@ -118,20 +120,20 @@ const EventPage: React.FC = () => {
 
     // Subscribe to participants changes
     const participantsSubscription = EventService.subscribeToParticipants(
-      eventId,
+      planId,
       async (payload: ParticipantChangePayload) => {
         if (payload.eventType === "INSERT") {
-          await queryClient.invalidateQueries({ queryKey: ["participants", eventId] });
+          await queryClient.invalidateQueries({ queryKey: ["participants", planId] });
         }
       }
     );
 
     // Subscribe to playlist changes
     const playlistSubscription = PlaylistService.subscribeToPlaylist(
-      eventId,
+      planId,
       async (payload: PlaylistChangePayload) => {
         if (payload.eventType === "INSERT" || payload.eventType === "DELETE") {
-          await queryClient.invalidateQueries({ queryKey: ["playlist", eventId] });
+          await queryClient.invalidateQueries({ queryKey: ["playlist", planId] });
         }
       }
     );
@@ -147,7 +149,7 @@ const EventPage: React.FC = () => {
         }
       });
     };
-  }, [eventId, navigate, queryClient]);
+  }, [planId, navigate, queryClient]);
 
   const handleLogout = () => {
     const { clearParticipant } = useParticipantStore.getState();
@@ -161,11 +163,11 @@ const EventPage: React.FC = () => {
       "id" | "event_id" | "added_by_user_id" | "added_at" | "participant_name"
     >
   ) => {
-    if (!eventId || !currentParticipantId) return;
+    if (!planId || !currentParticipantId) return;
 
     try {
-      await PlaylistService.addToPlaylist(eventId, currentParticipantId, videoData);
-      await queryClient.invalidateQueries({ queryKey: ["playlist", eventId] });
+      await PlaylistService.addToPlaylist(planId, currentParticipantId, videoData);
+      await queryClient.invalidateQueries({ queryKey: ["playlist", planId] });
       setIsSearchOpen(false);
       toast({
         title: "¡Canción Agregada!",
@@ -182,8 +184,8 @@ const EventPage: React.FC = () => {
 
   const handleRemoveSong = async (itemId: string) => {
     try {
-      await PlaylistService.removeFromPlaylist(eventId!, itemId);
-      await queryClient.invalidateQueries({ queryKey: ["playlist", eventId] });
+      await PlaylistService.removeFromPlaylist(itemId);
+      await queryClient.invalidateQueries({ queryKey: ["playlist", planId] });
       toast({
         title: "Canción Eliminada",
         description: "La canción ha sido eliminada de la playlist",
@@ -322,13 +324,13 @@ const EventPage: React.FC = () => {
             </TabsList>
             <TabsContent value="info">
               <Suspense fallback={<div className="text-center p-4">Cargando información...</div>}>
-                <EventInfoTab eventId={eventId} isHost={isHost} />
+                <EventInfoTab planId={planId} isHost={isHost} />
               </Suspense>
             </TabsContent>
             <TabsContent value="playlist" forceMount>
               <Suspense fallback={<div className="text-center p-4">Cargando playlist...</div>}>
                 <PlaylistTab
-                  eventId={eventId}
+                  planId={planId}
                   participants={participants}
                   playlist={playlist}
                   onPlaylistChange={() => {}}
@@ -344,7 +346,7 @@ const EventPage: React.FC = () => {
             <TabsContent value="polls">
               <Suspense fallback={<div className="text-center p-4">Cargando encuestas...</div>}>
                 <PollsTab
-                  eventId={eventId}
+                  planId={planId}
                   currentParticipantId={currentParticipantId}
                   isHost={isHost}
                 />
@@ -354,7 +356,7 @@ const EventPage: React.FC = () => {
               <Suspense fallback={<div className="text-center p-4">Cargando gastos...</div>}>
                 {currentParticipantId ? (
                   <ExpensesTab
-                    eventId={eventId}
+                    planId={planId}
                     participants={participants}
                     currentParticipantId={currentParticipantId}
                     isHost={isHost}
@@ -390,4 +392,4 @@ const EventPage: React.FC = () => {
   );
 };
 
-export default EventPage;
+export default PlanPage;
