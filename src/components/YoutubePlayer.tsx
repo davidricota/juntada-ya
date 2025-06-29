@@ -1,7 +1,17 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
-import { Play, Pause, SkipBack, SkipForward, Volume2, VolumeX, Repeat, Shuffle, AlertTriangle } from "lucide-react";
+import {
+  Play,
+  Pause,
+  SkipBack,
+  SkipForward,
+  Volume2,
+  VolumeX,
+  Repeat,
+  Shuffle,
+  AlertTriangle,
+} from "lucide-react";
 
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -88,7 +98,12 @@ interface YouTubePlayerProps {
   onVideoChange?: (index: number) => void;
 }
 
-export default function YouTubePlayer({ playlistItems, initialVideoIndex = 0, onPlayerReady, onVideoChange }: YouTubePlayerProps) {
+export default function YouTubePlayer({
+  playlistItems,
+  initialVideoIndex = 0,
+  onPlayerReady,
+  onVideoChange,
+}: YouTubePlayerProps) {
   const [isPlayerReady, setIsPlayerReady] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [isBuffering, setIsBuffering] = useState(false);
@@ -96,8 +111,19 @@ export default function YouTubePlayer({ playlistItems, initialVideoIndex = 0, on
   const [isRepeatEnabled, setIsRepeatEnabled] = useState(false);
   const playerRef = useRef<YouTubePlayer | null>(null);
   const playerContainerRef = useRef<HTMLDivElement>(null);
-  const { setCurrentVideo, isPlaying, setIsPlaying, progress, setProgress, duration, setDuration, volume, setVolume, isMuted, setIsMuted } =
-    usePlayer();
+  const {
+    setCurrentVideo,
+    isPlaying,
+    setIsPlaying,
+    progress,
+    setProgress,
+    duration,
+    setDuration,
+    volume,
+    setVolume,
+    isMuted,
+    setIsMuted,
+  } = usePlayer();
 
   const [currentVideoIndex, setCurrentVideoIndex] = useState(initialVideoIndex);
 
@@ -145,7 +171,7 @@ export default function YouTubePlayer({ playlistItems, initialVideoIndex = 0, on
           width: "100%",
           videoId: playlistItems[initialVideoIndex].youtube_video_id,
           playerVars: {
-            autoplay: 1,
+            autoplay: 0,
             controls: 1,
             modestbranding: 1,
             rel: 0,
@@ -232,7 +258,11 @@ export default function YouTubePlayer({ playlistItems, initialVideoIndex = 0, on
 
   // Load new video when currentVideoIndex changes
   useEffect(() => {
-    if (playerRef.current && typeof playerRef.current.loadVideoById === "function" && playlistItems.length > 0) {
+    if (
+      playerRef.current &&
+      typeof playerRef.current.loadVideoById === "function" &&
+      playlistItems.length > 0
+    ) {
       const videoId = playlistItems[currentVideoIndex]?.youtube_video_id;
       if (videoId) {
         try {
@@ -339,7 +369,10 @@ export default function YouTubePlayer({ playlistItems, initialVideoIndex = 0, on
   return (
     <div className="w-full bg-zinc-800/90 backdrop-blur-md rounded-xl overflow-hidden shadow-2xl">
       {error && (
-        <Alert variant="destructive" className="rounded-none border-x-0 border-t-0 border-b border-red-500/50">
+        <Alert
+          variant="destructive"
+          className="rounded-none border-x-0 border-t-0 border-b border-red-500/50"
+        >
           <AlertTriangle className="h-4 w-4" />
           <AlertDescription className="text-sm">{error}</AlertDescription>
         </Alert>
@@ -351,9 +384,15 @@ export default function YouTubePlayer({ playlistItems, initialVideoIndex = 0, on
 
         <div className="aspect-video overflow-hidden bg-zinc-900 relative">
           <img
-            src={currentVideo.thumbnail_url || `https://img.youtube.com/vi/${currentVideo.youtube_video_id}/maxresdefault.jpg`}
+            src={
+              currentVideo.thumbnail_url ||
+              `https://img.youtube.com/vi/${currentVideo.youtube_video_id}/maxresdefault.jpg`
+            }
             alt={`${currentVideo.title} thumbnail`}
-            className={cn("w-full h-full object-cover transition-all duration-1000", isPlaying ? "scale-105" : "scale-100")}
+            className={cn(
+              "w-full h-full object-cover transition-all duration-1000",
+              isPlaying ? "scale-105" : "scale-100"
+            )}
             onError={(e) => {
               // Fallback to a lower quality thumbnail if maxresdefault fails
               const target = e.target as HTMLImageElement;
@@ -390,7 +429,14 @@ export default function YouTubePlayer({ playlistItems, initialVideoIndex = 0, on
 
       <div className="p-4 space-y-4">
         <div className="space-y-2">
-          <Slider value={[progress]} min={0} max={duration || 1} step={1} onValueChange={handleProgressChange} className="cursor-pointer" />
+          <Slider
+            value={[progress]}
+            min={0}
+            max={duration || 1}
+            step={1}
+            onValueChange={handleProgressChange}
+            className="cursor-pointer"
+          />
           <div className="flex justify-between text-xs text-zinc-400">
             <span>{formatTime(progress)}</span>
             <span>{formatTime(duration)}</span>
@@ -398,13 +444,22 @@ export default function YouTubePlayer({ playlistItems, initialVideoIndex = 0, on
         </div>
 
         <div className="flex items-center justify-between">
-          <Button variant="ghost" size="icon" className="text-zinc-400 hover:text-white hover:bg-zinc-700">
+          <Button
+            variant="ghost"
+            size="icon"
+            className="text-zinc-400 hover:text-white hover:bg-zinc-700"
+          >
             <Shuffle className="h-5 w-5" />
             <span className="sr-only">Shuffle</span>
           </Button>
 
           <div className="flex items-center space-x-2">
-            <Button variant="ghost" size="icon" className="text-zinc-400 hover:text-white hover:bg-zinc-700" onClick={handlePrevious}>
+            <Button
+              variant="ghost"
+              size="icon"
+              className="text-zinc-400 hover:text-white hover:bg-zinc-700"
+              onClick={handlePrevious}
+            >
               <SkipBack className="h-6 w-6" />
               <span className="sr-only">Previous</span>
             </Button>
@@ -423,7 +478,12 @@ export default function YouTubePlayer({ playlistItems, initialVideoIndex = 0, on
               <span className="sr-only">{isPlaying ? "Pause" : "Play"}</span>
             </Button>
 
-            <Button variant="ghost" size="icon" className="text-zinc-400 hover:text-white hover:bg-zinc-700" onClick={handleNext}>
+            <Button
+              variant="ghost"
+              size="icon"
+              className="text-zinc-400 hover:text-white hover:bg-zinc-700"
+              onClick={handleNext}
+            >
               <SkipForward className="h-6 w-6" />
               <span className="sr-only">Next</span>
             </Button>
@@ -432,7 +492,10 @@ export default function YouTubePlayer({ playlistItems, initialVideoIndex = 0, on
           <Button
             variant="ghost"
             size="icon"
-            className={cn("text-zinc-400 hover:text-white hover:bg-zinc-700", isRepeatEnabled && "text-red-500")}
+            className={cn(
+              "text-zinc-400 hover:text-white hover:bg-zinc-700",
+              isRepeatEnabled && "text-red-500"
+            )}
             onClick={() => setIsRepeatEnabled(!isRepeatEnabled)}
           >
             <Repeat className="h-5 w-5" />
@@ -441,12 +504,24 @@ export default function YouTubePlayer({ playlistItems, initialVideoIndex = 0, on
         </div>
 
         <div className="flex items-center space-x-2">
-          <Button variant="ghost" size="icon" className="text-zinc-400 hover:text-white hover:bg-zinc-700" onClick={handleMuteToggle}>
+          <Button
+            variant="ghost"
+            size="icon"
+            className="text-zinc-400 hover:text-white hover:bg-zinc-700"
+            onClick={handleMuteToggle}
+          >
             {isMuted ? <VolumeX className="h-5 w-5" /> : <Volume2 className="h-5 w-5" />}
             <span className="sr-only">{isMuted ? "Unmute" : "Mute"}</span>
           </Button>
 
-          <Slider value={[isMuted ? 0 : volume]} min={0} max={1} step={0.01} onValueChange={handleVolumeChange} className="w-24 cursor-pointer" />
+          <Slider
+            value={[isMuted ? 0 : volume]}
+            min={0}
+            max={1}
+            step={0.01}
+            onValueChange={handleVolumeChange}
+            className="w-24 cursor-pointer"
+          />
         </div>
       </div>
     </div>

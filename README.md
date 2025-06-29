@@ -1,8 +1,8 @@
-# juntadaYa! 🎵
+# Plancito! 🎵
 
 Plataforma web para crear playlists colaborativas en tiempo real para eventos y juntadas. Permite a los participantes agregar canciones de YouTube, votar por ellas y disfrutar de una experiencia musical compartida.
 
-**URL**: https://juntadaya.netlify.app/
+**URL**: https://plancito.com/
 
 ## 🚀 Stack Tecnológico
 
