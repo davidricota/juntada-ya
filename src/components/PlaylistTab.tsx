@@ -425,6 +425,12 @@ export default function PlaylistTab({
 
   const handlePrevious = () => {
     markUserInteraction();
+    console.log(
+      "handlePrevious - isInitialLoad:",
+      isInitialLoad,
+      "shouldAutoPlay:",
+      !isInitialLoad
+    );
     const prevIndex = currentVideoIndex === 0 ? displayPlaylist.length - 1 : currentVideoIndex - 1;
     setCurrentVideoIndex(prevIndex);
     loadVideoSafely(prevIndex);
@@ -432,6 +438,7 @@ export default function PlaylistTab({
 
   const handleNext = () => {
     markUserInteraction();
+    console.log("handleNext - isInitialLoad:", isInitialLoad, "shouldAutoPlay:", !isInitialLoad);
     const nextIndex = currentVideoIndex === displayPlaylist.length - 1 ? 0 : currentVideoIndex + 1;
     setCurrentVideoIndex(nextIndex);
     loadVideoSafely(nextIndex);
