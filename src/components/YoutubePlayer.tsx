@@ -411,153 +411,56 @@ export default function YouTubePlayer({
   }
 
   return (
-    <div className="w-full bg-zinc-800/90 backdrop-blur-md rounded-xl overflow-hidden shadow-2xl">
+    <div className="w-full bg-zinc-800/90 backdrop-blur-md rounded-xl overflow-hidden shadow-2xl p-4">
       {error && (
         <Alert
           variant="destructive"
-          className="rounded-none border-x-0 border-t-0 border-b border-red-500/50"
+          className="rounded-none border-x-0 border-t-0 border-b border-red-500/50 mb-2"
         >
           <AlertTriangle className="h-4 w-4" />
           <AlertDescription className="text-sm">{error}</AlertDescription>
         </Alert>
       )}
+      {/* Hidden YouTube player container (debe estar siempre presente) */}
+      <div ref={playerContainerRef} className="hidden" />
 
-      <div className="relative">
-        {/* Hidden YouTube player container */}
-        <div ref={playerContainerRef} className="hidden" />
-
-        <div className="aspect-video overflow-hidden bg-zinc-900 relative">
-          <img
-            src={
-              currentVideo.thumbnail_url ||
-              `https://img.youtube.com/vi/${currentVideo.youtube_video_id}/maxresdefault.jpg`
-            }
-            alt={`${currentVideo.title} thumbnail`}
-            className={cn(
-              "w-full h-full object-cover transition-all duration-1000",
-              isPlaying ? "scale-105" : "scale-100"
-            )}
-            onError={(e) => {
-              // Fallback to a lower quality thumbnail if maxresdefault fails
-              const target = e.target as HTMLImageElement;
-              target.src = `https://img.youtube.com/vi/${currentVideo.youtube_video_id}/hqdefault.jpg`;
-            }}
-          />
-
-          {isVisualizationActive && (
-            <div className="absolute inset-0 z-10">
-              <MusicVisualization />
-            </div>
-          )}
-
-          {isBuffering && (
-            <div className="absolute inset-0 flex items-center justify-center bg-black/40 z-20">
-              <div className="w-16 h-16 border-4 border-emerald-500 border-t-transparent rounded-full animate-spin" />
-            </div>
-          )}
-
-          <div
-            className={cn(
-              "absolute inset-0 bg-gradient-to-t from-zinc-900/90 via-transparent to-transparent",
-              isPlaying ? "opacity-70" : "opacity-90",
-              "transition-opacity duration-1000"
-            )}
-          ></div>
-        </div>
-
-        <div className="absolute bottom-0 left-0 right-0 p-4">
-          <h2 className="text-white text-xl font-bold truncate">{currentVideo.title}</h2>
+      {/* Top: Image + Info */}
+      <div className="flex items-center gap-4 mb-4">
+        <img
+          src={
+            currentVideo.thumbnail_url ||
+            `https://img.youtube.com/vi/${currentVideo.youtube_video_id}/maxresdefault.jpg`
+          }
+          alt={`${currentVideo.title} thumbnail`}
+          className="w-16 h-16 rounded-lg object-cover bg-zinc-900"
+          onError={(e) => {
+            const target = e.target as HTMLImageElement;
+            target.src = `https://img.youtube.com/vi/${currentVideo.youtube_video_id}/hqdefault.jpg`;
+          }}
+        />
+        <div className="flex flex-col flex-1 min-w-0">
+          <h2 className="text-white text-lg font-bold truncate">{currentVideo.title}</h2>
           <p className="text-zinc-400 truncate">{currentVideo.channel_title}</p>
         </div>
       </div>
 
-      <div className="p-4 space-y-4">
-        <div className="space-y-2">
+      {/* Middle: Progress + Volume, igual que MiniPlayer */}
+      <div className="flex items-center gap-4 mb-4">
+        {/* Progress + times */}
+        <div className="flex flex-1 items-center gap-2">
+          <span className="text-xs text-zinc-400 w-10 text-right">{formatTime(progress)}</span>
           <Slider
             value={[progress]}
             min={0}
             max={duration || 1}
             step={1}
             onValueChange={handleProgressChange}
-            className="cursor-pointer"
+            className="flex-1 cursor-pointer mx-2"
           />
-          <div className="flex justify-between text-xs text-zinc-400">
-            <span>{formatTime(progress)}</span>
-            <span>{formatTime(duration)}</span>
-          </div>
+          <span className="text-xs text-zinc-400 w-10 text-left">{formatTime(duration)}</span>
         </div>
-
-        <div className="flex items-center justify-between">
-          <Button
-            variant="ghost"
-            size="icon"
-            className={cn(
-              "text-zinc-400 hover:text-white hover:bg-zinc-700",
-              isShuffleEnabled && "text-red-500"
-            )}
-            onClick={() => {
-              console.log("Botón shuffle clickeado - isShuffleEnabled:", isShuffleEnabled);
-              onShuffleToggle?.();
-            }}
-          >
-            <Shuffle className="h-5 w-5" />
-            <span className="sr-only">Shuffle</span>
-          </Button>
-
-          <div className="flex items-center space-x-2">
-            <Button
-              variant="ghost"
-              size="icon"
-              className="text-zinc-400 hover:text-white hover:bg-zinc-700"
-              onClick={handlePrevious}
-            >
-              <SkipBack className="h-6 w-6" />
-              <span className="sr-only">Previous</span>
-            </Button>
-
-            <Button
-              variant="default"
-              size="icon"
-              className={cn(
-                "rounded-full h-12 w-12 bg-red-500 hover:bg-red-600 text-white",
-                "transition-all duration-300 ease-out transform hover:scale-105",
-                isPlaying && "animate-pulse"
-              )}
-              onClick={handlePlayPause}
-            >
-              {isPlaying ? <Pause className="h-6 w-6" /> : <Play className="h-6 w-6 ml-0.5" />}
-              <span className="sr-only">{isPlaying ? "Pause" : "Play"}</span>
-            </Button>
-
-            <Button
-              variant="ghost"
-              size="icon"
-              className="text-zinc-400 hover:text-white hover:bg-zinc-700"
-              onClick={handleNext}
-            >
-              <SkipForward className="h-6 w-6" />
-              <span className="sr-only">Next</span>
-            </Button>
-          </div>
-
-          <Button
-            variant="ghost"
-            size="icon"
-            className={cn(
-              "text-zinc-400 hover:text-white hover:bg-zinc-700",
-              isRepeatEnabled && "text-red-500"
-            )}
-            onClick={() => {
-              setIsRepeatEnabled(!isRepeatEnabled);
-              onRepeatChange?.(isRepeatEnabled);
-            }}
-          >
-            <Repeat className="h-5 w-5" />
-            <span className="sr-only">Repeat</span>
-          </Button>
-        </div>
-
-        <div className="flex items-center space-x-2">
+        {/* Volume */}
+        <div className="flex items-center gap-2 ml-4">
           <Button
             variant="ghost"
             size="icon"
@@ -567,7 +470,6 @@ export default function YouTubePlayer({
             {isMuted ? <VolumeX className="h-5 w-5" /> : <Volume2 className="h-5 w-5" />}
             <span className="sr-only">{isMuted ? "Unmute" : "Mute"}</span>
           </Button>
-
           <Slider
             value={[isMuted ? 0 : volume]}
             min={0}
@@ -577,6 +479,70 @@ export default function YouTubePlayer({
             className="w-24 cursor-pointer"
           />
         </div>
+      </div>
+
+      {/* Bottom: Controls */}
+      <div className="flex items-center justify-center gap-4 mt-2">
+        <Button
+          variant="ghost"
+          size="icon"
+          className={cn(
+            "text-zinc-400 hover:text-white hover:bg-zinc-700",
+            isShuffleEnabled && "text-red-500"
+          )}
+          onClick={() => {
+            onShuffleToggle?.();
+          }}
+        >
+          <Shuffle className="h-5 w-5" />
+          <span className="sr-only">Shuffle</span>
+        </Button>
+        <Button
+          variant="ghost"
+          size="icon"
+          className="text-zinc-400 hover:text-white hover:bg-zinc-700"
+          onClick={handlePrevious}
+        >
+          <SkipBack className="h-6 w-6" />
+          <span className="sr-only">Previous</span>
+        </Button>
+        <Button
+          variant="default"
+          size="icon"
+          className={cn(
+            "rounded-full h-12 w-12 bg-red-500 hover:bg-red-600 text-white",
+            "transition-all duration-300 ease-out transform hover:scale-105",
+            isPlaying && "animate-pulse"
+          )}
+          onClick={handlePlayPause}
+        >
+          {isPlaying ? <Pause className="h-6 w-6" /> : <Play className="h-6 w-6 ml-0.5" />}
+          <span className="sr-only">{isPlaying ? "Pause" : "Play"}</span>
+        </Button>
+        <Button
+          variant="ghost"
+          size="icon"
+          className="text-zinc-400 hover:text-white hover:bg-zinc-700"
+          onClick={handleNext}
+        >
+          <SkipForward className="h-6 w-6" />
+          <span className="sr-only">Next</span>
+        </Button>
+        <Button
+          variant="ghost"
+          size="icon"
+          className={cn(
+            "text-zinc-400 hover:text-white hover:bg-zinc-700",
+            isRepeatEnabled && "text-red-500"
+          )}
+          onClick={() => {
+            setIsRepeatEnabled(!isRepeatEnabled);
+            onRepeatChange?.(isRepeatEnabled);
+          }}
+        >
+          <Repeat className="h-5 w-5" />
+          <span className="sr-only">Repeat</span>
+        </Button>
       </div>
     </div>
   );
