@@ -5,8 +5,17 @@ import { ExpenseService } from "@/services/expenseService";
 import { useToast } from "@/hooks/use-toast";
 import { Participant, Expense, ExpenseSummary, ExpenseChangePayload } from "@/types";
 import { formatCurrency } from "@/lib/utils";
-import { Trash } from "lucide-react";
+import { Trash, UserPlus } from "lucide-react";
 import ExpenseForm from "./ExpenseForm";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
 
 import { ScrollArea } from "@/components/ui/scroll-area";
 
@@ -27,6 +36,9 @@ const ExpensesTab: React.FC<ExpensesTabProps> = ({
   const [summary, setSummary] = useState<ExpenseSummary | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [isAddExtraOpen, setIsAddExtraOpen] = useState(false);
+  const [extraName, setExtraName] = useState("");
+  const [isAddingExtra, setIsAddingExtra] = useState(false);
   const { toast } = useToast();
 
   useEffect(() => {
@@ -125,6 +137,29 @@ const ExpensesTab: React.FC<ExpensesTabProps> = ({
     }
   };
 
+  const handleAddExtra = async () => {
+    if (!extraName.trim()) return;
+    setIsAddingExtra(true);
+    try {
+      // Lógica para crear participante extra (llamar a servicio, etc)
+      await ExpenseService.addExtraParticipant(planId, extraName);
+      setExtraName("");
+      setIsAddExtraOpen(false);
+      toast({
+        title: "Participante extra agregado",
+        description: `${extraName} fue añadido a la lista de gastos.`,
+      });
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "No se pudo agregar el participante extra.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsAddingExtra(false);
+    }
+  };
+
   if (isLoading) {
     return (
       <div className="flex items-center justify-center min-h-[400px]">
@@ -135,7 +170,10 @@ const ExpensesTab: React.FC<ExpensesTabProps> = ({
 
   return (
     <div className="space-y-6">
-      <div className="flex justify-end">
+      <div className="flex justify-end gap-2">
+        <Button onClick={() => setIsAddExtraOpen(true)} variant="outline">
+          Agregar participante extra
+        </Button>
         <ExpenseForm
           isOpen={isDialogOpen}
           onOpenChange={setIsDialogOpen}
@@ -146,6 +184,27 @@ const ExpensesTab: React.FC<ExpensesTabProps> = ({
           currentParticipantId={currentParticipantId}
         />
       </div>
+      {/* Popup para agregar participante extra */}
+      <Dialog open={isAddExtraOpen} onOpenChange={setIsAddExtraOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Agregar participante extra</DialogTitle>
+          </DialogHeader>
+          <Input
+            placeholder="Nombre del participante"
+            value={extraName}
+            onChange={(e) => setExtraName(e.target.value)}
+            disabled={isAddingExtra}
+            autoFocus
+            className="border border-primary-foreground focus:border-primary-foreground focus:ring-0"
+          />
+          <DialogFooter>
+            <Button onClick={handleAddExtra} disabled={isAddingExtra || !extraName.trim()}>
+              {isAddingExtra ? "Agregando..." : "Agregar"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {summary && (
         <Card className="bg-card text-card-foreground">
@@ -166,7 +225,15 @@ const ExpensesTab: React.FC<ExpensesTabProps> = ({
                 <h3 className="font-semibold">Balance por Participante:</h3>
                 {summary.participants.map((participant) => (
                   <div key={participant.id} className="flex justify-between items-center">
-                    <span className="text-muted-foreground">{participant.name}:</span>
+                    <span className="text-muted-foreground flex items-center gap-1">
+                      {participant.name}
+                      {participant.is_extra && (
+                        <UserPlus
+                          className="inline h-4 w-4 text-primary ml-1"
+                          title="Participante extra"
+                        />
+                      )}
+                    </span>
                     <span
                       className={
                         participant.receives > 0

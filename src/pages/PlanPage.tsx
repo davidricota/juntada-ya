@@ -5,7 +5,7 @@ import { useToast } from "@/hooks/use-toast";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { LogOut, Users, Copy, Trash2 } from "lucide-react";
+import { LogOut, Users, Copy, Trash2, UserPlus } from "lucide-react";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { EventService } from "@/services/eventService";
 import { RealtimeChannel } from "@supabase/supabase-js";
@@ -291,6 +291,12 @@ const PlanPage: React.FC = () => {
                           <AvatarFallback>{p.name.substring(0, 2).toUpperCase()}</AvatarFallback>
                         </Avatar>
                         <span className="font-medium text-sm">{p.name}</span>
+                        {p.is_extra && (
+                          <UserPlus
+                            className="inline h-4 w-4 text-primary-foreground ml-1"
+                            title="Participante extra"
+                          />
+                        )}
                       </li>
                     ))}
                   </ul>

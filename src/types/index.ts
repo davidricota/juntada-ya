@@ -14,9 +14,10 @@ export interface EventType {
 export interface Participant {
   id: string;
   event_id: string;
-  user_id: string;
+  user_id: string | null;
   name: string;
   created_at: string;
+  is_extra?: boolean;
 }
 
 export interface Expense {

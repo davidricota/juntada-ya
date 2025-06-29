@@ -79,7 +79,7 @@ export class ExpenseService {
     const expenses = await this.getExpenses(planId);
     const { data: participants, error } = await supabase
       .from("event_participants")
-      .select("id, name")
+      .select("id, name, is_extra")
       .eq("event_id", planId);
 
     if (error) throw error;
@@ -98,6 +98,7 @@ export class ExpenseService {
       return {
         id: participant.id,
         name: participant.name,
+        is_extra: participant.is_extra,
         paid,
         owes,
         receives,
@@ -131,5 +132,14 @@ export class ExpenseService {
 
   static unsubscribeFromExpenses(subscription: ReturnType<typeof supabase.channel>) {
     supabase.removeChannel(subscription);
+  }
+
+  static async addExtraParticipant(planId: string, name: string): Promise<void> {
+    const { error } = await supabase.from("event_participants").insert({
+      event_id: planId,
+      name,
+      is_extra: true,
+    });
+    if (error) throw error;
   }
 }

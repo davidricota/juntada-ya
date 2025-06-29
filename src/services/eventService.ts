@@ -34,7 +34,8 @@ export class EventService {
           event_id,
           user_id,
           name,
-          created_at
+          created_at,
+          is_extra
         )
       `
       )
@@ -74,7 +75,8 @@ export class EventService {
           event_id,
           user_id,
           name,
-          created_at
+          created_at,
+          is_extra
         )
       `
       )
@@ -122,7 +124,7 @@ export class EventService {
   static async getEventParticipants(planId: string): Promise<Participant[]> {
     const { data, error } = await supabase
       .from("event_participants")
-      .select("id, event_id, user_id, name, created_at")
+      .select("id, event_id, user_id, name, created_at, is_extra")
       .eq("event_id", planId)
       .order("created_at", { ascending: true });
 
@@ -256,7 +258,8 @@ export class EventService {
           event_id,
           user_id,
           name,
-          created_at
+          created_at,
+          is_extra
         )
       `
       )
@@ -305,7 +308,8 @@ export class EventService {
           event_id,
           user_id,
           name,
-          created_at
+          created_at,
+          is_extra
         )
       `
       )
