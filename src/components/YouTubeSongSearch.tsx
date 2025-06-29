@@ -43,10 +43,15 @@ const YouTubeSongSearch: React.FC<YouTubeSongSearchProps> = ({ onSongSelected })
         });
       }
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Ocurrió un error desconocido durante la búsqueda.");
+      setError(
+        err instanceof Error ? err.message : "Ocurrió un error desconocido durante la búsqueda."
+      );
       toast({
         title: "Error de Búsqueda",
-        description: err instanceof Error ? err.message : "No se pudieron obtener los resultados. Inténtalo de nuevo.",
+        description:
+          err instanceof Error
+            ? err.message
+            : "No se pudieron obtener los resultados. Inténtalo de nuevo.",
         variant: "destructive",
       });
     } finally {
@@ -57,7 +62,10 @@ const YouTubeSongSearch: React.FC<YouTubeSongSearchProps> = ({ onSongSelected })
   const handleSelectSong = (song: YouTubeVideo) => {
     if (onSongSelected) {
       onSongSelected(song);
-      toast({ title: "Canción Pre-seleccionada", description: `${song.title} lista para ser añadida.` });
+      toast({
+        title: "Canción Pre-seleccionada",
+        description: `${song.title} lista para ser añadida.`,
+      });
     } else {
       toast({ title: "Canción Seleccionada (dev)", description: `${song.title}` });
     }
@@ -65,7 +73,10 @@ const YouTubeSongSearch: React.FC<YouTubeSongSearchProps> = ({ onSongSelected })
 
   return (
     <div className="mt-8 p-2 sm:p-4 md:p-6 bg-card/70 rounded-lg shadow-lg backdrop-blur-sm">
-      <h3 className="text-base sm:text-lg md:text-xl font-semibold text-card-foreground mb-4">Buscar y Agregar Canciones de YouTube</h3>
+      <h3 className="text-base sm:text-lg md:text-xl font-semibold text-card-foreground mb-4">
+        Buscar y Agregar Canciones de YouTube
+      </h3>
+
       <form onSubmit={handleSearch} className="flex flex-col sm:flex-row gap-2 mb-4">
         <Input
           type="text"
@@ -82,7 +93,11 @@ const YouTubeSongSearch: React.FC<YouTubeSongSearchProps> = ({ onSongSelected })
           disabled={isLoading}
           aria-busy={isLoading}
         >
-          {isLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Search className="mr-2 h-4 w-4" />}
+          {isLoading ? (
+            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+          ) : (
+            <Search className="mr-2 h-4 w-4" />
+          )}
           Buscar
         </Button>
       </form>
@@ -94,7 +109,11 @@ const YouTubeSongSearch: React.FC<YouTubeSongSearchProps> = ({ onSongSelected })
         </div>
       )}
 
-      <YouTubeSearchResults results={searchResults} onSongSelected={handleSelectSong} showAddButton={!!onSongSelected} />
+      <YouTubeSearchResults
+        results={searchResults}
+        onSongSelected={handleSelectSong}
+        showAddButton={!!onSongSelected}
+      />
     </div>
   );
 };

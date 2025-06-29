@@ -67,50 +67,67 @@ export class PlaylistService {
       "id" | "event_id" | "added_by_participant_id" | "added_at" | "participant_name"
     >
   ): Promise<PlaylistItem> {
-    const { data, error } = await supabase
-      .from("playlist_items")
-      .insert({
-        event_id: planId,
-        added_by_participant_id: participantId,
-        youtube_video_id: videoData.youtube_video_id,
-        title: videoData.title,
-        thumbnail_url: videoData.thumbnail_url,
-        channel_title: videoData.channel_title,
-      })
-      .select(
-        `
-        id,
-        youtube_video_id,
-        title,
-        thumbnail_url,
-        channel_title,
-        added_by_participant_id,
-        event_id,
-        added_at,
-        participant:event_participants (
-          name
-        )
-      `
-      )
-      .single();
-
-    if (error) throw error;
-
-    const item = {
-      ...data,
-      participant_name: data.participant?.name || "Desconocido",
-    };
-
-    // Actualizar cache
-    const cached = playlistCache.get(planId);
-    if (cached) {
-      playlistCache.set(planId, {
-        data: [...cached.data, item],
-        timestamp: Date.now(),
+    try {
+      console.log("PlaylistService.addToPlaylist called with:", {
+        planId,
+        participantId,
+        videoData,
       });
-    }
 
-    return item;
+      const { data, error } = await supabase
+        .from("playlist_items")
+        .insert({
+          event_id: planId,
+          added_by_participant_id: participantId,
+          youtube_video_id: videoData.youtube_video_id,
+          title: videoData.title,
+          thumbnail_url: videoData.thumbnail_url,
+          channel_title: videoData.channel_title,
+        })
+        .select(
+          `
+          id,
+          youtube_video_id,
+          title,
+          thumbnail_url,
+          channel_title,
+          added_by_participant_id,
+          event_id,
+          added_at,
+          participant:event_participants (
+            name
+          )
+        `
+        )
+        .single();
+
+      if (error) {
+        console.error("Supabase error in addToPlaylist:", error);
+        throw error;
+      }
+
+      console.log("Supabase insert successful:", data);
+
+      const item = {
+        ...data,
+        participant_name: data.participant?.name || "Desconocido",
+      };
+
+      // Actualizar cache
+      const cached = playlistCache.get(planId);
+      if (cached) {
+        playlistCache.set(planId, {
+          data: [...cached.data, item],
+          timestamp: Date.now(),
+        });
+      }
+
+      console.log("Returning playlist item:", item);
+      return item;
+    } catch (error) {
+      console.error("Error in addToPlaylist:", error);
+      throw error;
+    }
   }
 
   static async removeFromPlaylist(itemId: string): Promise<void> {

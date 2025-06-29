@@ -96,6 +96,10 @@ interface YouTubePlayerProps {
   initialVideoIndex?: number;
   onPlayerReady?: (player: YouTubePlayer) => void;
   onVideoChange?: (index: number) => void;
+  shouldAutoPlay?: boolean;
+  onRepeatChange?: (isEnabled: boolean) => void;
+  onShuffleToggle?: () => void;
+  isShuffleEnabled?: boolean;
 }
 
 export default function YouTubePlayer({
@@ -103,6 +107,10 @@ export default function YouTubePlayer({
   initialVideoIndex = 0,
   onPlayerReady,
   onVideoChange,
+  shouldAutoPlay = true,
+  onRepeatChange,
+  onShuffleToggle,
+  isShuffleEnabled = false,
 }: YouTubePlayerProps) {
   const [isPlayerReady, setIsPlayerReady] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -171,7 +179,7 @@ export default function YouTubePlayer({
           width: "100%",
           videoId: playlistItems[initialVideoIndex].youtube_video_id,
           playerVars: {
-            autoplay: 0,
+            autoplay: shouldAutoPlay ? 1 : 0,
             controls: 1,
             modestbranding: 1,
             rel: 0,
@@ -183,6 +191,16 @@ export default function YouTubePlayer({
               setIsPlayerReady(true);
               setDuration(event.target.getDuration());
               onPlayerReady?.(event.target);
+
+              // Si no debe reproducir automáticamente, asegurar que esté pausado
+              if (!shouldAutoPlay) {
+                setTimeout(() => {
+                  if (playerRef.current) {
+                    playerRef.current.pauseVideo();
+                    setIsPlaying(false);
+                  }
+                }, 100);
+              }
             },
             onStateChange: (event) => {
               if (!isMounted) return;
@@ -254,7 +272,14 @@ export default function YouTubePlayer({
         playerRef.current = null;
       }
     };
-  }, [playlistItems, initialVideoIndex, onPlayerReady, onVideoChange, isRepeatEnabled]);
+  }, [
+    playlistItems,
+    initialVideoIndex,
+    onPlayerReady,
+    onVideoChange,
+    isRepeatEnabled,
+    shouldAutoPlay,
+  ]);
 
   // Load new video when currentVideoIndex changes
   useEffect(() => {
@@ -267,19 +292,33 @@ export default function YouTubePlayer({
       if (videoId) {
         try {
           playerRef.current.loadVideoById(videoId);
-          // Add a small delay before playing to ensure the video is loaded
-          setTimeout(() => {
-            if (playerRef.current) {
-              playerRef.current.playVideo();
-            }
-          }, 100);
+          // Solo reproducir automáticamente si shouldAutoPlay es true
+          if (shouldAutoPlay) {
+            setTimeout(() => {
+              if (playerRef.current) {
+                playerRef.current.playVideo();
+                // Forzar la actualización del estado después de un breve delay
+                setTimeout(() => {
+                  setIsPlaying(true);
+                }, 150);
+              }
+            }, 100);
+          } else {
+            // Si no debe reproducir automáticamente, asegurar que esté pausado
+            setTimeout(() => {
+              if (playerRef.current) {
+                playerRef.current.pauseVideo();
+                setIsPlaying(false);
+              }
+            }, 100);
+          }
           setError(null);
         } catch (err) {
           setError("Failed to load video");
         }
       }
     }
-  }, [currentVideoIndex, playlistItems]);
+  }, [currentVideoIndex, playlistItems, shouldAutoPlay]);
 
   const handlePlayPause = () => {
     if (!playerRef.current) return;
@@ -355,6 +394,11 @@ export default function YouTubePlayer({
   useEffect(() => {
     setCurrentVideoIndex(initialVideoIndex);
   }, [initialVideoIndex]);
+
+  // Notify parent when repeat state changes
+  useEffect(() => {
+    onRepeatChange?.(isRepeatEnabled);
+  }, [isRepeatEnabled, onRepeatChange]);
 
   if (playlistItems.length === 0) {
     return (
@@ -447,7 +491,14 @@ export default function YouTubePlayer({
           <Button
             variant="ghost"
             size="icon"
-            className="text-zinc-400 hover:text-white hover:bg-zinc-700"
+            className={cn(
+              "text-zinc-400 hover:text-white hover:bg-zinc-700",
+              isShuffleEnabled && "text-red-500"
+            )}
+            onClick={() => {
+              console.log("Botón shuffle clickeado - isShuffleEnabled:", isShuffleEnabled);
+              onShuffleToggle?.();
+            }}
           >
             <Shuffle className="h-5 w-5" />
             <span className="sr-only">Shuffle</span>
@@ -496,7 +547,10 @@ export default function YouTubePlayer({
               "text-zinc-400 hover:text-white hover:bg-zinc-700",
               isRepeatEnabled && "text-red-500"
             )}
-            onClick={() => setIsRepeatEnabled(!isRepeatEnabled)}
+            onClick={() => {
+              setIsRepeatEnabled(!isRepeatEnabled);
+              onRepeatChange?.(isRepeatEnabled);
+            }}
           >
             <Repeat className="h-5 w-5" />
             <span className="sr-only">Repeat</span>

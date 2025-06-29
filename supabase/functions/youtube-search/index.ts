@@ -21,39 +21,54 @@ interface YouTubeResponse {
 const YOUTUBE_API_KEY = Deno.env.get("YOUTUBE_API_KEY");
 const YOUTUBE_API_URL = "https://www.googleapis.com/youtube/v3/search";
 
+// Comprehensive CORS headers
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
+  "Access-Control-Allow-Headers":
+    "authorization, x-client-info, apikey, content-type, x-requested-with",
+  "Access-Control-Allow-Methods": "GET, POST, PUT, DELETE, OPTIONS",
+  "Access-Control-Max-Age": "86400",
+  "Access-Control-Allow-Credentials": "true",
 };
+
+// Helper function to create responses with CORS headers
+function createResponse(data: unknown, status: number = 200) {
+  return new Response(JSON.stringify(data), {
+    status,
+    headers: { ...corsHeaders, "Content-Type": "application/json" },
+  });
+}
 
 serve(async (req: { method: string; json: () => Promise<SearchRequest> }) => {
   // Handle CORS preflight requests
   if (req.method === "OPTIONS") {
-    return new Response(null, { headers: corsHeaders });
+    return new Response(null, {
+      status: 200,
+      headers: corsHeaders,
+    });
+  }
+
+  // Only allow POST requests
+  if (req.method !== "POST") {
+    return createResponse({ error: "Method not allowed" }, 405);
   }
 
   try {
     const { searchTerm } = await req.json();
 
     if (!searchTerm) {
-      return new Response(JSON.stringify({ error: "Search term is required" }), {
-        status: 400,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
+      return createResponse({ error: "Search term is required" }, 400);
     }
 
     if (!YOUTUBE_API_KEY) {
-      return new Response(JSON.stringify({ error: "YouTube API key not configured" }), {
-        status: 500,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
+      return createResponse({ error: "YouTube API key not configured" }, 500);
     }
 
     const params = new URLSearchParams({
       part: "snippet",
       q: searchTerm,
       type: "video",
-      maxResults: "10", // Puedes ajustar la cantidad de resultados
+      maxResults: "10",
       key: YOUTUBE_API_KEY,
     });
 
@@ -61,12 +76,13 @@ serve(async (req: { method: string; json: () => Promise<SearchRequest> }) => {
 
     if (!response.ok) {
       const errorData = await response.json();
-      return new Response(
-        JSON.stringify({ error: "Failed to fetch data from YouTube API", details: errorData }),
+      console.error("YouTube API error:", errorData);
+      return createResponse(
         {
-          status: response.status,
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
-        }
+          error: "Failed to fetch data from YouTube API",
+          details: errorData,
+        },
+        response.status
       );
     }
 
@@ -80,13 +96,14 @@ serve(async (req: { method: string; json: () => Promise<SearchRequest> }) => {
       channelTitle: item.snippet.channelTitle,
     }));
 
-    return new Response(JSON.stringify({ results: simplifiedResults }), {
-      headers: { ...corsHeaders, "Content-Type": "application/json" },
-    });
+    return createResponse({ results: simplifiedResults });
   } catch (error) {
-    return new Response(JSON.stringify({ error: error.message || "Internal server error" }), {
-      status: 500,
-      headers: { ...corsHeaders, "Content-Type": "application/json" },
-    });
+    console.error("Function error:", error);
+    return createResponse(
+      {
+        error: error.message || "Internal server error",
+      },
+      500
+    );
   }
 });

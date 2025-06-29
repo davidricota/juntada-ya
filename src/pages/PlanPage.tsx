@@ -50,29 +50,29 @@ const PlanPage: React.FC = () => {
   const queryClient = useQueryClient();
 
   const [currentParticipantId, setCurrentParticipantId] = useState<string | null>(null);
-  const [currentParticipantName, setCurrentParticipantName] = useState<string | null>(null);
-  const [subscriptions, setSubscriptions] = useState<RealtimeChannel[]>([]);
-  const [currentTab, setCurrentTab] = useState<string>("info");
+  const [currentParticipantName, setCurrentParticipantName] = useState<string>("");
+  const [currentTab, setCurrentTab] = useState("info");
   const [isSearchOpen, setIsSearchOpen] = useState(false);
+  const [subscriptions, setSubscriptions] = useState<RealtimeChannel[]>([]);
   const { getUserStorage, getUserId } = useParticipantStore();
   const userIdRef = useRef<string | null>(null);
 
   const { data: event, isLoading: isEventLoading } = useQuery({
     queryKey: ["event", planId],
     queryFn: () => fetchEvent(planId!),
-    enabled: !!planId,
+    enabled: !!planId && planId !== undefined,
   });
 
   const { data: participants = [], isLoading: isParticipantsLoading } = useQuery({
     queryKey: ["participants", planId],
     queryFn: () => fetchParticipants(planId!),
-    enabled: !!planId,
+    enabled: !!planId && planId !== undefined,
   });
 
   const { data: playlist = [], isLoading: isPlaylistLoading } = useQuery({
     queryKey: ["playlist", planId],
     queryFn: () => fetchPlaylist(planId!),
-    enabled: !!planId,
+    enabled: !!planId && planId !== undefined,
   });
 
   const isHost = event?.host_user_id === getUserId();
@@ -333,7 +333,6 @@ const PlanPage: React.FC = () => {
                   planId={planId}
                   participants={participants}
                   playlist={playlist}
-                  onPlaylistChange={() => {}}
                   currentParticipantId={currentParticipantId}
                   accessCode={event?.access_code || ""}
                   isHost={isHost}
