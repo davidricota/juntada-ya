@@ -73,3 +73,5 @@
 [class*="bg-card"] {
   --muted-foreground: var(--card-muted-foreground);
 }
+
+/* Elimino los estilos de override para el calendario shadcn/ui */

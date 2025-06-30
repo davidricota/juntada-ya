@@ -4,9 +4,11 @@ import { MapPin, Calendar, Clock, Edit2 } from "lucide-react";
 import { Button } from "@/shared/ui/button";
 import { Input } from "@/shared/ui/input";
 import { Label } from "@/shared/ui/label";
+import { DatePicker } from "@/shared/ui/date-picker";
 import { toast } from "@/shared/hooks/use-toast";
 import { supabase } from "@/shared/integrations/supabase/client";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { format, parseISO } from "date-fns";
 
 interface EventInfoTabProps {
   planId: string;
@@ -45,18 +47,34 @@ export default function EventInfoTab({ planId, isHost, initialData }: EventInfoT
   });
 
   const [address, setAddress] = useState("");
-  const [date, setDate] = useState("");
+  const [date, setDate] = useState<Date | undefined>(undefined);
   const [time, setTime] = useState("");
   const [coordinates, setCoordinates] = useState<{ lat: number; lng: number }>({
     lat: 0,
     lng: 0,
   });
 
+  // Función para convertir string a Date
+  const stringToDate = (dateString: string): Date | undefined => {
+    if (!dateString) return undefined;
+    try {
+      return parseISO(dateString);
+    } catch {
+      return undefined;
+    }
+  };
+
+  // Función para convertir Date a string (formato YYYY-MM-DD)
+  const dateToString = (date: Date | undefined): string => {
+    if (!date) return "";
+    return format(date, "yyyy-MM-dd");
+  };
+
   // Actualizar estados cuando cambia eventInfo
   useEffect(() => {
     if (eventInfo) {
       setAddress(eventInfo.address || "");
-      setDate(eventInfo.date || "");
+      setDate(stringToDate(eventInfo.date || ""));
       setTime(eventInfo.time || "");
       setCoordinates({
         lat: eventInfo.latitude || 0,
@@ -71,7 +89,7 @@ export default function EventInfoTab({ planId, isHost, initialData }: EventInfoT
         .from("events")
         .update({
           address,
-          date,
+          date: dateToString(date),
           time,
           latitude: coordinates.lat,
           longitude: coordinates.lng,
@@ -148,24 +166,27 @@ export default function EventInfoTab({ planId, isHost, initialData }: EventInfoT
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
-                  <Label htmlFor="date">Fecha</Label>
-                  <Input
+                  <DatePicker
                     id="date"
-                    type="date"
-                    value={date}
-                    className="bg-primary-foreground border border-primary"
-                    onChange={(e) => setDate(e.target.value)}
+                    label="Fecha"
+                    date={date}
+                    onDateChange={setDate}
+                    placeholder="Seleccionar fecha"
+                    className="w-full bg-primary-foreground border border-primary"
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="time">Hora</Label>
-                  <Input
-                    id="time"
-                    type="time"
-                    value={time}
-                    className="bg-primary-foreground border border-primary"
-                    onChange={(e) => setTime(e.target.value)}
-                  />
+                  <div className="flex flex-col gap-3">
+                    <Label htmlFor="time">Hora</Label>
+
+                    <Input
+                      id="time"
+                      type="time"
+                      value={time}
+                      className="bg-primary-foreground border border-primary appearance-none [&::-webkit-calendar-picker-indicator]:hidden [&::-webkit-calendar-picker-indicator]:appearance-none"
+                      onChange={(e) => setTime(e.target.value)}
+                    />
+                  </div>
                 </div>
               </div>
               <Button onClick={handleSave}>Guardar Cambios</Button>
@@ -199,7 +220,9 @@ export default function EventInfoTab({ planId, isHost, initialData }: EventInfoT
                   <Calendar className="h-5 w-5 text-primary mt-1" />
                   <div>
                     <h3 className="font-medium">Fecha</h3>
-                    <p className="text-muted-foreground">{date || "No especificada"}</p>
+                    <p className="text-muted-foreground">
+                      {date ? format(date, "PPP") : "No especificada"}
+                    </p>
                   </div>
                 </div>
                 <div className="flex items-start gap-2">
