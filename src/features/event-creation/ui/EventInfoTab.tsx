@@ -81,7 +81,6 @@ export default function EventInfoTab({ planId, isHost, initialData }: EventInfoT
 
   // Actualizar estados cuando cambia eventInfo
   useEffect(() => {
-    console.log("eventInfo:", eventInfo);
     if (eventInfo) {
       setAddress(
         typeof eventInfo.address === "string" && eventInfo.address.length > 0
@@ -104,7 +103,6 @@ export default function EventInfoTab({ planId, isHost, initialData }: EventInfoT
   }, [eventInfo]);
 
   const handleSave = async () => {
-    console.log({ address, date, time, coordinates });
     try {
       const { error: updateError } = await supabase
         .from("events")
@@ -181,7 +179,6 @@ export default function EventInfoTab({ planId, isHost, initialData }: EventInfoT
   };
 
   const handleDateChange = (newDate: Date | undefined) => {
-    console.log("setDate:", newDate);
     setDate(newDate);
   };
 

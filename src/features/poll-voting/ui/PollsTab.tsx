@@ -61,10 +61,8 @@ const PollsTab: React.FC<PollsTabProps> = ({ planId, currentParticipantId, isHos
     if (!planId || typeof planId !== "string" || planId.trim() === "") return;
 
     try {
-      console.log("Fetching polls for planId:", planId);
       const pollsData = await PollService.getPolls(planId);
       if (!Array.isArray(pollsData)) return;
-      console.log("Raw polls data:", pollsData);
 
       const processedPolls: PollWithDetails[] = await Promise.all(
         pollsData.map(async (poll) => {
@@ -74,12 +72,6 @@ const PollsTab: React.FC<PollsTabProps> = ({ planId, currentParticipantId, isHos
             PollService.getParticipant(poll.created_by_participant_id),
           ]);
 
-          console.log(`Processing poll ${poll.id}:`, {
-            pollOptions,
-            pollVotes,
-            currentParticipantId,
-          });
-
           const optionsWithVotes: PollOptionWithVotes[] = pollOptions.map((option) => {
             const votesForThisOption = pollVotes.filter((vote) => vote.option_id === option.id);
             const hasVotedForThisOption = currentParticipantId
@@ -88,13 +80,6 @@ const PollsTab: React.FC<PollsTabProps> = ({ planId, currentParticipantId, isHos
                     vote.option_id === option.id && vote.participant_id === currentParticipantId
                 )
               : false;
-
-            console.log(`Option ${option.id} (${option.title}):`, {
-              votesForThisOption,
-              hasVotedForThisOption,
-              currentParticipantId,
-              allVotesForOption: votesForThisOption,
-            });
 
             return {
               ...option,
@@ -108,12 +93,6 @@ const PollsTab: React.FC<PollsTabProps> = ({ planId, currentParticipantId, isHos
             0
           );
 
-          console.log(`Processed poll ${poll.id}:`, {
-            optionsWithVotes,
-            totalVotes,
-            creator: creator?.name,
-          });
-
           return {
             ...poll,
             options: removeDuplicateOptions(optionsWithVotes),
@@ -123,11 +102,9 @@ const PollsTab: React.FC<PollsTabProps> = ({ planId, currentParticipantId, isHos
         })
       );
 
-      console.log("Final processed polls:", processedPolls);
       setPolls(processedPolls);
       setIsLoading(false);
     } catch (error) {
-      console.error("Error fetching polls:", error);
       setIsLoading(false);
     }
   }, [planId, currentParticipantId]);
@@ -214,55 +191,7 @@ const PollsTab: React.FC<PollsTabProps> = ({ planId, currentParticipantId, isHos
     // Suscribirse a cambios en los votos
     const pollVotesSubscriptions = polls.map((poll) =>
       PollService.subscribeToPollVotes(poll.id, async () => {
-        console.log("Poll votes subscription triggered for poll:", poll.id);
-
-        // TEMPORARILY DISABLED - This might be causing issues
         return;
-
-        // Agregar un pequeño delay para permitir que los cambios locales se procesen
-        setTimeout(async () => {
-          console.log("Reloading poll data from database for poll:", poll.id);
-
-          // Recargar los votos de esta encuesta
-          const [pollOptions, pollVotes] = await Promise.all([
-            PollService.getPollOptions(poll.id),
-            PollService.getPollVotes(poll.id),
-          ]);
-
-          const optionsWithVotes = pollOptions.map((option) => ({
-            ...option,
-            votes_count: pollVotes.filter((vote) => vote.option_id === option.id).length,
-            has_voted: currentParticipantId
-              ? pollVotes.some(
-                  (vote) =>
-                    vote.option_id === option.id && vote.participant_id === currentParticipantId
-                )
-              : false,
-          }));
-
-          const totalVotes = optionsWithVotes.reduce(
-            (sum, option) => sum + (option.votes_count || 0),
-            0
-          );
-
-          console.log("Updated poll data from subscription:", {
-            pollId: poll.id,
-            totalVotes,
-            optionsCount: optionsWithVotes.length,
-          });
-
-          setPolls((prev) =>
-            prev.map((p) =>
-              p.id === poll.id
-                ? {
-                    ...p,
-                    options: removeDuplicateOptions(optionsWithVotes),
-                    total_votes: totalVotes,
-                  }
-                : p
-            )
-          );
-        }, 100); // 100ms delay
       })
     );
 
@@ -359,20 +288,11 @@ const PollsTab: React.FC<PollsTabProps> = ({ planId, currentParticipantId, isHos
     }
 
     try {
-      console.log("Adding vote:", {
-        pollId,
-        optionId,
-        participantId: currentParticipantId,
-        allowMultiple,
-      });
-
       const poll = polls.find((p) => p.id === pollId);
       if (!poll) return;
 
       // Agregamos el nuevo voto
       await PollService.vote(pollId, currentParticipantId, optionId);
-
-      console.log("Vote added successfully to database");
 
       // Actualizamos el estado local inmediatamente
       setPolls((prevPolls) =>
@@ -405,13 +325,6 @@ const PollsTab: React.FC<PollsTabProps> = ({ planId, currentParticipantId, isHos
 
             const totalVotes =
               updatedOptions?.reduce((sum, opt) => sum + (opt.votes_count || 0), 0) || 0;
-
-            console.log("Updated local state:", {
-              pollId,
-              optionId,
-              newVotesCount: updatedOptions?.find((opt) => opt.id === optionId)?.votes_count,
-              totalVotes,
-            });
 
             return {
               ...p,
@@ -447,11 +360,7 @@ const PollsTab: React.FC<PollsTabProps> = ({ planId, currentParticipantId, isHos
     if (!currentParticipantId) return;
 
     try {
-      console.log("Removing vote:", { pollId, optionId, participantId: currentParticipantId });
-
       await PollService.removeVote(pollId, currentParticipantId, optionId);
-
-      console.log("Vote removed successfully from database");
 
       // Actualizamos el estado local inmediatamente
       setPolls((prevPolls) =>
@@ -470,13 +379,6 @@ const PollsTab: React.FC<PollsTabProps> = ({ planId, currentParticipantId, isHos
 
             const totalVotes =
               updatedOptions?.reduce((sum, opt) => sum + (opt.votes_count || 0), 0) || 0;
-
-            console.log("Updated local state:", {
-              pollId,
-              optionId,
-              newVotesCount: updatedOptions?.find((opt) => opt.id === optionId)?.votes_count,
-              totalVotes,
-            });
 
             return {
               ...p,

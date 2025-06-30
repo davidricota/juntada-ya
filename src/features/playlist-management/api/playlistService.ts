@@ -73,12 +73,6 @@ export class PlaylistService {
     >
   ): Promise<PlaylistItem> {
     try {
-      console.log("PlaylistService.addToPlaylist called with:", {
-        planId,
-        participantId,
-        videoData,
-      });
-
       const { data, error } = await supabase
         .from("playlist_items")
         .insert({
@@ -107,11 +101,8 @@ export class PlaylistService {
         .single();
 
       if (error) {
-        console.error("Supabase error in addToPlaylist:", error);
         throw error;
       }
-
-      console.log("Supabase insert successful:", data);
 
       const item = {
         ...data,
@@ -130,7 +121,6 @@ export class PlaylistService {
         });
       }
 
-      console.log("Returning playlist item:", item);
       return item;
     } catch {
       throw new Error("Error in addToPlaylist");

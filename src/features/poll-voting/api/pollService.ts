@@ -69,8 +69,6 @@ export class PollService {
   }
 
   static async vote(pollId: string, participantId: string, optionId: string): Promise<void> {
-    console.log("Vote function called:", { pollId, participantId, optionId });
-
     const { data: poll, error: pollError } = await supabase
       .from("polls")
       .select("allow_multiple_votes, event_id")
@@ -80,8 +78,6 @@ export class PollService {
     if (pollError) {
       throw new Error("Error al obtener la encuesta");
     }
-
-    console.log("Poll data:", poll);
 
     const { data: eventParticipant, error: participantError } = await supabase
       .from("event_participants")
@@ -112,11 +108,8 @@ export class PollService {
     }
 
     if (typeof poll.allow_multiple_votes === "boolean" && poll.allow_multiple_votes) {
-      console.log("Multiple votes poll - checking if vote exists for option");
-
       if (existingVoteForOption) {
         // Si ya votó por esta opción, eliminar el voto (toggle)
-        console.log("Removing existing vote for option");
         const { error: deleteError } = await supabase
           .from("poll_votes")
           .delete()
@@ -127,10 +120,8 @@ export class PollService {
         if (deleteError) {
           throw new Error("Error al eliminar el voto");
         }
-        console.log("Vote removed successfully");
       } else {
         // Si no votó por esta opción, agregar el voto
-        console.log("Adding new vote for option");
         const { error: insertError } = await supabase.from("poll_votes").insert({
           poll_id: pollId,
           participant_id: participantId,
@@ -140,11 +131,8 @@ export class PollService {
         if (insertError) {
           throw new Error("Error al registrar el voto");
         }
-        console.log("Vote added successfully");
       }
     } else {
-      console.log("Single vote poll - checking existing vote");
-
       // Buscar si existe algún voto del participante en esta encuesta
       const { data: existingVote, error: checkError } = await supabase
         .from("poll_votes")
@@ -159,13 +147,6 @@ export class PollService {
 
       if (existingVote) {
         // Si ya existe un voto, actualizar la opción
-        console.log("Updating existing vote to new option:", {
-          pollId,
-          participantId,
-          currentOptionId: existingVote.option_id,
-          newOptionId: optionId,
-        });
-
         const { error: updateError } = await supabase
           .from("poll_votes")
           .update({ option_id: optionId })
@@ -173,13 +154,10 @@ export class PollService {
           .eq("participant_id", participantId);
 
         if (updateError) {
-          console.error("Update error details:", updateError);
           throw new Error(`Error al actualizar el voto: ${updateError.message}`);
         }
-        console.log("Vote updated successfully");
       } else {
         // Si no existe voto, crear uno nuevo
-        console.log("Creating new vote");
         const { error: insertError } = await supabase.from("poll_votes").insert({
           poll_id: pollId,
           participant_id: participantId,
@@ -189,7 +167,6 @@ export class PollService {
         if (insertError) {
           throw new Error("Error al registrar el voto");
         }
-        console.log("Vote created successfully");
       }
     }
   }

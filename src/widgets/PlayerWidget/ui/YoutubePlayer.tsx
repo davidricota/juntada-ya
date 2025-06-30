@@ -282,12 +282,6 @@ export default function YouTubePlayer({
 
   // Load new video when currentVideoIndex changes
   useEffect(() => {
-    console.log(
-      "YouTubePlayer - currentVideoIndex changed:",
-      currentVideoIndex,
-      "shouldAutoPlay:",
-      shouldAutoPlay
-    );
     if (
       playerRef.current &&
       typeof playerRef.current.loadVideoById === "function" &&
@@ -296,11 +290,9 @@ export default function YouTubePlayer({
       const videoId = playlistItems[currentVideoIndex]?.youtube_video_id;
       if (videoId) {
         try {
-          console.log("Loading video:", videoId, "shouldAutoPlay:", shouldAutoPlay);
           playerRef.current.loadVideoById(videoId);
           // Solo reproducir automáticamente si shouldAutoPlay es true
           if (shouldAutoPlay) {
-            console.log("Auto-playing video after load");
             setTimeout(() => {
               if (playerRef.current) {
                 playerRef.current.playVideo();
@@ -311,7 +303,6 @@ export default function YouTubePlayer({
               }
             }, 100);
           } else {
-            console.log("Not auto-playing video (shouldAutoPlay is false)");
             // Si no debe reproducir automáticamente, asegurar que esté pausado
             setTimeout(() => {
               if (playerRef.current) {
