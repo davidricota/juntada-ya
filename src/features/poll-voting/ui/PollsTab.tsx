@@ -2,6 +2,7 @@ import React, { useState, useEffect, useCallback } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/shared/ui/card";
 import { Button } from "@/shared/ui/button";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { toast } from "sonner";
 
 import {
   Dialog,
@@ -14,7 +15,6 @@ import {
 } from "@/shared/ui/dialog";
 import { Plus, Vote, X, Check, Loader2 } from "lucide-react";
 import { PollService } from "../api/pollService";
-import { useToast } from "@/shared/hooks/use-toast";
 import { Poll, PollOption, PollVote } from "@/app/types";
 import { PollForm } from "./PollForm";
 
@@ -43,7 +43,6 @@ const PollsTab: React.FC<PollsTabProps> = ({ planId, currentParticipantId, isHos
   const [isLoading, setIsLoading] = useState(true);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editingPoll, setEditingPoll] = useState<PollWithDetails | null>(null);
-  const { toast } = useToast();
   const queryClient = useQueryClient();
 
   // Función helper para remover opciones duplicadas
@@ -280,11 +279,7 @@ const PollsTab: React.FC<PollsTabProps> = ({ planId, currentParticipantId, isHos
     options: string[];
   }) => {
     if (!currentParticipantId) {
-      toast({
-        title: "Error",
-        description: "Debes unirte al evento para crear encuestas.",
-        variant: "destructive",
-      });
+      toast.error("Debes unirte al evento para crear encuestas.");
       return;
     }
 
@@ -301,8 +296,7 @@ const PollsTab: React.FC<PollsTabProps> = ({ planId, currentParticipantId, isHos
         );
 
         await queryClient.invalidateQueries({ queryKey: ["polls", planId] });
-        toast({
-          title: "¡Encuesta actualizada!",
+        toast.success("¡Encuesta actualizada!", {
           description: "La encuesta se ha actualizado exitosamente.",
         });
       } else {
@@ -317,8 +311,7 @@ const PollsTab: React.FC<PollsTabProps> = ({ planId, currentParticipantId, isHos
         );
 
         await queryClient.invalidateQueries({ queryKey: ["polls", planId] });
-        toast({
-          title: "¡Encuesta creada!",
+        toast.success("¡Encuesta creada!", {
           description: "La encuesta se ha creado exitosamente.",
         });
       }
@@ -327,10 +320,8 @@ const PollsTab: React.FC<PollsTabProps> = ({ planId, currentParticipantId, isHos
       setEditingPoll(null);
       setIsDialogOpen(false);
     } catch (error) {
-      toast({
-        title: "Error",
+      toast.error("Error", {
         description: "No se pudo crear/actualizar la encuesta. Inténtalo de nuevo.",
-        variant: "destructive",
       });
     }
   };
@@ -344,15 +335,12 @@ const PollsTab: React.FC<PollsTabProps> = ({ planId, currentParticipantId, isHos
     try {
       await PollService.deletePoll(pollId);
       await queryClient.invalidateQueries({ queryKey: ["polls", planId] });
-      toast({
-        title: "Encuesta eliminada",
+      toast.success("Encuesta eliminada", {
         description: "La encuesta se ha eliminado correctamente.",
       });
     } catch (error) {
-      toast({
-        title: "Error",
+      toast.error("Error", {
         description: "No se pudo eliminar la encuesta. Inténtalo de nuevo.",
-        variant: "destructive",
       });
     }
   };
@@ -365,11 +353,7 @@ const PollsTab: React.FC<PollsTabProps> = ({ planId, currentParticipantId, isHos
 
   const handleVote = async (pollId: string, optionId: string, allowMultiple: boolean) => {
     if (!currentParticipantId) {
-      toast({
-        title: "Error",
-        description: "Debes unirte al evento para votar.",
-        variant: "destructive",
-      });
+      toast.error("Debes unirte al evento para votar.");
       return;
     }
 
@@ -438,8 +422,7 @@ const PollsTab: React.FC<PollsTabProps> = ({ planId, currentParticipantId, isHos
         })
       );
 
-      toast({
-        title: "¡Voto registrado!",
+      toast.success("¡Voto registrado!", {
         description: "Tu voto se ha registrado correctamente.",
       });
     } catch (error) {
@@ -453,10 +436,8 @@ const PollsTab: React.FC<PollsTabProps> = ({ planId, currentParticipantId, isHos
         allowMultiple,
       });
 
-      toast({
-        title: "Error",
+      toast.error("Error al registrar voto", {
         description: `No se pudo registrar tu voto: ${error.message}`,
-        variant: "destructive",
       });
     }
   };
@@ -506,16 +487,13 @@ const PollsTab: React.FC<PollsTabProps> = ({ planId, currentParticipantId, isHos
         })
       );
 
-      toast({
-        title: "Voto eliminado",
+      toast.success("Voto eliminado", {
         description: "Tu voto se ha eliminado correctamente.",
       });
     } catch (error) {
       console.error("Error removing vote:", error);
-      toast({
-        title: "Error",
+      toast.error("Error al eliminar voto", {
         description: "No se pudo eliminar tu voto. Inténtalo de nuevo.",
-        variant: "destructive",
       });
     }
   };
@@ -530,7 +508,12 @@ const PollsTab: React.FC<PollsTabProps> = ({ planId, currentParticipantId, isHos
 
   return (
     <div className="space-y-6">
-      <div className="flex justify-end">
+      <div className="flex justify-between items-center mb-6">
+        <div>
+          <h2 className="text-2xl font-bold text-primary">Encuestas</h2>
+          <p className="text-muted-foreground">Crea encuestas y deja que los participantes voten</p>
+        </div>
+
         <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
           <DialogTrigger asChild>
             <Button className="bg-primary text-primary-foreground border border-primary-foreground hover:bg-primary/90">

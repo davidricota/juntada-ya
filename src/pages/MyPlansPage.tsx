@@ -14,10 +14,13 @@ import { EventService } from "@/features/event-creation/api/eventService";
 import { useParticipantStore } from "@/shared/stores/participantStore";
 import { EventType, Participant } from "@/app/types";
 import { Copy, Plus, Trash2 } from "lucide-react";
+import { useQuery } from "@tanstack/react-query";
+import { Badge } from "@/shared/ui/badge";
+import { Calendar, Users, MapPin, Clock, Edit } from "lucide-react";
+import { toast } from "sonner";
 
 const MyPlansPage: React.FC = () => {
   const navigate = useNavigate();
-  const { toast } = useToast();
   const [events, setEvents] = useState<(EventType & { participants?: Participant[] })[]>([]);
   const [loading, setLoading] = useState(true);
   const { getUserStorage, getUserId } = useParticipantStore();
@@ -50,10 +53,8 @@ const MyPlansPage: React.FC = () => {
 
       setEvents(uniqueEvents);
     } catch (error) {
-      toast({
-        title: "Error",
+      toast.error("Error al cargar eventos", {
         description: "Error al cargar los plancitos.",
-        variant: "destructive",
       });
     } finally {
       setLoading(false);
@@ -63,13 +64,13 @@ const MyPlansPage: React.FC = () => {
   const handleDeleteEvent = async (planId: string) => {
     try {
       await EventService.deleteEvent(planId);
-      toast({ title: "Éxito", description: "Plancito eliminado correctamente." });
+      toast.success("Evento eliminado", {
+        description: "Plancito eliminado correctamente.",
+      });
       fetchEvents();
     } catch (error) {
-      toast({
-        title: "Error",
+      toast.error("Error al eliminar evento", {
         description: "Error al eliminar el plancito.",
-        variant: "destructive",
       });
     }
   };
@@ -77,8 +78,7 @@ const MyPlansPage: React.FC = () => {
   const handleCopyCode = (code: string) => {
     const joinUrl = `${window.location.origin}/join/${code}`;
     navigator.clipboard.writeText(joinUrl);
-    toast({
-      title: "Código copiado",
+    toast.success("Código copiado", {
       description: "El enlace para unirse al evento ha sido copiado al portapapeles.",
     });
   };

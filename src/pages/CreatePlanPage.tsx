@@ -4,6 +4,7 @@ import { Button } from "@/shared/ui/button";
 import { Input } from "@/shared/ui/input";
 import { Label } from "@/shared/ui/label";
 import { useToast } from "@/shared/hooks/use-toast";
+import { toast } from "sonner";
 import {
   Card,
   CardContent,
@@ -29,7 +30,6 @@ const CreatePlanPage: React.FC = () => {
   const [accessCode, setAccessCode] = useState<string | null>(null);
   const [planId, setplanId] = useState<string | null>(null);
   const navigate = useNavigate();
-  const { toast } = useToast();
   const { getName, getWhatsapp, setParticipant, setEventParticipant } = useParticipantStore();
 
   // Inicializar los campos con los valores almacenados si existen
@@ -75,8 +75,7 @@ const CreatePlanPage: React.FC = () => {
 
       setAccessCode(eventData.access_code);
       setplanId(eventData.id);
-      toast({
-        title: "¡Plancito Creado!",
+      toast.success("¡Plancito Creado!", {
         description: `Nombre: ${eventName}, Código: ${eventData.access_code}`,
       });
 
@@ -85,10 +84,8 @@ const CreatePlanPage: React.FC = () => {
       }, 2000);
     },
     onError: (error: Error) => {
-      toast({
-        title: "Error",
+      toast.error("Error al crear evento", {
         description: error.message || "No se pudo crear el plancito. Inténtalo de nuevo.",
-        variant: "destructive",
       });
     },
   });
@@ -123,8 +120,7 @@ const CreatePlanPage: React.FC = () => {
                   onClick={() => {
                     const joinUrl = `${window.location.origin}/join/${accessCode}`;
                     navigator.clipboard.writeText(joinUrl);
-                    toast({
-                      title: "Código copiado",
+                    toast.success("Código copiado", {
                       description:
                         "El enlace para unirse al plancito ha sido copiado al portapapeles.",
                     });

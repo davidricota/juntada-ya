@@ -1,10 +1,17 @@
+import React from "react";
 import { useState } from "react";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/shared/ui/dialog";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@/shared/ui/dialog";
 import { Input } from "@/shared/ui/input";
 import { Button } from "@/shared/ui/button";
 import { PlaylistItem } from "@/app/types";
 import { YouTubeService, YouTubeVideo } from "@/features/playlist-management/api/youtubeService";
-import { useToast } from "@/shared/hooks/use-toast";
+import { toast } from "sonner";
 import YouTubeSearchResults from "@/features/playlist-management/ui/YouTubeSearchResults";
 
 interface SearchDialogProps {
@@ -22,7 +29,6 @@ export function SearchDialog({ isOpen, onClose, onSongSelected }: SearchDialogPr
   const [searchQuery, setSearchQuery] = useState("");
   const [searchResults, setSearchResults] = useState<YouTubeVideo[]>([]);
   const [isSearching, setIsSearching] = useState(false);
-  const { toast } = useToast();
 
   const handleSearch = async () => {
     if (!searchQuery.trim()) return;
@@ -32,11 +38,7 @@ export function SearchDialog({ isOpen, onClose, onSongSelected }: SearchDialogPr
       const results = await YouTubeService.searchVideos(searchQuery);
       setSearchResults(results);
     } catch (error) {
-      toast({
-        title: "Error",
-        description: "No se pudieron buscar los videos. Inténtalo de nuevo.",
-        variant: "destructive",
-      });
+      toast.error("No se pudieron buscar los videos. Inténtalo de nuevo.");
     } finally {
       setIsSearching(false);
     }

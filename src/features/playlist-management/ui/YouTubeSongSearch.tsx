@@ -1,8 +1,9 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { Input } from "@/shared/ui/input";
 import { Button } from "@/shared/ui/button";
 import { Search, Loader2, AlertTriangle } from "lucide-react";
 import { useToast } from "@/shared/hooks/use-toast";
+import { toast } from "sonner";
 import { YouTubeService, YouTubeVideo } from "../api/youtubeService";
 import YouTubeSearchResults from "./YouTubeSearchResults";
 
@@ -15,16 +16,11 @@ const YouTubeSongSearch: React.FC<YouTubeSongSearchProps> = ({ onSongSelected })
   const [searchResults, setSearchResults] = useState<YouTubeVideo[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const { toast } = useToast();
 
   const handleSearch = async (e?: React.FormEvent) => {
     if (e) e.preventDefault();
     if (!searchTerm.trim()) {
-      toast({
-        title: "Campo Vacío",
-        description: "Por favor, ingresa un término de búsqueda.",
-        variant: "destructive",
-      });
+      toast.error("Por favor, ingresa un término de búsqueda.");
       return;
     }
 
@@ -37,23 +33,17 @@ const YouTubeSongSearch: React.FC<YouTubeSongSearchProps> = ({ onSongSelected })
       setSearchResults(results);
 
       if (results.length === 0) {
-        toast({
-          title: "Sin Resultados",
-          description: "No se encontraron canciones para tu búsqueda.",
-        });
+        toast.info("No se encontraron canciones para tu búsqueda.");
       }
     } catch (err) {
       setError(
         err instanceof Error ? err.message : "Ocurrió un error desconocido durante la búsqueda."
       );
-      toast({
-        title: "Error de Búsqueda",
-        description:
-          err instanceof Error
-            ? err.message
-            : "No se pudieron obtener los resultados. Inténtalo de nuevo.",
-        variant: "destructive",
-      });
+      toast.error(
+        err instanceof Error
+          ? err.message
+          : "No se pudieron obtener los resultados. Inténtalo de nuevo."
+      );
     } finally {
       setIsLoading(false);
     }
@@ -62,12 +52,9 @@ const YouTubeSongSearch: React.FC<YouTubeSongSearchProps> = ({ onSongSelected })
   const handleSelectSong = (song: YouTubeVideo) => {
     if (onSongSelected) {
       onSongSelected(song);
-      toast({
-        title: "Canción Pre-seleccionada",
-        description: `${song.title} lista para ser añadida.`,
-      });
+      toast.success(`${song.title} lista para ser añadida.`);
     } else {
-      toast({ title: "Canción Seleccionada (dev)", description: `${song.title}` });
+      toast.info(`Canción seleccionada: ${song.title}`);
     }
   };
 

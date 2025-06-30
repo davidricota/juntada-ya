@@ -4,6 +4,7 @@ import { Button } from "@/shared/ui/button";
 import { Input } from "@/shared/ui/input";
 import { Label } from "@/shared/ui/label";
 import { useToast } from "@/shared/hooks/use-toast";
+import { toast } from "sonner";
 import {
   Card,
   CardContent,
@@ -27,7 +28,6 @@ const JoinEventPage: React.FC = () => {
   const [participantName, setParticipantName] = useState("");
   const [participantWhatsapp, setParticipantWhatsapp] = useState("");
   const navigate = useNavigate();
-  const { toast } = useToast();
   const { getName, getWhatsapp, setParticipant, setEventParticipant } = useParticipantStore();
 
   // Inicializar los campos con los valores almacenados si existen
@@ -93,17 +93,13 @@ const JoinEventPage: React.FC = () => {
       setEventParticipant(event.id, user.id, participantName);
 
       if (!isExisting) {
-        toast({ title: "¡Bienvenido!", description: `Te has unido al evento ${event.name}` });
+        toast.success(`¡Bienvenido! Te has unido al evento ${event.name}`);
       }
 
       navigate(`/plan/${event.id}`);
     },
     onError: (error: Error) => {
-      toast({
-        title: "Error",
-        description: error.message || "No se pudo unir al evento. Inténtalo de nuevo.",
-        variant: "destructive",
-      });
+      toast.error(error.message || "No se pudo unir al evento. Inténtalo de nuevo.");
     },
   });
 

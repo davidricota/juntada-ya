@@ -2,6 +2,7 @@ import React, { useEffect, useState, lazy, Suspense, useRef } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { Button } from "@/shared/ui/button";
 import { useToast } from "@/shared/hooks/use-toast";
+import { toast } from "sonner";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/shared/ui/card";
 import { Avatar, AvatarFallback, AvatarImage } from "@/shared/ui/avatar";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/shared/ui/tabs";
@@ -46,7 +47,6 @@ const fetchPlaylist = async (planId: string) => {
 const PlanPage: React.FC = () => {
   const { planId } = useParams<{ planId: string }>();
   const navigate = useNavigate();
-  const { toast } = useToast();
   const queryClient = useQueryClient();
 
   const [currentParticipantId, setCurrentParticipantId] = useState<string | null>(null);
@@ -169,15 +169,12 @@ const PlanPage: React.FC = () => {
       await PlaylistService.addToPlaylist(planId, currentParticipantId, videoData);
       await queryClient.invalidateQueries({ queryKey: ["playlist", planId] });
       setIsSearchOpen(false);
-      toast({
-        title: "¡Canción Agregada!",
+      toast.success("¡Canción Agregada!", {
         description: `${videoData.title} se añadió a la playlist.`,
       });
     } catch (error) {
-      toast({
-        title: "Error",
+      toast.error("Error al agregar canción", {
         description: "No se pudo agregar la canción a la playlist",
-        variant: "destructive",
       });
     }
   };
@@ -186,15 +183,12 @@ const PlanPage: React.FC = () => {
     try {
       await PlaylistService.removeFromPlaylist(itemId);
       await queryClient.invalidateQueries({ queryKey: ["playlist", planId] });
-      toast({
-        title: "Canción Eliminada",
+      toast.success("Canción Eliminada", {
         description: "La canción ha sido eliminada de la playlist",
       });
     } catch (error) {
-      toast({
-        title: "Error",
+      toast.error("Error al eliminar canción", {
         description: "No se pudo eliminar la canción de la playlist",
-        variant: "destructive",
       });
     }
   };
@@ -237,8 +231,7 @@ const PlanPage: React.FC = () => {
                     onClick={() => {
                       const joinUrl = `${window.location.origin}/join/${event?.access_code}`;
                       navigator.clipboard.writeText(joinUrl);
-                      toast({
-                        title: "Código copiado",
+                      toast.success("Código copiado", {
                         description:
                           "El enlace para unirse al evento ha sido copiado al portapapeles.",
                       });

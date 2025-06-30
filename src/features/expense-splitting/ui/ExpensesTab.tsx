@@ -3,6 +3,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/sha
 import { Loader2 } from "lucide-react";
 import { ExpenseService } from "../api/expenseService";
 import { useToast } from "@/shared/hooks/use-toast";
+import { toast } from "sonner";
 import { Participant, Expense, ExpenseSummary, ExpenseChangePayload } from "@/app/types";
 import { formatCurrency } from "@/shared/lib/utils";
 import { Trash, UserPlus } from "lucide-react";
@@ -33,7 +34,6 @@ const ExpensesTab: React.FC<ExpensesTabProps> = ({
   const [isAddExtraOpen, setIsAddExtraOpen] = useState(false);
   const [extraName, setExtraName] = useState("");
   const [isAddingExtra, setIsAddingExtra] = useState(false);
-  const { toast } = useToast();
 
   useEffect(() => {
     loadExpenses();
@@ -66,11 +66,7 @@ const ExpensesTab: React.FC<ExpensesTabProps> = ({
       setExpenses(expensesData);
       setSummary(summaryData);
     } catch (error) {
-      toast({
-        title: "Error",
-        description: "No se pudieron cargar los gastos.",
-        variant: "destructive",
-      });
+      toast.error("No se pudieron cargar los gastos.");
     } finally {
       setIsLoading(false);
     }
@@ -93,16 +89,9 @@ const ExpensesTab: React.FC<ExpensesTabProps> = ({
       const newSummary = await ExpenseService.getExpenseSummary(planId);
       setSummary(newSummary);
       setIsDialogOpen(false);
-      toast({
-        title: "¡Gasto Agregado!",
-        description: "El gasto se ha agregado correctamente.",
-      });
+      toast.success("El gasto se ha agregado correctamente.");
     } catch (error) {
-      toast({
-        title: "Error",
-        description: "No se pudo agregar el gasto. Inténtalo de nuevo.",
-        variant: "destructive",
-      });
+      toast.error("No se pudo agregar el gasto. Inténtalo de nuevo.");
     }
   };
 
@@ -116,18 +105,11 @@ const ExpensesTab: React.FC<ExpensesTabProps> = ({
       const newSummary = await ExpenseService.getExpenseSummary(planId);
       setSummary(newSummary);
 
-      toast({
-        title: "Gasto Eliminado",
-        description: "El gasto se ha eliminado correctamente.",
-      });
+      toast.success("El gasto se ha eliminado correctamente.");
     } catch (error) {
       // Si hay error, recargamos todo
       loadExpenses();
-      toast({
-        title: "Error",
-        description: "No se pudo eliminar el gasto. Inténtalo de nuevo.",
-        variant: "destructive",
-      });
+      toast.error("No se pudo eliminar el gasto. Inténtalo de nuevo.");
     }
   };
 
@@ -139,16 +121,9 @@ const ExpensesTab: React.FC<ExpensesTabProps> = ({
       await ExpenseService.addExtraParticipant(planId, extraName);
       setExtraName("");
       setIsAddExtraOpen(false);
-      toast({
-        title: "Participante extra agregado",
-        description: `${extraName} fue añadido a la lista de gastos.`,
-      });
+      toast.success(`${extraName} fue añadido a la lista de gastos.`);
     } catch (error) {
-      toast({
-        title: "Error",
-        description: "No se pudo agregar el participante extra.",
-        variant: "destructive",
-      });
+      toast.error("No se pudo agregar el participante extra.");
     } finally {
       setIsAddingExtra(false);
     }
