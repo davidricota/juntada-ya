@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/shared/ui/card";
 import { Button } from "@/shared/ui/button";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 
 import {
@@ -13,9 +13,9 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/shared/ui/dialog";
-import { Plus, Vote, X, Check, Loader2 } from "lucide-react";
+import { Plus, Vote, Check, Loader2 } from "lucide-react";
 import { PollService } from "../api/pollService";
-import { Poll, PollOption, PollVote } from "@/app/types";
+import { Poll, PollOption } from "@/app/types";
 import { PollForm } from "./PollForm";
 
 interface PollsTabProps {
@@ -58,11 +58,12 @@ const PollsTab: React.FC<PollsTabProps> = ({ planId, currentParticipantId, isHos
   };
 
   const fetchPolls = useCallback(async () => {
-    if (!planId) return;
+    if (!planId || typeof planId !== "string" || planId.trim() === "") return;
 
     try {
       console.log("Fetching polls for planId:", planId);
       const pollsData = await PollService.getPolls(planId);
+      if (!Array.isArray(pollsData)) return;
       console.log("Raw polls data:", pollsData);
 
       const processedPolls: PollWithDetails[] = await Promise.all(

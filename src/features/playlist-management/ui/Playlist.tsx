@@ -1,6 +1,6 @@
 import React from "react";
-import { PlayCircleIcon, Trash, Youtube } from "lucide-react";
-import { PlaylistItem } from "@/shared/types";
+import { PlayCircleIcon, Trash } from "lucide-react";
+import { PlaylistItem } from "@/app/types";
 import { cn } from "@/shared/lib/utils";
 
 interface PlayListProps {
@@ -20,8 +20,6 @@ const Playlist: React.FC<PlayListProps> = ({
   currentParticipantId,
   isHost,
 }) => {
-  if (!playlistItems) return null;
-
   return (
     <ul className="space-y-3 max-h-96 px-1 md:px-4">
       {playlistItems.map((item, index) => (

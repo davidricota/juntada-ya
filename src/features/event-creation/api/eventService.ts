@@ -2,7 +2,6 @@ import { supabase } from "@/shared/integrations/supabase/client";
 import { EventType, Participant, ParticipantChangePayload } from "@/app/types";
 import { RealtimeChannel } from "@supabase/supabase-js";
 import { UserService } from "@/shared/api/userService";
-import type { Database } from "@/shared/integrations/supabase/types";
 
 // Cache para eventos
 const eventCache = new Map<
@@ -10,8 +9,6 @@ const eventCache = new Map<
   { data: EventType & { participants?: Participant[] }; timestamp: number }
 >();
 const CACHE_TTL = 5 * 60 * 1000; // 5 minutos
-
-type EventRow = Database["public"]["Tables"]["events"]["Row"];
 
 export class EventService {
   private static clearCache() {
@@ -42,7 +39,7 @@ export class EventService {
       .eq("id", id)
       .single();
 
-    if (error) throw error;
+    if (error) throw error instanceof Error ? error : new Error(String(error));
     return data as EventType;
   }
 
@@ -54,7 +51,7 @@ export class EventService {
       .select()
       .single();
 
-    if (error) throw error;
+    if (error) throw error instanceof Error ? error : new Error(String(error));
     return data as EventType;
   }
 
@@ -85,7 +82,7 @@ export class EventService {
 
     if (error) {
       if (error.code === "PGRST116") return null;
-      throw error;
+      throw error instanceof Error ? error : new Error(String(error));
     }
 
     const result = {
@@ -116,7 +113,7 @@ export class EventService {
 
     if (error) {
       if (error.code === "PGRST116") return null;
-      throw error;
+      throw error instanceof Error ? error : new Error(String(error));
     }
     return data;
   }
@@ -128,8 +125,9 @@ export class EventService {
       .eq("event_id", planId)
       .order("created_at", { ascending: true });
 
-    if (error) throw error;
-    return data || [];
+    if (error) throw error instanceof Error ? error : new Error(String(error));
+    if (Array.isArray(data)) return data;
+    throw new Error("No data returned from getEventParticipants");
   }
 
   static async joinEvent(
@@ -148,7 +146,7 @@ export class EventService {
       .select("id, event_id, user_id, name, created_at")
       .single();
 
-    if (error) throw error;
+    if (error) throw error instanceof Error ? error : new Error(String(error));
 
     // Invalidar cache del evento
     eventCache.delete(planId);
@@ -165,7 +163,7 @@ export class EventService {
       .delete()
       .match({ event_id: planId, user_id: user.id });
 
-    if (error) throw error;
+    if (error) throw error instanceof Error ? error : new Error(String(error));
 
     // Invalidar cache del evento
     eventCache.delete(planId);
@@ -182,7 +180,7 @@ export class EventService {
       .select("id, access_code")
       .single();
 
-    if (error) throw error;
+    if (error) throw error instanceof Error ? error : new Error(String(error));
     return data;
   }
 
@@ -197,7 +195,7 @@ export class EventService {
       .select("id, name")
       .single();
 
-    if (error) throw error;
+    if (error) throw error instanceof Error ? error : new Error(String(error));
 
     // Invalidar cache del evento
     eventCache.delete(planId);
@@ -208,7 +206,7 @@ export class EventService {
   static async deleteEvent(planId: string): Promise<void> {
     const { error } = await supabase.from("events").delete().eq("id", planId);
 
-    if (error) throw error;
+    if (error) throw error instanceof Error ? error : new Error(String(error));
 
     // Invalidar cache del evento
     eventCache.delete(planId);
@@ -238,7 +236,7 @@ export class EventService {
   }
 
   static unsubscribeFromParticipants(subscription: RealtimeChannel): void {
-    supabase.removeChannel(subscription);
+    void supabase.removeChannel(subscription);
   }
 
   static async getEventsByHost(
@@ -266,11 +264,11 @@ export class EventService {
       .eq("host_user_id", userId)
       .order("created_at", { ascending: false });
 
-    if (error) throw error;
-
+    if (error) throw error instanceof Error ? error : new Error(String(error));
+    if (!Array.isArray(data)) return [];
     const results = data.map((event) => ({
       ...event,
-      participants: event.participants || [],
+      participants: Array.isArray(event.participants) ? event.participants : [],
     }));
 
     // Actualizar cache
@@ -289,8 +287,11 @@ export class EventService {
       .select("event_id")
       .eq("user_id", userId);
 
-    if (participantError) throw participantError;
-    if (!participantData.length) return [];
+    if (participantError)
+      throw participantError instanceof Error
+        ? participantError
+        : new Error(String(participantError));
+    if (!Array.isArray(participantData) || participantData.length === 0) return [];
 
     const planIds = participantData.map((p) => p.event_id);
 
@@ -316,11 +317,12 @@ export class EventService {
       .in("id", planIds)
       .order("created_at", { ascending: false });
 
-    if (eventsError) throw eventsError;
-
+    if (eventsError)
+      throw eventsError instanceof Error ? eventsError : new Error(String(eventsError));
+    if (!Array.isArray(eventsData)) return [];
     const results = eventsData.map((event) => ({
       ...event,
-      participants: event.participants || [],
+      participants: Array.isArray(event.participants) ? event.participants : [],
     }));
 
     // Actualizar cache

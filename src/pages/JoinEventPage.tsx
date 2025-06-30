@@ -3,7 +3,6 @@ import { useParams, useNavigate } from "react-router-dom";
 import { Button } from "@/shared/ui/button";
 import { Input } from "@/shared/ui/input";
 import { Label } from "@/shared/ui/label";
-import { useToast } from "@/shared/hooks/use-toast";
 import { toast } from "sonner";
 import {
   Card,
@@ -34,29 +33,37 @@ const JoinEventPage: React.FC = () => {
   useEffect(() => {
     const storedName = getName();
     const storedWhatsapp = getWhatsapp();
-    if (storedName) setParticipantName(storedName);
-    if (storedWhatsapp) setParticipantWhatsapp(storedWhatsapp);
+    if (typeof storedName === "string" && storedName.trim() !== "") setParticipantName(storedName);
+    if (typeof storedWhatsapp === "string" && storedWhatsapp.trim() !== "")
+      setParticipantWhatsapp(storedWhatsapp);
   }, [getName, getWhatsapp]);
 
   const joinEventMutation = useMutation({
     mutationFn: async () => {
-      if (!accessCode.trim()) {
+      if (!accessCode || typeof accessCode !== "string" || accessCode.trim() === "") {
         throw new Error("El código de acceso no puede estar vacío.");
       }
 
-      if (!participantName.trim() || !participantWhatsapp) {
+      if (
+        !participantName ||
+        typeof participantName !== "string" ||
+        participantName.trim() === "" ||
+        !participantWhatsapp ||
+        typeof participantWhatsapp !== "string" ||
+        participantWhatsapp.trim() === ""
+      ) {
         throw new Error("Por favor completa tu nombre y número de WhatsApp.");
       }
 
       // Buscar el evento por código de acceso
       const event = await EventService.getEventByAccessCode(accessCode);
-      if (!event) {
+      if (!event || typeof event !== "object") {
         throw new Error("Código de acceso inválido.");
       }
 
       // Obtener o crear el usuario
       const user = await UserService.getOrCreateUser(participantWhatsapp, participantName);
-      if (!user) {
+      if (!user || typeof user !== "object") {
         throw new Error("No se pudo crear o obtener el usuario.");
       }
 
@@ -72,7 +79,7 @@ const JoinEventPage: React.FC = () => {
         participantWhatsapp,
         participantName
       );
-      if (!participant) {
+      if (!participant || typeof participant !== "object") {
         throw new Error("No se pudo unir al evento.");
       }
 
@@ -103,9 +110,9 @@ const JoinEventPage: React.FC = () => {
     },
   });
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    joinEventMutation.mutate();
+    void joinEventMutation.mutate();
   };
 
   return (
@@ -126,7 +133,7 @@ const JoinEventPage: React.FC = () => {
               <Input
                 id="accessCode"
                 type="text"
-                value={accessCode}
+                value={accessCode ?? ""}
                 onChange={(e) => setAccessCode(e.target.value)}
                 placeholder="Ingresa el código de acceso"
                 required
@@ -141,7 +148,7 @@ const JoinEventPage: React.FC = () => {
               <Input
                 id="participantName"
                 type="text"
-                value={participantName}
+                value={participantName ?? ""}
                 onChange={(e) => setParticipantName(e.target.value)}
                 placeholder="Tu nombre"
                 required
@@ -154,7 +161,7 @@ const JoinEventPage: React.FC = () => {
               </Label>
               <PhoneInput
                 country="ar"
-                value={participantWhatsapp}
+                value={participantWhatsapp ?? ""}
                 onChange={setParticipantWhatsapp}
                 inputProps={{
                   className: cn(

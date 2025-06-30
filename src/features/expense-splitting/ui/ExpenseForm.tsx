@@ -29,7 +29,8 @@ const ExpenseForm: React.FC<ExpenseFormProps> = ({
   const [paidBy, setPaidBy] = useState(currentParticipantId);
 
   const handleSubmit = () => {
-    if (!title.trim() || !amount.trim()) return;
+    if (typeof title !== "string" || title.trim().length === 0) return;
+    if (typeof amount !== "string" || amount.trim().length === 0) return;
     const amountNumber = parseFloat(amount.replace(",", "."));
     if (isNaN(amountNumber)) return;
     onSubmit(title.trim(), amountNumber, paidBy);

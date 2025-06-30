@@ -22,15 +22,30 @@ interface EventInfoTabProps {
   };
 }
 
-const fetchEventInfo = async (planId: string) => {
+const fetchEventInfo = async (
+  planId: string
+): Promise<{
+  address: string;
+  date: string;
+  time: string;
+  latitude: number;
+  longitude: number;
+} | null> => {
   const { data, error } = await supabase
     .from("events")
     .select("address, date, time, latitude, longitude")
     .eq("id", planId)
     .single();
 
-  if (error) throw error;
-  return data;
+  if (error) throw error instanceof Error ? error : new Error(String(error));
+  if (!data) return null;
+  return data as {
+    address: string;
+    date: string;
+    time: string;
+    latitude: number;
+    longitude: number;
+  };
 };
 
 export default function EventInfoTab({ planId, isHost, initialData }: EventInfoTabProps) {
@@ -38,7 +53,7 @@ export default function EventInfoTab({ planId, isHost, initialData }: EventInfoT
   const [showMap, setShowMap] = useState(false);
   const queryClient = useQueryClient();
 
-  const { data: eventInfo, isLoading } = useQuery({
+  const { data: eventInfo } = useQuery({
     queryKey: ["eventInfo", planId],
     queryFn: () => fetchEventInfo(planId),
     initialData,
@@ -64,39 +79,45 @@ export default function EventInfoTab({ planId, isHost, initialData }: EventInfoT
     }
   };
 
-  // Función para convertir Date a string (formato YYYY-MM-DD)
-  const dateToString = (date: Date | undefined): string => {
-    if (!date) return "";
-    return format(date, "yyyy-MM-dd");
-  };
-
   // Actualizar estados cuando cambia eventInfo
   useEffect(() => {
+    console.log("eventInfo:", eventInfo);
     if (eventInfo) {
-      setAddress(eventInfo.address || "");
-      setDate(stringToDate(eventInfo.date || ""));
-      setTime(eventInfo.time || "");
+      setAddress(
+        typeof eventInfo.address === "string" && eventInfo.address.length > 0
+          ? eventInfo.address
+          : ""
+      );
+      setDate(
+        typeof eventInfo.date === "string" && eventInfo.date.length > 0
+          ? stringToDate(eventInfo.date)
+          : undefined
+      );
+      setTime(
+        typeof eventInfo.time === "string" && eventInfo.time.length > 0 ? eventInfo.time : ""
+      );
       setCoordinates({
-        lat: eventInfo.latitude || 0,
-        lng: eventInfo.longitude || 0,
+        lat: typeof eventInfo.latitude === "number" ? eventInfo.latitude : 0,
+        lng: typeof eventInfo.longitude === "number" ? eventInfo.longitude : 0,
       });
     }
   }, [eventInfo]);
 
   const handleSave = async () => {
+    console.log({ address, date, time, coordinates });
     try {
-      const { error } = await supabase
+      const { error: updateError } = await supabase
         .from("events")
         .update({
           address,
-          date: dateToString(date),
+          date: date ? format(date, "yyyy-MM-dd") : null,
           time,
           latitude: coordinates.lat,
           longitude: coordinates.lng,
         })
         .eq("id", planId);
 
-      if (error) throw error;
+      if (updateError) throw updateError;
 
       // Invalidate and refetch
       await queryClient.invalidateQueries({ queryKey: ["eventInfo", planId] });
@@ -106,7 +127,7 @@ export default function EventInfoTab({ planId, isHost, initialData }: EventInfoT
         title: "Información actualizada",
         description: "Los datos del evento se han actualizado correctamente.",
       });
-    } catch (error) {
+    } catch {
       toast({
         title: "Error",
         description: "No se pudo actualizar la información del evento.",
@@ -122,19 +143,59 @@ export default function EventInfoTab({ planId, isHost, initialData }: EventInfoT
           address
         )}&key=${import.meta.env.VITE_GOOGLE_MAPS_API_KEY}`
       );
-      const data = await response.json();
-
-      if (data.results && data.results[0]) {
-        const { lat, lng } = data.results[0].geometry.location;
-        setCoordinates({ lat, lng });
+      const data = (await response.json()) as unknown;
+      const results =
+        data &&
+        "results" in (data as Record<string, unknown>) &&
+        Array.isArray((data as Record<string, unknown>).results)
+          ? (data as { results: unknown[] }).results
+          : [];
+      if (results.length > 0) {
+        const first = results[0];
+        if (
+          first &&
+          typeof first === "object" &&
+          "geometry" in first &&
+          first.geometry &&
+          typeof (first as Record<string, unknown>)["geometry"] === "object"
+        ) {
+          const geometry = (first as Record<string, unknown>)["geometry"];
+          if (
+            geometry &&
+            typeof geometry === "object" &&
+            "location" in geometry &&
+            (geometry as Record<string, unknown>)["location"] &&
+            typeof (geometry as Record<string, unknown>)["location"] === "object"
+          ) {
+            const location = (geometry as Record<string, unknown>)["location"];
+            if (
+              location &&
+              typeof location === "object" &&
+              "lat" in location &&
+              typeof (location as Record<string, unknown>)["lat"] === "number" &&
+              "lng" in location &&
+              typeof (location as Record<string, unknown>)["lng"] === "number"
+            ) {
+              setCoordinates({
+                lat: (location as Record<string, number>)["lat"],
+                lng: (location as Record<string, number>)["lng"],
+              });
+            }
+          }
+        }
       }
-    } catch (error) {
+    } catch {
       toast({
         title: "Error",
         description: "No se pudo obtener la ubicación del mapa.",
         variant: "destructive",
       });
     }
+  };
+
+  const handleDateChange = (newDate: Date | undefined) => {
+    console.log("setDate:", newDate);
+    setDate(newDate);
   };
 
   return (
@@ -161,19 +222,28 @@ export default function EventInfoTab({ planId, isHost, initialData }: EventInfoT
                     className="bg-primary-foreground border border-primary"
                     placeholder="Ingresa la dirección del evento"
                   />
-                  <Button onClick={handleAddressSearch}>Buscar</Button>
+                  <Button
+                    onClick={() => {
+                      void handleAddressSearch();
+                    }}
+                  >
+                    Buscar
+                  </Button>
                 </div>
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
-                  <DatePicker
-                    id="date"
-                    label="Fecha"
-                    date={date}
-                    onDateChange={setDate}
-                    placeholder="Seleccionar fecha"
-                    className="w-full bg-primary-foreground border border-primary"
-                  />
+                  <div className="flex flex-col gap-3">
+                    <Label htmlFor="date">Fecha</Label>
+                    <DatePicker
+                      id="date"
+                      label="Fecha"
+                      date={date}
+                      onDateChange={handleDateChange}
+                      placeholder="Seleccionar fecha"
+                      className="w-full bg-primary-foreground border border-primary"
+                    />
+                  </div>
                 </div>
                 <div className="space-y-2">
                   <div className="flex flex-col gap-3">
@@ -189,7 +259,13 @@ export default function EventInfoTab({ planId, isHost, initialData }: EventInfoT
                   </div>
                 </div>
               </div>
-              <Button onClick={handleSave}>Guardar Cambios</Button>
+              <Button
+                onClick={() => {
+                  void handleSave();
+                }}
+              >
+                Guardar Cambios
+              </Button>
 
               {coordinates.lat !== 0 && coordinates.lng !== 0 && (
                 <div className="mt-4 h-[300px] rounded-lg overflow-hidden">

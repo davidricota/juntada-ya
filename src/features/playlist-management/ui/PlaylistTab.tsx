@@ -1,4 +1,4 @@
-import React, { useState, Dispatch, SetStateAction, useEffect, useRef } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/shared/ui/card";
 import { ListMusic, Loader2 } from "lucide-react";
 import YouTubePlayer from "@/widgets/PlayerWidget/ui/YoutubePlayer";
@@ -6,7 +6,7 @@ import Playlist from "./Playlist";
 import { ScrollArea } from "@/shared/ui/scroll-area";
 import { PlaylistService } from "../api/playlistService";
 import { toast } from "@/shared/hooks/use-toast";
-import { Participant, PlaylistItem, PlaylistChangePayload } from "@/app/types";
+import { PlaylistItem } from "@/app/types";
 import YouTubeSongSearch from "./YouTubeSongSearch";
 import { YouTubeVideo } from "../api/youtubeService";
 import JoinEventCard from "@/widgets/EventTabs/ui/JoinEventCard";
@@ -15,7 +15,6 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { usePlayer } from "@/app/providers/PlayerContext";
 import { cn } from "@/shared/lib/utils";
 import MiniPlayer from "@/widgets/PlayerWidget/ui/MiniPlayer";
-import { useParams } from "react-router-dom";
 
 interface YouTubePlayer {
   playVideo: () => void;
@@ -31,11 +30,9 @@ interface YouTubePlayer {
   getVideoData: () => { video_id: string } | null;
 }
 
-export interface PlaylistTabProps {
+interface PlaylistTabProps {
   planId: string;
-  participants: Participant[];
   playlist: PlaylistItem[];
-  onPlaylistChange?: Dispatch<SetStateAction<PlaylistItem[]>>;
   currentParticipantId: string | null;
   accessCode: string;
   isHost: boolean;
@@ -51,9 +48,7 @@ const fetchPlaylist = async (planId: string): Promise<PlaylistItem[]> => {
 
 export default function PlaylistTab({
   planId,
-  participants,
   playlist: initialPlaylist,
-  onPlaylistChange,
   currentParticipantId,
   accessCode,
   isHost,
@@ -88,17 +83,18 @@ export default function PlaylistTab({
     setProgress,
     duration,
     setDuration,
-    volume,
     setVolume,
     isMuted,
     setIsMuted,
   } = usePlayer();
-  const { isMinimized: usePlayerMinimized } = usePlayer();
-  const [player, setPlayer] = useState<YouTubePlayer | null>(null);
-  const { planId: useParamsplanId } = useParams<{ planId: string }>();
 
   // Use shuffled playlist if enabled, otherwise use original playlist
-  const displayPlaylist = isShuffleEnabled ? shuffledPlaylist : originalPlaylist;
+  const displayPlaylist =
+    isShuffleEnabled && Array.isArray(shuffledPlaylist) && shuffledPlaylist.length > 0
+      ? shuffledPlaylist
+      : Array.isArray(originalPlaylist)
+      ? originalPlaylist
+      : [];
 
   // Update ref when currentVideoIndex changes
   useEffect(() => {
@@ -114,7 +110,12 @@ export default function PlaylistTab({
 
   // Efecto para guardar el orden original de la playlist
   useEffect(() => {
-    if (originalPlaylist.length > 0 && shuffledPlaylist.length === 0) {
+    if (
+      Array.isArray(originalPlaylist) &&
+      originalPlaylist.length > 0 &&
+      Array.isArray(shuffledPlaylist) &&
+      shuffledPlaylist.length === 0
+    ) {
       setShuffledPlaylist([...originalPlaylist]);
     }
   }, [originalPlaylist, shuffledPlaylist.length]);
@@ -160,7 +161,14 @@ export default function PlaylistTab({
 
   // Efecto para cargar el video inicial cuando el reproductor esté listo
   useEffect(() => {
-    if (isPlayerReady && displayPlaylist.length > 0 && currentVideoIndex < displayPlaylist.length) {
+    if (
+      isPlayerReady &&
+      Array.isArray(displayPlaylist) &&
+      displayPlaylist.length > 0 &&
+      typeof currentVideoIndex === "number" &&
+      currentVideoIndex >= 0 &&
+      currentVideoIndex < displayPlaylist.length
+    ) {
       loadVideoSafely(currentVideoIndex);
     }
   }, [isPlayerReady, displayPlaylist.length, currentVideoIndex]);
@@ -317,12 +325,6 @@ export default function PlaylistTab({
         onPlayerReady={(player) => {
           playerRef.current = player;
           setIsPlayerReady(true);
-          setPlayer(player);
-          // Restaurar el volumen y estado de mute
-          player.setVolume(volume * 100);
-          if (isMuted) {
-            player.mute();
-          }
         }}
         onVideoChange={(index) => {
           setCurrentVideoIndex(index);
@@ -343,27 +345,8 @@ export default function PlaylistTab({
     loadVideoSafely(index);
   };
 
-  const handleVideoDelete = async (id: string, title: string) => {
-    try {
-      // Actualizar el estado local inmediatamente
-      const newItems = displayPlaylist.filter((item) => item.id !== id);
-      // Si el video actual fue eliminado, movemos al siguiente
-      if (currentVideoIndex >= newItems.length) {
-        setCurrentVideoIndex(Math.max(0, newItems.length - 1));
-      }
-
-      // Luego intentar eliminar en la base de datos
-      await onRemoveSong(id);
-      // Invalidate and refetch
-      await queryClient.invalidateQueries({ queryKey: ["playlist", planId] });
-      toast({ title: "Canción Eliminada", description: `${title}` });
-    } catch (error) {
-      toast({
-        title: "Error",
-        description: "No se pudo eliminar la canción. Inténtalo de nuevo.",
-        variant: "destructive",
-      });
-    }
+  const handleVideoDelete = (id: string, title: string) => {
+    void onRemoveSong(id);
   };
 
   const handleSongSelected = async (song: YouTubeVideo) => {
@@ -412,17 +395,6 @@ export default function PlaylistTab({
     }
   };
 
-  const handlePlayPause = () => {
-    markUserInteraction();
-    if (playerRef.current) {
-      if (isPlaying) {
-        playerRef.current.pauseVideo();
-      } else {
-        playerRef.current.playVideo();
-      }
-    }
-  };
-
   const handlePrevious = () => {
     markUserInteraction();
     console.log(
@@ -442,40 +414,6 @@ export default function PlaylistTab({
     const nextIndex = currentVideoIndex === displayPlaylist.length - 1 ? 0 : currentVideoIndex + 1;
     setCurrentVideoIndex(nextIndex);
     loadVideoSafely(nextIndex);
-  };
-
-  const handleVolumeChange = (value: number[]) => {
-    markUserInteraction();
-    const newVolume = value[0];
-    setVolume(newVolume);
-    if (playerRef.current) {
-      playerRef.current.setVolume(newVolume * 100);
-    }
-  };
-
-  const handleMuteToggle = () => {
-    markUserInteraction();
-    if (playerRef.current) {
-      if (isMuted) {
-        playerRef.current.unMute();
-      } else {
-        playerRef.current.mute();
-      }
-      setIsMuted(!isMuted);
-    }
-  };
-
-  const handleProgressChange = (value: number[]) => {
-    markUserInteraction();
-    const newProgress = value[0];
-    setProgress(newProgress);
-    if (playerRef.current) {
-      playerRef.current.seekTo(newProgress, true);
-    }
-  };
-
-  const handlePlayerReady = (player: YouTubePlayer) => {
-    setPlayer(player);
   };
 
   if (isPlaylistLoading || initialLoading) {

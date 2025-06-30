@@ -1,7 +1,7 @@
 "use client";
 
 import React, { createContext, useContext, useState, ReactNode } from "react";
-import { PlaylistItem } from "@/shared/types";
+import { PlaylistItem } from "@/app/types";
 
 interface PlayerContextType {
   isMinimized: boolean;

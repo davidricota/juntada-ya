@@ -5,18 +5,20 @@
     { "path": "./tsconfig.node.json" }
   ],
   "compilerOptions": {
-
+    "strict": true,
+    "noImplicitAny": true,
+    "strictNullChecks": true,
+    "noImplicitThis": true,
+    "alwaysStrict": true,
+    "noUnusedLocals": true,
+    "noUnusedParameters": true,
     "baseUrl": ".",
     "paths": {
       "@/*": ["./src/*"]
     },
-     "lib": ["dom", "esnext"],
+    "lib": ["dom", "esnext"],
     "types": ["deno.ns"],
-    "noImplicitAny": false,
-    "noUnusedParameters": false,
     "skipLibCheck": true,
-    "allowJs": true,
-    "noUnusedLocals": false,
-    "strictNullChecks": false
+    "allowJs": true
   }
 }

@@ -41,13 +41,13 @@ const LoginPage: React.FC = () => {
     },
   });
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
 
     // Formatear número de teléfono (eliminar espacios, guiones, etc.)
     const formattedPhone = phone.replace(/\D/g, "");
 
-    if (formattedPhone.length < 10) {
+    if (!formattedPhone || formattedPhone.length < 10) {
       toast.error("Por favor ingresa un número de teléfono válido");
       return;
     }
@@ -69,7 +69,7 @@ const LoginPage: React.FC = () => {
             <div className="space-y-4">
               <PhoneInput
                 country="ar"
-                value={phone}
+                value={phone ?? ""}
                 onChange={setPhone}
                 inputProps={{
                   className: cn(

@@ -8,8 +8,8 @@ export class EncryptionService {
       throw new Error("Phone number is required");
     }
     try {
-      return CryptoJS.AES.encrypt(phoneNumber, SECRET_KEY).toString();
-    } catch (error) {
+      return CryptoJS.AES.encrypt(String(phoneNumber), String(SECRET_KEY)).toString();
+    } catch {
       throw new Error("Failed to encrypt phone number");
     }
   }
@@ -20,25 +20,20 @@ export class EncryptionService {
     }
 
     try {
-      // Primero intentamos desencriptar con CryptoJS
-      const bytes = CryptoJS.AES.decrypt(encrypted, SECRET_KEY);
+      const bytes = CryptoJS.AES.decrypt(String(encrypted), String(SECRET_KEY));
       const decrypted = bytes.toString(CryptoJS.enc.Utf8);
 
-      // Si la desencriptación fue exitosa y el resultado es válido, lo retornamos
-      if (decrypted && decrypted.length > 0) {
+      if (typeof decrypted === "string" && decrypted.length > 0) {
         return decrypted;
       }
 
-      // Si llegamos aquí, el valor no está encriptado con CryptoJS
-      // Asumimos que es un número de teléfono sin encriptar y lo retornamos
-      if (encrypted.match(/^\+?[0-9]+$/)) {
+      if (typeof encrypted === "string" && encrypted.match(/^\+?[0-9]+$/)) {
         return encrypted;
       }
 
       throw new Error("Invalid encrypted value");
-    } catch (error) {
-      // Si falla la desencriptación, asumimos que es un número sin encriptar
-      if (encrypted.match(/^\+?[0-9]+$/)) {
+    } catch {
+      if (typeof encrypted === "string" && encrypted.match(/^\+?[0-9]+$/)) {
         return encrypted;
       }
       throw new Error("Failed to decrypt phone number");

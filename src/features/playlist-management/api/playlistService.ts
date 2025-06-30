@@ -1,6 +1,6 @@
 import { supabase } from "@/shared/integrations/supabase/client";
 import { PlaylistItem, PlaylistChangePayload } from "@/app/types";
-import { RealtimeChannel, RealtimePostgresChangesPayload } from "@supabase/supabase-js";
+import { RealtimeChannel } from "@supabase/supabase-js";
 
 // Cache para playlists
 const playlistCache = new Map<string, { data: PlaylistItem[]; timestamp: number }>();
@@ -46,12 +46,17 @@ export class PlaylistService {
       .eq("event_id", planId)
       .order("added_at", { ascending: true });
 
-    if (error) throw error;
+    if (error) throw error instanceof Error ? error : new Error(String(error));
 
-    const items = data.map((item) => ({
-      ...item,
-      participant_name: item.participant?.name || "Desconocido",
-    }));
+    const items = Array.isArray(data)
+      ? data.map((item: PlaylistItem & { participant?: { name?: string } }) => ({
+          ...item,
+          participant_name:
+            typeof item.participant?.name === "string" && item.participant?.name.length > 0
+              ? item.participant.name
+              : "Desconocido",
+        }))
+      : [];
 
     // Guardar en cache
     playlistCache.set(planId, { data: items, timestamp: Date.now() });
@@ -110,7 +115,10 @@ export class PlaylistService {
 
       const item = {
         ...data,
-        participant_name: data.participant?.name || "Desconocido",
+        participant_name:
+          typeof data.participant?.name === "string" && data.participant.name.length > 0
+            ? data.participant.name
+            : "Desconocido",
       };
 
       // Actualizar cache
@@ -124,20 +132,17 @@ export class PlaylistService {
 
       console.log("Returning playlist item:", item);
       return item;
-    } catch (error) {
-      console.error("Error in addToPlaylist:", error);
-      throw error;
+    } catch {
+      throw new Error("Error in addToPlaylist");
     }
   }
 
   static async removeFromPlaylist(itemId: string): Promise<void> {
-    const { data: item, error: fetchError } = await supabase
+    const { data: item } = await supabase
       .from("playlist_items")
       .select("event_id")
       .eq("id", itemId)
       .single();
-
-    if (fetchError) throw fetchError;
 
     const { error } = await supabase.from("playlist_items").delete().eq("id", itemId);
 
@@ -177,11 +182,14 @@ export class PlaylistService {
         .eq("event_id", planId)
         .order("added_at", { ascending: true });
       if (error) throw error;
-      return data.map((item) => ({
+      return data.map((item: PlaylistItem & { participant?: { name?: string } }) => ({
         ...item,
-        participant_name: item.participant?.name || "Desconocido",
+        participant_name:
+          typeof item.participant?.name === "string" && item.participant?.name.length > 0
+            ? item.participant.name
+            : "Desconocido",
       }));
-    } catch (error) {
+    } catch {
       throw new Error("Error fetching playlist");
     }
   }
@@ -215,10 +223,13 @@ export class PlaylistService {
       if (error) throw error;
       return {
         ...data,
-        participant_name: data.participant?.name || "Desconocido",
+        participant_name:
+          typeof data.participant?.name === "string" && data.participant.name.length > 0
+            ? data.participant.name
+            : "Desconocido",
       };
-    } catch (error) {
-      throw new Error("Error adding video to playlist");
+    } catch {
+      throw new Error("Error in addVideo");
     }
   }
 
@@ -272,6 +283,6 @@ export class PlaylistService {
   }
 
   static unsubscribeFromPlaylist(subscription: RealtimeChannel): void {
-    supabase.removeChannel(subscription);
+    void supabase.removeChannel(subscription);
   }
 }

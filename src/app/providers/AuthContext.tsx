@@ -18,14 +18,15 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   useEffect(() => {
     // Check for stored user data
     const whatsapp = getWhatsapp();
-    if (whatsapp) {
+    if (typeof whatsapp === "string" && whatsapp.length > 0) {
       setUser({ phone: whatsapp });
     }
     setIsLoading(false);
   }, [getWhatsapp]);
 
   const login = (phone: string) => {
-    const name = getName() || "Usuario"; // Si no hay nombre, usamos un valor por defecto
+    const rawName = getName();
+    const name = typeof rawName === "string" && rawName.length > 0 ? rawName : "Usuario"; // Si no hay nombre, usamos un valor por defecto
     setParticipant(name, phone);
     setUser({ phone });
   };
@@ -35,7 +36,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     clearParticipant();
   };
 
-  return <AuthContext.Provider value={{ user, login, logout, isLoading }}>{children}</AuthContext.Provider>;
+  return (
+    <AuthContext.Provider value={{ user, login, logout, isLoading }}>
+      {children}
+    </AuthContext.Provider>
+  );
 };
 
 export const useAuth = () => {

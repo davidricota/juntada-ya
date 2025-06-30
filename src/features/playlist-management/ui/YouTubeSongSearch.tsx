@@ -1,8 +1,7 @@
-import React, { useState, useEffect } from "react";
+import React, { useState } from "react";
 import { Input } from "@/shared/ui/input";
 import { Button } from "@/shared/ui/button";
 import { Search, Loader2, AlertTriangle } from "lucide-react";
-import { useToast } from "@/shared/hooks/use-toast";
 import { toast } from "sonner";
 import { YouTubeService, YouTubeVideo } from "../api/youtubeService";
 import YouTubeSearchResults from "./YouTubeSearchResults";
@@ -64,7 +63,13 @@ const YouTubeSongSearch: React.FC<YouTubeSongSearchProps> = ({ onSongSelected })
         Buscar y Agregar Canciones de YouTube
       </h3>
 
-      <form onSubmit={handleSearch} className="flex flex-col sm:flex-row gap-2 mb-4">
+      <form
+        onSubmit={(e) => {
+          e.preventDefault();
+          void handleSearch();
+        }}
+        className="flex flex-col sm:flex-row gap-2 mb-4"
+      >
         <Input
           type="text"
           placeholder="Nombre de la canción o artista..."
@@ -89,7 +94,7 @@ const YouTubeSongSearch: React.FC<YouTubeSongSearchProps> = ({ onSongSelected })
         </Button>
       </form>
 
-      {error && (
+      {typeof error === "string" && error.length > 0 && (
         <div className="my-4 p-3 bg-red-900/30 border border-red-700 text-red-200 rounded-md flex items-center gap-2">
           <AlertTriangle className="h-5 w-5 text-red-400" />
           <p className="text-sm">{error}</p>

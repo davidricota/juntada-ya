@@ -1,5 +1,6 @@
-import React, { useEffect, useState } from "react";
+import React from "react";
 import { useNavigate } from "react-router-dom";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/shared/ui/button";
 import {
   Card,
@@ -9,70 +10,64 @@ import {
   CardHeader,
   CardTitle,
 } from "@/shared/ui/card";
-import { useToast } from "@/shared/hooks/use-toast";
 import { EventService } from "@/features/event-creation/api/eventService";
 import { useParticipantStore } from "@/shared/stores/participantStore";
-import { EventType, Participant } from "@/app/types";
 import { Copy, Plus, Trash2 } from "lucide-react";
-import { useQuery } from "@tanstack/react-query";
-import { Badge } from "@/shared/ui/badge";
-import { Calendar, Users, MapPin, Clock, Edit } from "lucide-react";
 import { toast } from "sonner";
+
+const fetchEvents = async (userId: string, navigate: ReturnType<typeof useNavigate>) => {
+  const userStorage = useParticipantStore.getState().getUserStorage();
+  if (
+    !userStorage ||
+    typeof userStorage !== "object" ||
+    !userId ||
+    typeof userId !== "string" ||
+    userId.trim() === ""
+  ) {
+    navigate("/");
+    return [];
+  }
+  // Obtener eventos donde el usuario es host
+  const hostedEvents = await EventService.getEventsByHost(userId);
+  // Obtener eventos donde el usuario es participante
+  const participantEvents = await EventService.getEventsByParticipant(userId);
+  // Combinar y eliminar duplicados
+  const allEvents = [...hostedEvents, ...participantEvents];
+  const uniqueEvents = Array.from(new Map(allEvents.map((event) => [event.id, event])).values());
+  return uniqueEvents;
+};
 
 const MyPlansPage: React.FC = () => {
   const navigate = useNavigate();
-  const [events, setEvents] = useState<(EventType & { participants?: Participant[] })[]>([]);
-  const [loading, setLoading] = useState(true);
+  const queryClient = useQueryClient();
   const { getUserStorage, getUserId } = useParticipantStore();
+  const rawUserId = getUserId();
+  const userId =
+    typeof rawUserId === "string" && rawUserId.trim().length > 0 ? rawUserId : undefined;
 
-  useEffect(() => {
-    fetchEvents();
-  }, []);
+  const {
+    data: events = [],
+    isLoading,
+    isError,
+  } = useQuery({
+    queryKey: ["events", userId],
+    queryFn: () => fetchEvents(userId ?? "", navigate),
+    enabled: typeof userId === "string" && userId.length > 0,
+  });
 
-  const fetchEvents = async () => {
-    try {
-      const userStorage = getUserStorage();
-      const userId = getUserId();
-
-      if (!userStorage || !userId) {
-        navigate("/");
-        return;
-      }
-
-      // Obtener eventos donde el usuario es host
-      const hostedEvents = await EventService.getEventsByHost(userId);
-
-      // Obtener eventos donde el usuario es participante
-      const participantEvents = await EventService.getEventsByParticipant(userId);
-
-      // Combinar y eliminar duplicados
-      const allEvents = [...hostedEvents, ...participantEvents];
-      const uniqueEvents = Array.from(
-        new Map(allEvents.map((event) => [event.id, event])).values()
-      );
-
-      setEvents(uniqueEvents);
-    } catch (error) {
-      toast.error("Error al cargar eventos", {
-        description: "Error al cargar los plancitos.",
+  const handleDeleteEvent = (planId: string) => {
+    void EventService.deleteEvent(planId)
+      .then(() => {
+        toast.success("Evento eliminado", {
+          description: "Plancito eliminado correctamente.",
+        });
+        void queryClient.invalidateQueries({ queryKey: ["events", userId] });
+      })
+      .catch(() => {
+        toast.error("Error al eliminar evento", {
+          description: "Error al eliminar el plancito.",
+        });
       });
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleDeleteEvent = async (planId: string) => {
-    try {
-      await EventService.deleteEvent(planId);
-      toast.success("Evento eliminado", {
-        description: "Plancito eliminado correctamente.",
-      });
-      fetchEvents();
-    } catch (error) {
-      toast.error("Error al eliminar evento", {
-        description: "Error al eliminar el plancito.",
-      });
-    }
   };
 
   const handleCopyCode = (code: string) => {
@@ -83,10 +78,17 @@ const MyPlansPage: React.FC = () => {
     });
   };
 
-  if (loading) {
+  if (isLoading) {
     return (
       <div className="container mx-auto p-4 text-center text-muted-foreground">
         Cargando plancitos...
+      </div>
+    );
+  }
+  if (isError) {
+    return (
+      <div className="container mx-auto p-4 text-center text-destructive">
+        Error al cargar plancitos.
       </div>
     );
   }
@@ -126,7 +128,7 @@ const MyPlansPage: React.FC = () => {
             </CardHeader>
             <CardContent>
               <p className="text-sm text-muted-foreground">
-                Participantes: {event.participants?.length || 0}
+                Participantes: {Array.isArray(event.participants) ? event.participants.length : 0}
               </p>
             </CardContent>
             <CardFooter className="flex justify-between">
@@ -137,22 +139,26 @@ const MyPlansPage: React.FC = () => {
               >
                 Ver Plancito
               </Button>
-              {event.host_user_id === getUserStorage()?.id && (
-                <Button
-                  variant="destructive"
-                  onClick={() => handleDeleteEvent(event.id)}
-                  className="flex items-center gap-2"
-                >
-                  <Trash2 className="h-4 w-4" />
-                  Eliminar
-                </Button>
-              )}
+              {typeof event.host_user_id === "string" &&
+                typeof getUserStorage()?.id === "string" &&
+                event.host_user_id === getUserStorage()?.id && (
+                  <Button
+                    variant="destructive"
+                    onClick={() => {
+                      void handleDeleteEvent(event.id);
+                    }}
+                    className="flex items-center gap-2"
+                  >
+                    <Trash2 className="h-4 w-4" />
+                    Eliminar
+                  </Button>
+                )}
             </CardFooter>
           </Card>
         ))}
       </div>
 
-      {events.length === 0 && (
+      {Array.isArray(events) && events.length === 0 && (
         <div className="text-center py-8">
           <p className="text-muted-foreground">
             No has creado ni te has unido a ningún plancito aún.

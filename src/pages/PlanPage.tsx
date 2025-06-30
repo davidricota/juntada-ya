@@ -1,22 +1,14 @@
 import React, { useEffect, useState, lazy, Suspense, useRef } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { Button } from "@/shared/ui/button";
-import { useToast } from "@/shared/hooks/use-toast";
-import { toast } from "sonner";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/shared/ui/card";
 import { Avatar, AvatarFallback, AvatarImage } from "@/shared/ui/avatar";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/shared/ui/tabs";
-import { LogOut, Users, Copy, Trash2, UserPlus } from "lucide-react";
+import { LogOut, Users, Copy, UserPlus } from "lucide-react";
 import { ScrollArea } from "@/shared/ui/scroll-area";
 import { EventService } from "@/features/event-creation/api/eventService";
 import { RealtimeChannel } from "@supabase/supabase-js";
-import {
-  EventType,
-  Participant,
-  ParticipantChangePayload,
-  PlaylistItem,
-  PlaylistChangePayload,
-} from "@/app/types";
+import { ParticipantChangePayload, PlaylistItem, PlaylistChangePayload } from "@/app/types";
 import { SearchDialog } from "@/widgets/EventTabs/ui/SearchDialog";
 import { useParticipantStore } from "@/shared/stores/participantStore";
 import JoinEventCard from "@/widgets/EventTabs/ui/JoinEventCard";
@@ -75,13 +67,13 @@ const PlanPage: React.FC = () => {
     enabled: !!planId && planId !== undefined,
   });
 
-  const isHost = event?.host_user_id === getUserId();
+  const isHost = typeof event?.host_user_id === "string" && event?.host_user_id === getUserId();
 
   const isLoading = isEventLoading || isParticipantsLoading || isPlaylistLoading;
 
   // Update current participant when participants change
   useEffect(() => {
-    if (!participants.length || !userIdRef.current) return;
+    if (!Array.isArray(participants) || participants.length === 0 || !userIdRef.current) return;
 
     const currentParticipant = participants.find((p) => p.user_id === userIdRef.current);
     if (currentParticipant) {
@@ -91,8 +83,7 @@ const PlanPage: React.FC = () => {
   }, [participants]);
 
   useEffect(() => {
-    console.log("!planId");
-    if (!planId) {
+    if (!planId || typeof planId !== "string" || planId.trim() === "") {
       navigate("/");
       return;
     }
@@ -101,15 +92,16 @@ const PlanPage: React.FC = () => {
     const userId = getUserId();
     userIdRef.current = userId;
 
-    if (!userStorage || !userId) {
-      console.log("!userStorage || !userId");
+    if (!userStorage || typeof userId !== "string" || userId.trim() === "") {
       navigate("/");
       return;
     }
 
     // Check if user is already a participant
-    const checkParticipant = async () => {
-      const currentParticipant = participants.find((p) => p.user_id === userId);
+    const checkParticipant = () => {
+      const currentParticipant = Array.isArray(participants)
+        ? participants.find((p) => p.user_id === userId)
+        : undefined;
       if (currentParticipant) {
         setCurrentParticipantId(currentParticipant.id);
         setCurrentParticipantName(currentParticipant.name);
@@ -198,15 +190,15 @@ const PlanPage: React.FC = () => {
 
   if (isLoading) {
     return (
-      <div className="container mx-auto p-4 text-center text-spotify-text-muted">
-        Cargando evento...
+      <div className="container mx-auto p-4 text-center text-muted-foreground">
+        Cargando plancito...
       </div>
     );
   }
 
-  if (!event) {
+  if (!event || typeof event !== "object") {
     return (
-      <div className="container mx-auto p-4 text-center text-spotify-text-muted">
+      <div className="container mx-auto p-4 text-center text-muted-foreground">
         Evento no encontrado.
       </div>
     );
@@ -269,7 +261,7 @@ const PlanPage: React.FC = () => {
             </CardHeader>
             <CardContent>
               <ScrollArea className="max-h-screen rounded-lg pr-2 md:pr-4">
-                {participants.length > 0 ? (
+                {Array.isArray(participants) && participants.length > 0 ? (
                   <ul className="space-y-3">
                     {participants.map((p) => (
                       <li

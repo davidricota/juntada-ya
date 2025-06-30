@@ -1,8 +1,7 @@
 import React, { useState, useEffect } from "react";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/shared/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/shared/ui/card";
 import { Loader2 } from "lucide-react";
 import { ExpenseService } from "../api/expenseService";
-import { useToast } from "@/shared/hooks/use-toast";
 import { toast } from "sonner";
 import { Participant, Expense, ExpenseSummary, ExpenseChangePayload } from "@/app/types";
 import { formatCurrency } from "@/shared/lib/utils";
@@ -11,7 +10,6 @@ import ExpenseForm from "./ExpenseForm";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/shared/ui/dialog";
 import { Input } from "@/shared/ui/input";
 import { Button } from "@/shared/ui/button";
-
 import { ScrollArea } from "@/shared/ui/scroll-area";
 
 interface ExpensesTabProps {
@@ -36,18 +34,18 @@ const ExpensesTab: React.FC<ExpensesTabProps> = ({
   const [isAddingExtra, setIsAddingExtra] = useState(false);
 
   useEffect(() => {
-    loadExpenses();
+    void loadExpenses();
     const subscription = ExpenseService.subscribeToExpenses(
       planId,
       (payload: ExpenseChangePayload) => {
         if (payload.eventType === "INSERT" && payload.new) {
-          ExpenseService.getExpenseSummary(planId).then(setSummary);
+          void ExpenseService.getExpenseSummary(planId).then(setSummary);
         } else if (payload.eventType === "DELETE" && payload.old) {
           setExpenses((prev) => {
             const filtered = prev.filter((expense) => expense.id !== payload.old?.id);
             return filtered;
           });
-          ExpenseService.getExpenseSummary(planId).then(setSummary);
+          void ExpenseService.getExpenseSummary(planId).then(setSummary);
         }
       }
     );
@@ -65,7 +63,7 @@ const ExpensesTab: React.FC<ExpensesTabProps> = ({
 
       setExpenses(expensesData);
       setSummary(summaryData);
-    } catch (error) {
+    } catch {
       toast.error("No se pudieron cargar los gastos.");
     } finally {
       setIsLoading(false);
@@ -90,7 +88,7 @@ const ExpensesTab: React.FC<ExpensesTabProps> = ({
       setSummary(newSummary);
       setIsDialogOpen(false);
       toast.success("El gasto se ha agregado correctamente.");
-    } catch (error) {
+    } catch {
       toast.error("No se pudo agregar el gasto. Inténtalo de nuevo.");
     }
   };
@@ -106,28 +104,32 @@ const ExpensesTab: React.FC<ExpensesTabProps> = ({
       setSummary(newSummary);
 
       toast.success("El gasto se ha eliminado correctamente.");
-    } catch (error) {
+    } catch {
       // Si hay error, recargamos todo
-      loadExpenses();
+      void loadExpenses();
       toast.error("No se pudo eliminar el gasto. Inténtalo de nuevo.");
     }
   };
 
   const handleAddExtra = async () => {
-    if (!extraName.trim()) return;
-    setIsAddingExtra(true);
-    try {
-      // Lógica para crear participante extra (llamar a servicio, etc)
-      await ExpenseService.addExtraParticipant(planId, extraName);
-      setExtraName("");
-      setIsAddExtraOpen(false);
-      toast.success(`${extraName} fue añadido a la lista de gastos.`);
-    } catch (error) {
-      toast.error("No se pudo agregar el participante extra.");
-    } finally {
-      setIsAddingExtra(false);
+    if (typeof extraName === "string" && extraName.trim().length > 0) {
+      setIsAddingExtra(true);
+      try {
+        await ExpenseService.addExtraParticipant(planId, extraName);
+        setExtraName("");
+        setIsAddExtraOpen(false);
+        toast.success(`${extraName} fue añadido a la lista de gastos.`);
+      } catch {
+        toast.error("No se pudo agregar el participante extra.");
+      } finally {
+        setIsAddingExtra(false);
+      }
     }
   };
+
+  function isNonEmptyString(val: unknown): val is string {
+    return typeof val === "string" && val.length > 0;
+  }
 
   if (isLoading) {
     return (
@@ -146,7 +148,9 @@ const ExpensesTab: React.FC<ExpensesTabProps> = ({
         <ExpenseForm
           isOpen={isDialogOpen}
           onOpenChange={setIsDialogOpen}
-          onSubmit={handleAddExpense}
+          onSubmit={(...args) => {
+            void handleAddExpense(...args);
+          }}
           isLoading={false}
           participants={participants}
           isHost={isHost}
@@ -168,7 +172,12 @@ const ExpensesTab: React.FC<ExpensesTabProps> = ({
             className="border border-primary-foreground focus:border-primary-foreground focus:ring-0"
           />
           <DialogFooter>
-            <Button onClick={handleAddExtra} disabled={isAddingExtra || !extraName.trim()}>
+            <Button
+              onClick={() => {
+                void handleAddExtra();
+              }}
+              disabled={isAddingExtra || extraName.trim().length === 0}
+            >
               {isAddingExtra ? "Agregando..." : "Agregar"}
             </Button>
           </DialogFooter>
@@ -195,7 +204,7 @@ const ExpensesTab: React.FC<ExpensesTabProps> = ({
                 {summary.participants.map((participant) => (
                   <div key={participant.id} className="flex justify-between items-center">
                     <span className="text-muted-foreground flex items-center gap-1">
-                      {participant.name}
+                      {isNonEmptyString(participant.name) ? participant.name : "Desconocido"}
                       {participant.is_extra && (
                         <UserPlus
                           className="inline h-4 w-4 text-primary ml-1"
@@ -251,10 +260,12 @@ const ExpensesTab: React.FC<ExpensesTabProps> = ({
                     </div>
                     {(expense.paid_by_participant_id === currentParticipantId || isHost) && (
                       <button
-                        onClick={() => handleDeleteExpense(expense.id)}
+                        onClick={() => {
+                          void handleDeleteExpense(expense.id);
+                        }}
                         className="p-2 hover:bg-destructive/10 rounded-full transition-colors"
                       >
-                        <Trash className="h-4 w-4 text-destructive" />
+                        <Trash className="h-4 w-4 text-destructive cursor-pointer" />
                       </button>
                     )}
                   </div>

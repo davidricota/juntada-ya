@@ -48,45 +48,63 @@ export const useParticipantStore = create<ParticipantState>()(
       },
       getParticipant: () => {
         const stored = localStorage.getItem("participant_data");
-        if (!stored) return null;
+        if (typeof stored !== "string" || stored.length === 0) return null;
         try {
           const decrypted = decrypt(stored);
-          return JSON.parse(decrypted);
-        } catch (error) {
+          const parsed: unknown = JSON.parse(decrypted);
+          if (isParticipant(parsed)) {
+            return parsed;
+          }
+          return null;
+        } catch {
           return null;
         }
       },
       getEventParticipant: (planId) => {
         const stored = localStorage.getItem(`event_${planId}_participant`);
-        if (!stored) return null;
+        if (typeof stored !== "string" || stored.length === 0) return null;
         try {
           const decrypted = decrypt(stored);
-          return JSON.parse(decrypted);
-        } catch (error) {
+          const parsed: unknown = JSON.parse(decrypted);
+          if (isEventParticipant(parsed)) {
+            return parsed;
+          }
+          return null;
+        } catch {
           return null;
         }
       },
       getUserStorage: () => {
         const stored = localStorage.getItem("user_data");
-        if (!stored) return null;
+        if (typeof stored !== "string" || stored.length === 0) return null;
         try {
           const decrypted = decrypt(stored);
-          return JSON.parse(decrypted);
-        } catch (error) {
+          const parsed: unknown = JSON.parse(decrypted);
+          if (isUserStorage(parsed)) {
+            return parsed;
+          }
+          return null;
+        } catch {
           return null;
         }
       },
       getName: () => {
         const participant = get().getParticipant();
-        return participant?.name || null;
+        return typeof participant?.name === "string" && participant.name.length > 0
+          ? participant.name
+          : null;
       },
       getWhatsapp: () => {
         const participant = get().getParticipant();
-        return participant?.phone || null;
+        return typeof participant?.phone === "string" && participant.phone.length > 0
+          ? participant.phone
+          : null;
       },
       getUserId: () => {
         const userStorage = get().getUserStorage();
-        return userStorage?.id || null;
+        return typeof userStorage?.id === "string" && userStorage.id.length > 0
+          ? userStorage.id
+          : null;
       },
       clearParticipant: () => {
         set({ participant: null });
@@ -105,3 +123,19 @@ export const useParticipantStore = create<ParticipantState>()(
     }
   )
 );
+
+function isRecord(obj: unknown): obj is Record<string, unknown> {
+  return typeof obj === "object" && obj !== null;
+}
+
+function isParticipant(obj: unknown): obj is Participant {
+  return isRecord(obj) && typeof obj["name"] === "string" && typeof obj["phone"] === "string";
+}
+
+function isEventParticipant(obj: unknown): obj is EventParticipant {
+  return isRecord(obj) && typeof obj["id"] === "string" && typeof obj["name"] === "string";
+}
+
+function isUserStorage(obj: unknown): obj is UserStorage {
+  return isRecord(obj) && typeof obj["id"] === "string" && typeof obj["whatsapp"] === "string";
+}

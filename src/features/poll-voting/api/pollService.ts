@@ -10,8 +10,8 @@ export class PollService {
       .eq("event_id", planId)
       .order("created_at", { ascending: false });
 
-    if (error) throw error;
-    return polls;
+    if (error) throw error instanceof Error ? error : new Error(String(error));
+    return Array.isArray(polls) ? polls : [];
   }
 
   static async getPollOptions(pollId: string): Promise<PollOption[]> {
@@ -21,15 +21,15 @@ export class PollService {
       .eq("poll_id", pollId)
       .order("created_at", { ascending: true });
 
-    if (error) throw error;
-    return data;
+    if (error) throw error instanceof Error ? error : new Error(String(error));
+    return Array.isArray(data) ? data : [];
   }
 
   static async getPollVotes(pollId: string): Promise<PollVote[]> {
     const { data, error } = await supabase.from("poll_votes").select("*").eq("poll_id", pollId);
 
-    if (error) throw error;
-    return data;
+    if (error) throw error instanceof Error ? error : new Error(String(error));
+    return Array.isArray(data) ? data : [];
   }
 
   static async createPoll(
@@ -53,7 +53,7 @@ export class PollService {
       .select()
       .single();
 
-    if (pollError) throw pollError;
+    if (pollError) throw pollError instanceof Error ? pollError : new Error(String(pollError));
 
     // Crear las opciones
     await Promise.all(
@@ -111,7 +111,7 @@ export class PollService {
       throw new Error("Error al verificar voto existente");
     }
 
-    if (poll.allow_multiple_votes) {
+    if (typeof poll.allow_multiple_votes === "boolean" && poll.allow_multiple_votes) {
       console.log("Multiple votes poll - checking if vote exists for option");
 
       if (existingVoteForOption) {
@@ -197,12 +197,12 @@ export class PollService {
   static async closePoll(pollId: string): Promise<void> {
     const { error } = await supabase.from("polls").update({ is_closed: true }).eq("id", pollId);
 
-    if (error) throw error;
+    if (error) throw error instanceof Error ? error : new Error(String(error));
   }
 
   static async deletePoll(pollId: string): Promise<void> {
     const { error } = await supabase.from("polls").delete().eq("id", pollId);
-    if (error) throw error;
+    if (error) throw error instanceof Error ? error : new Error(String(error));
   }
 
   static async addPollOption(
@@ -218,14 +218,14 @@ export class PollService {
       .select()
       .single();
 
-    if (error) throw error;
+    if (error) throw error instanceof Error ? error : new Error(String(error));
     return data;
   }
 
   static async removePollOption(optionId: string): Promise<void> {
     const { error } = await supabase.from("poll_options").delete().eq("id", optionId);
 
-    if (error) throw error;
+    if (error) throw error instanceof Error ? error : new Error(String(error));
   }
 
   static async removeVote(pollId: string, participantId: string, optionId: string): Promise<void> {

@@ -3,7 +3,6 @@ import { useNavigate } from "react-router-dom";
 import { Button } from "@/shared/ui/button";
 import { Input } from "@/shared/ui/input";
 import { Label } from "@/shared/ui/label";
-import { useToast } from "@/shared/hooks/use-toast";
 import { toast } from "sonner";
 import {
   Card,
@@ -36,17 +35,25 @@ const CreatePlanPage: React.FC = () => {
   React.useEffect(() => {
     const storedName = getName();
     const storedWhatsapp = getWhatsapp();
-    if (storedName) setParticipantName(storedName);
-    if (storedWhatsapp) setParticipantWhatsapp(storedWhatsapp);
+    if (typeof storedName === "string" && storedName.trim() !== "") setParticipantName(storedName);
+    if (typeof storedWhatsapp === "string" && storedWhatsapp.trim() !== "")
+      setParticipantWhatsapp(storedWhatsapp);
   }, [getName, getWhatsapp]);
 
   const createEventMutation = useMutation({
     mutationFn: async () => {
-      if (!eventName.trim()) {
+      if (!eventName || typeof eventName !== "string" || eventName.trim() === "") {
         throw new Error("El nombre del plancito no puede estar vacío.");
       }
 
-      if (!participantName.trim() || !participantWhatsapp) {
+      if (
+        !participantName ||
+        typeof participantName !== "string" ||
+        participantName.trim() === "" ||
+        !participantWhatsapp ||
+        typeof participantWhatsapp !== "string" ||
+        participantWhatsapp.trim() === ""
+      ) {
         throw new Error("Por favor completa tu nombre y número de WhatsApp.");
       }
 
@@ -90,12 +97,17 @@ const CreatePlanPage: React.FC = () => {
     },
   });
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    createEventMutation.mutate();
+    void createEventMutation.mutate();
   };
 
-  if (accessCode && planId) {
+  if (
+    typeof accessCode === "string" &&
+    accessCode.trim() !== "" &&
+    typeof planId === "string" &&
+    planId.trim() !== ""
+  ) {
     return (
       <div className="flex flex-col items-center justify-center p-4">
         <Card className="w-full max-w-md bg-card text-card-foreground">

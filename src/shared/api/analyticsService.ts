@@ -132,9 +132,9 @@ class AnalyticsService {
     if (!import.meta.env.PROD) return;
     window.dataLayer.push({
       event: "error",
-      error_message: error.message,
-      error_stack: error.stack,
-      fatal: fatal,
+      error_message: error?.message ?? "",
+      error_stack: error?.stack ?? "",
+      fatal: !!fatal,
     });
   }
 }

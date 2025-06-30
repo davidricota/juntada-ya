@@ -1,11 +1,5 @@
 import { supabase } from "@/shared/integrations/supabase/client";
 import { Expense, ExpenseChangePayload, ExpenseSummary } from "@/app/types";
-import { RealtimePostgresChangesPayload } from "@supabase/supabase-js";
-import type { Database } from "@/shared/integrations/supabase/types";
-
-type ExpenseRow = Database["public"]["Tables"]["expenses"]["Row"] & {
-  event_participants: { name: string } | null;
-};
 
 export class ExpenseService {
   static async getExpenses(planId: string): Promise<Expense[]> {
@@ -27,10 +21,15 @@ export class ExpenseService {
       .eq("event_id", planId)
       .order("created_at", { ascending: false });
 
-    if (error) throw error;
-    return (data || []).map((expense: ExpenseRow) => ({
+    if (error) throw error instanceof Error ? error : new Error(String(error));
+    if (!Array.isArray(data)) return [];
+    return data.map((expense) => ({
       ...expense,
-      participant_name: expense.event_participants?.name || "Desconocido",
+      participant_name:
+        typeof expense.event_participants?.name === "string" &&
+        expense.event_participants.name.length > 0
+          ? expense.event_participants.name
+          : "Desconocido",
     })) as Expense[];
   }
 
@@ -63,16 +62,20 @@ export class ExpenseService {
       )
       .single();
 
-    if (error) throw error;
+    if (error) throw error instanceof Error ? error : new Error(String(error));
+    if (!data) throw new Error("No data returned from addExpense");
     return {
       ...data,
-      participant_name: data.event_participants?.name || "Desconocido",
+      participant_name:
+        typeof data.event_participants?.name === "string" && data.event_participants.name.length > 0
+          ? data.event_participants.name
+          : "Desconocido",
     } as Expense;
   }
 
   static async removeExpense(expenseId: string) {
     const { error } = await supabase.from("expenses").delete().eq("id", expenseId);
-    if (error) throw error;
+    if (error) throw error instanceof Error ? error : new Error(String(error));
   }
 
   static async getExpenseSummary(planId: string): Promise<ExpenseSummary> {
@@ -82,7 +85,15 @@ export class ExpenseService {
       .select("id, name, is_extra")
       .eq("event_id", planId);
 
-    if (error) throw error;
+    if (error) throw error instanceof Error ? error : new Error(String(error));
+
+    if (!Array.isArray(participants) || participants.length === 0) {
+      return {
+        total: 0,
+        perPerson: 0,
+        participants: [],
+      };
+    }
 
     const total = expenses.reduce((sum, expense) => sum + expense.amount, 0);
     const perPerson = total / participants.length;
@@ -131,7 +142,7 @@ export class ExpenseService {
   }
 
   static unsubscribeFromExpenses(subscription: ReturnType<typeof supabase.channel>) {
-    supabase.removeChannel(subscription);
+    void supabase.removeChannel(subscription);
   }
 
   static async addExtraParticipant(planId: string, name: string): Promise<void> {
@@ -140,6 +151,6 @@ export class ExpenseService {
       name,
       is_extra: true,
     });
-    if (error) throw error;
+    if (error) throw error instanceof Error ? error : new Error(String(error));
   }
 }

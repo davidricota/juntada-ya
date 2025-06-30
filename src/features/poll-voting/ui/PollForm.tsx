@@ -30,12 +30,22 @@ export const PollForm: React.FC<PollFormProps> = ({
   onDelete,
   isSubmitting,
 }) => {
-  const [title, setTitle] = useState(initialData?.title || "");
-  const [description, setDescription] = useState(initialData?.description || "");
-  const [allowMultipleVotes, setAllowMultipleVotes] = useState(
-    initialData?.allowMultipleVotes || false
+  const [title, setTitle] = useState(
+    typeof initialData?.title === "string" && initialData.title.length > 0 ? initialData.title : ""
   );
-  const [options, setOptions] = useState<string[]>(initialData?.options || [""]);
+  const [description, setDescription] = useState(
+    typeof initialData?.description === "string" && initialData.description.length > 0
+      ? initialData.description
+      : ""
+  );
+  const [allowMultipleVotes, setAllowMultipleVotes] = useState(
+    typeof initialData?.allowMultipleVotes === "boolean" ? initialData.allowMultipleVotes : false
+  );
+  const [options, setOptions] = useState<string[]>(
+    Array.isArray(initialData?.options) && initialData.options.length > 0
+      ? initialData.options
+      : [""]
+  );
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -58,7 +68,7 @@ export const PollForm: React.FC<PollFormProps> = ({
   };
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-4">
+    <form onSubmit={(e) => void handleSubmit(e)} className="space-y-4">
       <div className="space-y-2">
         <Label htmlFor="title">Título</Label>
         <Input

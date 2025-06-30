@@ -1,8 +1,5 @@
 import { supabase } from "@/shared/integrations/supabase/client";
 import CryptoJS from "crypto-js";
-import type { Database } from "@/shared/integrations/supabase/types";
-
-type UserRow = Database["public"]["Tables"]["users"]["Row"];
 
 export interface User {
   id: string;

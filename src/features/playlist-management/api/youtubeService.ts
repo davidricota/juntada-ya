@@ -27,13 +27,13 @@ export class YouTubeService {
         throw new Error(`HTTP error! status: ${response.status}`);
       }
 
-      const data = await response.json();
+      const data = (await response.json()) as { error?: string; results?: YouTubeVideo[] };
 
-      if (data.error) {
+      if (data && typeof data.error === "string" && data.error.length > 0) {
         throw new Error(data.error);
       }
 
-      return data.results || [];
+      return Array.isArray(data?.results) ? data.results : [];
     } catch (error) {
       console.error("YouTube search error:", error);
 
@@ -59,21 +59,27 @@ export class YouTubeService {
   // Fallback method using Supabase client (for reference)
   static async searchVideosWithSupabaseClient(searchTerm: string): Promise<YouTubeVideo[]> {
     try {
-      const { data, error } = await supabase.functions.invoke("youtube-search", {
+      const {
+        data,
+        error,
+      }: {
+        data: { error?: string; results?: YouTubeVideo[] } | null;
+        error: { message?: string } | null;
+      } = await supabase.functions.invoke("youtube-search", {
         body: { searchTerm },
       });
 
-      if (error) {
+      if (error && typeof error.message === "string" && error.message.length > 0) {
         console.error("Supabase function error:", error);
         throw new Error(`Error calling YouTube search function: ${error.message}`);
       }
 
-      if (data?.error) {
+      if (data && typeof data.error === "string" && data.error.length > 0) {
         console.error("Function returned error:", data.error);
         throw new Error(data.error);
       }
 
-      return data?.results || [];
+      return Array.isArray(data?.results) ? data.results : [];
     } catch (error) {
       console.error("Supabase client error:", error);
       throw error;
