@@ -127,7 +127,7 @@ export class EventService {
 
     if (error) throw error instanceof Error ? error : new Error(String(error));
     if (Array.isArray(data)) return data;
-    throw new Error("No data returned from getEventParticipants");
+    return [];
   }
 
   static async joinEvent(

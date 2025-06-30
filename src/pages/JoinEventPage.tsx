@@ -33,9 +33,13 @@ const JoinEventPage: React.FC = () => {
   useEffect(() => {
     const storedName = getName();
     const storedWhatsapp = getWhatsapp();
-    if (typeof storedName === "string" && storedName.trim() !== "") setParticipantName(storedName);
-    if (typeof storedWhatsapp === "string" && storedWhatsapp.trim() !== "")
+    // Solo autocompletar si el nombre no es "Usuario" y no es vacío
+    if (typeof storedName === "string" && storedName.trim() !== "" && storedName !== "Usuario") {
+      setParticipantName(storedName);
+    }
+    if (typeof storedWhatsapp === "string" && storedWhatsapp.trim() !== "") {
       setParticipantWhatsapp(storedWhatsapp);
+    }
   }, [getName, getWhatsapp]);
 
   const joinEventMutation = useMutation({

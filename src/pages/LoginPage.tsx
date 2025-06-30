@@ -16,16 +16,28 @@ import PhoneInput from "react-phone-input-2";
 import { UserService } from "@/shared/api/userService";
 import { encrypt } from "@/shared/lib/encryption";
 import { useMutation } from "@tanstack/react-query";
+import { useParticipantStore } from "@/shared/stores/participantStore";
 
 const LoginPage: React.FC = () => {
   const [phone, setPhone] = useState("");
   const { login } = useAuth();
   const navigate = useNavigate();
+  const { setParticipant } = useParticipantStore();
 
   const loginMutation = useMutation({
     mutationFn: async (formattedPhone: string) => {
-      const user = await UserService.getOrCreateUser(formattedPhone, "Usuario");
-      return user;
+      // Intentar obtener usuario existente
+      const user = await UserService.getUserByWhatsApp(formattedPhone);
+      if (user && user.name && user.name.trim() !== "") {
+        // Si ya existe y tiene nombre, guardar ese nombre
+        setParticipant(user.name, formattedPhone);
+        return user;
+      }
+      // Si no existe, pedir el nombre al usuario (flujo futuro: pedir en UI)
+      // Por ahora, crear usuario sin nombre
+      const newUser = await UserService.getOrCreateUser(formattedPhone, "");
+      setParticipant("", formattedPhone);
+      return newUser;
     },
     onSuccess: (user, formattedPhone) => {
       // Guardar user_data en localStorage

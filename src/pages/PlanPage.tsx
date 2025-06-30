@@ -185,9 +185,6 @@ const PlanPage: React.FC = () => {
     }
   };
 
-  // Find the current participant object
-  const currentParticipant = participants.find((p) => p.id === currentParticipantId);
-
   if (isLoading) {
     return (
       <div className="container mx-auto p-4 text-center text-muted-foreground">

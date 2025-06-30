@@ -153,7 +153,7 @@ export class PlaylistService {
       const cached = playlistCache.get(item.event_id);
       if (cached) {
         playlistCache.set(item.event_id, {
-          data: cached.data.filter((i) => i.id !== itemId),
+          data: Array.isArray(cached.data) ? cached.data.filter((i) => i.id !== itemId) : [],
           timestamp: Date.now(),
         });
       }

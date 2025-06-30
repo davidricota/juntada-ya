@@ -145,9 +145,7 @@ export default function EventInfoTab({ planId, isHost, initialData }: EventInfoT
       );
       const data = (await response.json()) as unknown;
       const results =
-        data &&
-        "results" in (data as Record<string, unknown>) &&
-        Array.isArray((data as Record<string, unknown>).results)
+        data && typeof data === "object" && Array.isArray((data as { results?: unknown[] }).results)
           ? (data as { results: unknown[] }).results
           : [];
       if (results.length > 0) {
@@ -157,31 +155,20 @@ export default function EventInfoTab({ planId, isHost, initialData }: EventInfoT
           typeof first === "object" &&
           "geometry" in first &&
           first.geometry &&
-          typeof (first as Record<string, unknown>)["geometry"] === "object"
+          typeof (first as { geometry?: unknown }).geometry === "object" &&
+          (first as { geometry: { location?: unknown } }).geometry.location &&
+          typeof (first as { geometry: { location?: unknown } }).geometry.location === "object" &&
+          typeof (first as { geometry: { location: { lat?: unknown; lng?: unknown } } }).geometry
+            .location.lat === "number" &&
+          typeof (first as { geometry: { location: { lat?: unknown; lng?: unknown } } }).geometry
+            .location.lng === "number"
         ) {
-          const geometry = (first as Record<string, unknown>)["geometry"];
-          if (
-            geometry &&
-            typeof geometry === "object" &&
-            "location" in geometry &&
-            (geometry as Record<string, unknown>)["location"] &&
-            typeof (geometry as Record<string, unknown>)["location"] === "object"
-          ) {
-            const location = (geometry as Record<string, unknown>)["location"];
-            if (
-              location &&
-              typeof location === "object" &&
-              "lat" in location &&
-              typeof (location as Record<string, unknown>)["lat"] === "number" &&
-              "lng" in location &&
-              typeof (location as Record<string, unknown>)["lng"] === "number"
-            ) {
-              setCoordinates({
-                lat: (location as Record<string, number>)["lat"],
-                lng: (location as Record<string, number>)["lng"],
-              });
-            }
-          }
+          const loc = (first as { geometry: { location: { lat: number; lng: number } } }).geometry
+            .location;
+          setCoordinates({
+            lat: loc.lat,
+            lng: loc.lng,
+          });
         }
       }
     } catch {

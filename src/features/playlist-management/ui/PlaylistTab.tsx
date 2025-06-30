@@ -75,18 +75,8 @@ export default function PlaylistTab({
     gcTime: 1000 * 60 * 5, // 5 minutes
   });
 
-  const {
-    setCurrentVideo,
-    isPlaying,
-    setIsPlaying,
-    progress,
-    setProgress,
-    duration,
-    setDuration,
-    setVolume,
-    isMuted,
-    setIsMuted,
-  } = usePlayer();
+  const { setCurrentVideo, isPlaying, setIsPlaying, progress, setProgress, duration, setDuration } =
+    usePlayer();
 
   // Use shuffled playlist if enabled, otherwise use original playlist
   const displayPlaylist =
@@ -467,7 +457,7 @@ export default function PlaylistTab({
                     playlistItems={displayPlaylist}
                     currentVideoIndex={currentVideoIndex}
                     onVideoSelect={handleVideoSelect}
-                    onVideoDelete={handleVideoDelete}
+                    onVideoDelete={(id) => handleVideoDelete(id, "")}
                     currentParticipantId={currentParticipantId}
                     isHost={isHost}
                   />

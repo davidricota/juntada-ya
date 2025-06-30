@@ -5,7 +5,6 @@ import { ChevronDownIcon } from "lucide-react";
 
 import { Button } from "@/shared/ui/button";
 import { Calendar } from "@/shared/ui/calendar";
-import { Label } from "@/shared/ui/label";
 import { Popover, PopoverContent, PopoverTrigger } from "@/shared/ui/popover";
 
 interface DatePickerProps {
@@ -14,7 +13,6 @@ interface DatePickerProps {
   placeholder?: string;
   className?: string;
   id?: string;
-  label?: string;
 }
 
 export function DatePicker({
@@ -23,7 +21,6 @@ export function DatePicker({
   placeholder = "Seleccionar fecha",
   className,
   id,
-  label,
 }: DatePickerProps) {
   const [open, setOpen] = React.useState(false);
 

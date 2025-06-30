@@ -17,7 +17,6 @@ import { cn } from "@/shared/lib/utils";
 import { Button } from "@/shared/ui/button";
 import { Slider } from "@/shared/ui/slider";
 import { Alert, AlertDescription } from "@/shared/ui/alert";
-import MusicVisualization from "./music-visualization";
 import { usePlayer } from "@/app/providers/PlayerContext";
 
 // YouTube API types

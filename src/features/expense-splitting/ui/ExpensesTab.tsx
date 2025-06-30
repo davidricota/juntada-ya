@@ -128,7 +128,7 @@ const ExpensesTab: React.FC<ExpensesTabProps> = ({
   };
 
   function isNonEmptyString(val: unknown): val is string {
-    return typeof val === "string" && val.length > 0;
+    return typeof val === "string" && val.trim().length > 0;
   }
 
   if (isLoading) {
