@@ -1,7 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { EventService } from "@/services/eventService";
-import { EventType } from "@/types";
-import { useParticipantStore } from "@/stores/participantStore";
+import { EventService } from "@/features/event-creation/api/eventService";
+import { EventType } from "@/app/types";
+import { useParticipantStore } from "@/shared/stores/participantStore";
 
 export function useEvent(planId: string) {
   const queryClient = useQueryClient();

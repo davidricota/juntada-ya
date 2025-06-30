@@ -1,9 +1,9 @@
 import { Routes, Route, useLocation } from "react-router-dom";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { TooltipProvider } from "@/components/ui/tooltip";
-import { PlayerProvider } from "@/contexts/PlayerContext";
-import { AuthProvider } from "@/contexts/AuthContext";
-import { useAnalytics } from "@/hooks/useAnalytics";
+import { TooltipProvider } from "@/shared/ui/tooltip";
+import { PlayerProvider } from "@/app/providers/PlayerContext";
+import { AuthProvider } from "@/app/providers/AuthContext";
+import { useAnalytics } from "@/shared/hooks/useAnalytics";
 
 import MainLayout from "./components/layout/MainLayout";
 import NotFound from "./pages/NotFound";

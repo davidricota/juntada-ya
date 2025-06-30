@@ -1,9 +1,9 @@
 import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { useToast } from "@/hooks/use-toast";
+import { Button } from "@/shared/ui/button";
+import { Input } from "@/shared/ui/input";
+import { Label } from "@/shared/ui/label";
+import { useToast } from "@/shared/hooks/use-toast";
 import {
   Card,
   CardContent,
@@ -11,14 +11,14 @@ import {
   CardFooter,
   CardHeader,
   CardTitle,
-} from "@/components/ui/card";
-import { useParticipantStore } from "@/stores/participantStore";
+} from "@/shared/ui/card";
+import { useParticipantStore } from "@/shared/stores/participantStore";
 import PhoneInput from "react-phone-input-2";
 import "react-phone-input-2/lib/style.css";
-import { cn } from "@/lib/utils";
-import { EventService } from "@/services/eventService";
-import { UserService } from "@/services/userService";
-import { encrypt } from "@/lib/encryption";
+import { cn } from "@/shared/lib/utils";
+import { EventService } from "@/features/event-creation/api/eventService";
+import { UserService } from "@/shared/api/userService";
+import { encrypt } from "@/shared/lib/encryption";
 import { Copy } from "lucide-react";
 import { useMutation } from "@tanstack/react-query";
 

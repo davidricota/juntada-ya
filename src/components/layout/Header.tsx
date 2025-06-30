@@ -1,7 +1,7 @@
 import React, { useState } from "react";
 import { Link, useLocation } from "react-router-dom";
-import { Button } from "@/components/ui/button";
-import { useParticipantStore } from "@/stores/participantStore";
+import { Button } from "@/shared/ui/button";
+import { useParticipantStore } from "@/shared/stores/participantStore";
 import { LogOut, Menu, X } from "lucide-react";
 
 const Header: React.FC = () => {

@@ -1,7 +1,7 @@
 import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { useAuth } from "@/contexts/AuthContext";
-import { Button } from "@/components/ui/button";
+import { useAuth } from "@/app/providers/AuthContext";
+import { Button } from "@/shared/ui/button";
 import {
   Card,
   CardContent,
@@ -9,12 +9,12 @@ import {
   CardFooter,
   CardHeader,
   CardTitle,
-} from "@/components/ui/card";
+} from "@/shared/ui/card";
 import { toast } from "sonner";
-import { cn } from "@/lib/utils";
+import { cn } from "@/shared/lib/utils";
 import PhoneInput from "react-phone-input-2";
-import { UserService } from "@/services/userService";
-import { encrypt } from "@/lib/encryption";
+import { UserService } from "@/shared/api/userService";
+import { encrypt } from "@/shared/lib/encryption";
 import { useMutation } from "@tanstack/react-query";
 
 const LoginPage: React.FC = () => {

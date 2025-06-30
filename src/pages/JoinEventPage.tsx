@@ -1,9 +1,9 @@
 import React, { useState, useEffect } from "react";
-import { useNavigate, useParams } from "react-router-dom";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { useToast } from "@/hooks/use-toast";
+import { useParams, useNavigate } from "react-router-dom";
+import { Button } from "@/shared/ui/button";
+import { Input } from "@/shared/ui/input";
+import { Label } from "@/shared/ui/label";
+import { useToast } from "@/shared/hooks/use-toast";
 import {
   Card,
   CardContent,
@@ -11,14 +11,14 @@ import {
   CardFooter,
   CardHeader,
   CardTitle,
-} from "@/components/ui/card";
-import { useParticipantStore } from "@/stores/participantStore";
-import { EventService } from "@/services/eventService";
-import { UserService } from "@/services/userService";
+} from "@/shared/ui/card";
+import { useParticipantStore } from "@/shared/stores/participantStore";
+import { EventService } from "@/features/event-creation/api/eventService";
+import { UserService } from "@/shared/api/userService";
 import PhoneInput from "react-phone-input-2";
 import "react-phone-input-2/lib/style.css";
-import { cn } from "@/lib/utils";
-import { encrypt } from "@/lib/encryption";
+import { cn } from "@/shared/lib/utils";
+import { encrypt } from "@/shared/lib/encryption";
 import { useMutation } from "@tanstack/react-query";
 
 const JoinEventPage: React.FC = () => {

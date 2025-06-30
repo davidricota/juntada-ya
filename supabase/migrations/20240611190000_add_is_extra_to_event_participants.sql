@@ -1,7 +1,6 @@
--- Permitir nulos en user_id y whatsapp
+-- Permitir nulos en user_id
 ALTER TABLE event_participants
-  ALTER COLUMN user_id DROP NOT NULL,
-  ALTER COLUMN whatsapp DROP NOT NULL;
+  ALTER COLUMN user_id DROP NOT NULL;
 
 -- Agregar campo para marcar si es extra
 ALTER TABLE event_participants

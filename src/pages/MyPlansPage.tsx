@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { Button } from "@/components/ui/button";
+import { Button } from "@/shared/ui/button";
 import {
   Card,
   CardContent,
@@ -8,11 +8,11 @@ import {
   CardFooter,
   CardHeader,
   CardTitle,
-} from "@/components/ui/card";
-import { useToast } from "@/hooks/use-toast";
-import { EventService } from "@/services/eventService";
-import { useParticipantStore } from "@/stores/participantStore";
-import { EventType, Participant } from "@/types";
+} from "@/shared/ui/card";
+import { useToast } from "@/shared/hooks/use-toast";
+import { EventService } from "@/features/event-creation/api/eventService";
+import { useParticipantStore } from "@/shared/stores/participantStore";
+import { EventType, Participant } from "@/app/types";
 import { Copy, Plus, Trash2 } from "lucide-react";
 
 const MyPlansPage: React.FC = () => {

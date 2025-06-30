@@ -1,13 +1,13 @@
 import React, { useEffect, useState, lazy, Suspense, useRef } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { Button } from "@/components/ui/button";
-import { useToast } from "@/hooks/use-toast";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Button } from "@/shared/ui/button";
+import { useToast } from "@/shared/hooks/use-toast";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/shared/ui/card";
+import { Avatar, AvatarFallback, AvatarImage } from "@/shared/ui/avatar";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/shared/ui/tabs";
 import { LogOut, Users, Copy, Trash2, UserPlus } from "lucide-react";
-import { ScrollArea } from "@/components/ui/scroll-area";
-import { EventService } from "@/services/eventService";
+import { ScrollArea } from "@/shared/ui/scroll-area";
+import { EventService } from "@/features/event-creation/api/eventService";
 import { RealtimeChannel } from "@supabase/supabase-js";
 import {
   EventType,
@@ -15,18 +15,18 @@ import {
   ParticipantChangePayload,
   PlaylistItem,
   PlaylistChangePayload,
-} from "@/types";
-import { SearchDialog } from "@/components/SearchDialog";
-import { useParticipantStore } from "@/stores/participantStore";
-import JoinEventCard from "@/components/JoinEventCard";
-import EventInfoTab from "@/components/EventInfoTab";
+} from "@/app/types";
+import { SearchDialog } from "@/widgets/EventTabs/ui/SearchDialog";
+import { useParticipantStore } from "@/shared/stores/participantStore";
+import JoinEventCard from "@/widgets/EventTabs/ui/JoinEventCard";
+import EventInfoTab from "@/features/event-creation/ui/EventInfoTab";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { PlaylistService } from "@/services/playlistService";
+import { PlaylistService } from "@/features/playlist-management/api/playlistService";
 
 // Lazy load components that are not immediately needed
-const PlaylistTab = lazy(() => import("@/components/PlaylistTab"));
-const PollsTab = lazy(() => import("@/components/PollsTab"));
-const ExpensesTab = lazy(() => import("@/components/ExpensesTab"));
+const PlaylistTab = lazy(() => import("@/features/playlist-management/ui/PlaylistTab"));
+const PollsTab = lazy(() => import("@/features/poll-voting/ui/PollsTab"));
+const ExpensesTab = lazy(() => import("@/features/expense-splitting/ui/ExpensesTab"));
 
 const fetchEvent = async (planId: string) => {
   const event = await EventService.getEvent(planId);
