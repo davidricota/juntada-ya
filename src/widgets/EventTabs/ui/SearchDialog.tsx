@@ -61,9 +61,9 @@ export function SearchDialog({ isOpen, onClose, onSongSelected }: SearchDialogPr
               placeholder="Buscar en YouTube..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              onKeyDown={(e) => e.key === "Enter" && handleSearch()}
+              onKeyDown={(e) => e.key === "Enter" && void handleSearch()}
             />
-            <Button onClick={handleSearch} disabled={isSearching}>
+            <Button onClick={() => void handleSearch()} disabled={isSearching}>
               {isSearching ? "Buscando..." : "Buscar"}
             </Button>
           </div>

@@ -42,17 +42,15 @@ const CreatePlanPage: React.FC = () => {
 
   const createEventMutation = useMutation({
     mutationFn: async () => {
-      if (!eventName || typeof eventName !== "string" || eventName.trim() === "") {
+      if (typeof eventName !== "string" || eventName.trim().length === 0) {
         throw new Error("El nombre del plancito no puede estar vacío.");
       }
 
       if (
-        !participantName ||
         typeof participantName !== "string" ||
-        participantName.trim() === "" ||
-        !participantWhatsapp ||
+        participantName.trim().length === 0 ||
         typeof participantWhatsapp !== "string" ||
-        participantWhatsapp.trim() === ""
+        participantWhatsapp.trim().length === 0
       ) {
         throw new Error("Por favor completa tu nombre y número de WhatsApp.");
       }
@@ -104,9 +102,9 @@ const CreatePlanPage: React.FC = () => {
 
   if (
     typeof accessCode === "string" &&
-    accessCode.trim() !== "" &&
+    accessCode.trim().length > 0 &&
     typeof planId === "string" &&
-    planId.trim() !== ""
+    planId.trim().length > 0
   ) {
     return (
       <div className="flex flex-col items-center justify-center p-4">
@@ -182,7 +180,7 @@ const CreatePlanPage: React.FC = () => {
               <Input
                 id="eventName"
                 type="text"
-                value={eventName}
+                value={typeof eventName === "string" ? eventName : ""}
                 onChange={(e) => setEventName(e.target.value)}
                 placeholder="Ej: Fiesta de Sábado"
                 required
@@ -196,7 +194,7 @@ const CreatePlanPage: React.FC = () => {
               <Input
                 id="participantName"
                 type="text"
-                value={participantName}
+                value={typeof participantName === "string" ? participantName : ""}
                 onChange={(e) => setParticipantName(e.target.value)}
                 placeholder="Tu nombre"
                 required
@@ -209,7 +207,7 @@ const CreatePlanPage: React.FC = () => {
               </Label>
               <PhoneInput
                 country="ar"
-                value={participantWhatsapp}
+                value={typeof participantWhatsapp === "string" ? participantWhatsapp : ""}
                 onChange={setParticipantWhatsapp}
                 inputProps={{
                   className: cn(

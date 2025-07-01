@@ -80,11 +80,9 @@ export default function PlaylistTab({
 
   // Use shuffled playlist if enabled, otherwise use original playlist
   const displayPlaylist =
-    isShuffleEnabled && Array.isArray(shuffledPlaylist) && shuffledPlaylist.length > 0
+    isShuffleEnabled === true && Array.isArray(shuffledPlaylist) && shuffledPlaylist.length > 0
       ? shuffledPlaylist
-      : Array.isArray(originalPlaylist)
-      ? originalPlaylist
-      : [];
+      : originalPlaylist;
 
   // Update ref when currentVideoIndex changes
   useEffect(() => {
@@ -212,10 +210,15 @@ export default function PlaylistTab({
 
   // Update context when video changes
   useEffect(() => {
-    if (displayPlaylist.length > 0 && currentVideoIndex < displayPlaylist.length) {
-      setCurrentVideo(displayPlaylist[currentVideoIndex]);
-    }
-  }, [displayPlaylist, currentVideoIndex, setCurrentVideo]);
+    if (
+      typeof currentVideoIndex !== "number" ||
+      !Array.isArray(displayPlaylist) ||
+      currentVideoIndex < 0 ||
+      currentVideoIndex >= displayPlaylist.length
+    )
+      return;
+    setCurrentVideo(displayPlaylist[currentVideoIndex]);
+  }, [currentVideoIndex, displayPlaylist, setCurrentVideo]);
 
   // Subscribe to playlist changes
   useEffect(() => {

@@ -48,6 +48,73 @@ const fetchEventInfo = async (
   };
 };
 
+// Interfaces para la respuesta de Google Maps API
+interface GoogleMapsLocation {
+  lat: number;
+  lng: number;
+}
+
+interface GoogleMapsGeometry {
+  location: GoogleMapsLocation;
+}
+
+interface GoogleMapsResult {
+  geometry: GoogleMapsGeometry;
+}
+
+interface GoogleMapsResponse {
+  results: GoogleMapsResult[];
+}
+
+// Type guard para verificar si un objeto es una ubicación válida
+function isValidLocation(obj: unknown): obj is GoogleMapsLocation {
+  return (
+    obj !== null &&
+    typeof (obj as { lat?: unknown }).lat === "number" &&
+    typeof (obj as { lng?: unknown }).lng === "number"
+  );
+}
+
+// Type guard para verificar si un objeto es una geometría válida
+function isValidGeometry(obj: unknown): obj is GoogleMapsGeometry {
+  return (
+    obj !== null && "location" in obj && isValidLocation((obj as { location: unknown }).location)
+  );
+}
+
+// Type guard para verificar si un objeto es un resultado válido
+function isValidResult(obj: unknown): obj is GoogleMapsResult {
+  return (
+    obj !== null && "geometry" in obj && isValidGeometry((obj as { geometry: unknown }).geometry)
+  );
+}
+
+// Type guard para verificar si un objeto es una respuesta válida
+function isValidResponse(obj: unknown): obj is GoogleMapsResponse {
+  return (
+    obj !== null &&
+    "results" in obj &&
+    Array.isArray((obj as { results: unknown }).results) &&
+    (obj as { results: unknown[] }).results.length > 0 &&
+    isValidResult((obj as { results: unknown[] }).results[0])
+  );
+}
+
+// Type guard para eventInfo
+function isEventInfo(
+  val: unknown
+): val is { address: string; date: string; time: string; latitude: number; longitude: number } {
+  if (val === null || val === undefined || Array.isArray(val)) return false;
+  const obj = val as Record<string, unknown>;
+  return (
+    typeof obj.address === "string" &&
+    typeof obj.date === "string" &&
+    typeof obj.time === "string" &&
+    typeof obj.latitude === "number" &&
+    typeof obj.longitude === "number"
+  );
+}
+
 export default function EventInfoTab({ planId, isHost, initialData }: EventInfoTabProps) {
   const [isEditing, setIsEditing] = useState(false);
   const [showMap, setShowMap] = useState(false);
@@ -81,23 +148,13 @@ export default function EventInfoTab({ planId, isHost, initialData }: EventInfoT
 
   // Actualizar estados cuando cambia eventInfo
   useEffect(() => {
-    if (eventInfo) {
-      setAddress(
-        typeof eventInfo.address === "string" && eventInfo.address.length > 0
-          ? eventInfo.address
-          : ""
-      );
-      setDate(
-        typeof eventInfo.date === "string" && eventInfo.date.length > 0
-          ? stringToDate(eventInfo.date)
-          : undefined
-      );
-      setTime(
-        typeof eventInfo.time === "string" && eventInfo.time.length > 0 ? eventInfo.time : ""
-      );
+    if (isEventInfo(eventInfo)) {
+      setAddress(eventInfo.address.length > 0 ? eventInfo.address : "");
+      setDate(eventInfo.date.length > 0 ? stringToDate(eventInfo.date) : undefined);
+      setTime(eventInfo.time.length > 0 ? eventInfo.time : "");
       setCoordinates({
-        lat: typeof eventInfo.latitude === "number" ? eventInfo.latitude : 0,
-        lng: typeof eventInfo.longitude === "number" ? eventInfo.longitude : 0,
+        lat: eventInfo.latitude,
+        lng: eventInfo.longitude,
       });
     }
   }, [eventInfo]);
@@ -142,32 +199,12 @@ export default function EventInfoTab({ planId, isHost, initialData }: EventInfoT
         )}&key=${import.meta.env.VITE_GOOGLE_MAPS_API_KEY}`
       );
       const data = (await response.json()) as unknown;
-      const results =
-        data && typeof data === "object" && Array.isArray((data as { results?: unknown[] }).results)
-          ? (data as { results: unknown[] }).results
-          : [];
-      if (results.length > 0) {
-        const first = results[0];
-        if (
-          first &&
-          typeof first === "object" &&
-          "geometry" in first &&
-          first.geometry &&
-          typeof (first as { geometry?: unknown }).geometry === "object" &&
-          (first as { geometry: { location?: unknown } }).geometry.location &&
-          typeof (first as { geometry: { location?: unknown } }).geometry.location === "object" &&
-          typeof (first as { geometry: { location: { lat?: unknown; lng?: unknown } } }).geometry
-            .location.lat === "number" &&
-          typeof (first as { geometry: { location: { lat?: unknown; lng?: unknown } } }).geometry
-            .location.lng === "number"
-        ) {
-          const loc = (first as { geometry: { location: { lat: number; lng: number } } }).geometry
-            .location;
-          setCoordinates({
-            lat: loc.lat,
-            lng: loc.lng,
-          });
-        }
+      if (isValidResponse(data)) {
+        const location = data.results[0].geometry.location;
+        setCoordinates({
+          lat: location.lat,
+          lng: location.lng,
+        });
       }
     } catch {
       toast({

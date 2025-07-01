@@ -50,7 +50,7 @@ const FormDialog: React.FC<FormDialogProps> = ({
         <DialogFooter>
           <Button
             type="submit"
-            onClick={onSubmit}
+            onClick={() => onSubmit()}
             disabled={isLoading}
             className="bg-primary-foreground text-primary hover:bg-primary-foreground/90"
           >

@@ -131,7 +131,7 @@ const ExpensesTab: React.FC<ExpensesTabProps> = ({
     return typeof val === "string" && val.trim().length > 0;
   }
 
-  if (isLoading) {
+  if (isLoading === true) {
     return (
       <div className="flex items-center justify-center min-h-[400px]">
         <Loader2 className="h-8 w-8 animate-spin text-primary-foreground" />
@@ -184,7 +184,7 @@ const ExpensesTab: React.FC<ExpensesTabProps> = ({
         </DialogContent>
       </Dialog>
 
-      {summary && (
+      {typeof summary === "object" && summary !== null && (
         <Card className="bg-card text-card-foreground">
           <CardHeader className="p-2 md:p-6">
             <CardTitle className="text-xl">Resumen de Gastos</CardTitle>
@@ -205,7 +205,7 @@ const ExpensesTab: React.FC<ExpensesTabProps> = ({
                   <div key={participant.id} className="flex justify-between items-center">
                     <span className="text-muted-foreground flex items-center gap-1">
                       {isNonEmptyString(participant.name) ? participant.name : "Desconocido"}
-                      {participant.is_extra && (
+                      {participant.is_extra === true && (
                         <UserPlus
                           className="inline h-4 w-4 text-primary ml-1"
                           title="Participante extra"
@@ -241,7 +241,7 @@ const ExpensesTab: React.FC<ExpensesTabProps> = ({
         </CardHeader>
         <CardContent className="p-2 md:p-6">
           <ScrollArea className="h-full max-h-72 pr-4">
-            {expenses.length === 0 ? (
+            {Array.isArray(expenses) && expenses.length === 0 ? (
               <p className="text-muted-foreground text-center py-6 italic">
                 No hay gastos registrados.
               </p>
@@ -258,7 +258,8 @@ const ExpensesTab: React.FC<ExpensesTabProps> = ({
                         {formatCurrency(expense.amount)} - Pagado por: {expense.participant_name}
                       </p>
                     </div>
-                    {(expense.paid_by_participant_id === currentParticipantId || isHost) && (
+                    {(expense.paid_by_participant_id === currentParticipantId ||
+                      isHost === true) && (
                       <button
                         onClick={() => {
                           void handleDeleteExpense(expense.id);

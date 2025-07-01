@@ -63,13 +63,13 @@ const Header: React.FC = () => {
               <>
                 <Button
                   variant="ghost"
-                  onClick={handleLogout}
+                  onClick={() => handleLogout()}
                   className="hidden md:flex items-center gap-2"
                 >
                   <LogOut className="h-4 w-4" />
                   Cerrar Sesión
                 </Button>
-                <Button variant="ghost" onClick={toggleMobileMenu} className="md:hidden">
+                <Button variant="ghost" onClick={() => toggleMobileMenu()} className="md:hidden">
                   {isMobileMenuOpen ? (
                     <X className="h-6 w-6" />
                   ) : (
@@ -119,7 +119,7 @@ const Header: React.FC = () => {
                     Crear Plan
                   </Link>
                   <Button
-                    onClick={handleLogout}
+                    onClick={() => handleLogout()}
                     className="bg-primary text-primary-foreground flex items-center gap-2 justify-center"
                   >
                     <LogOut className="h-4 w-4" />

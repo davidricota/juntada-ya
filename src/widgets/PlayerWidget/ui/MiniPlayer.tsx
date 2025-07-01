@@ -107,7 +107,7 @@ export default function MiniPlayer({
             variant="ghost"
             size="icon"
             className="text-zinc-400 hover:text-white"
-            onClick={onPrevious}
+            onClick={() => onPrevious()}
           >
             <SkipBack className="h-5 w-5" />
           </Button>
@@ -116,7 +116,7 @@ export default function MiniPlayer({
             variant="ghost"
             size="icon"
             className="text-zinc-400 hover:text-white"
-            onClick={handlePlayPause}
+            onClick={() => handlePlayPause()}
           >
             {isPlaying ? <Pause className="h-5 w-5" /> : <Play className="h-5 w-5" />}
           </Button>
@@ -125,7 +125,7 @@ export default function MiniPlayer({
             variant="ghost"
             size="icon"
             className="text-zinc-400 hover:text-white"
-            onClick={onNext}
+            onClick={() => onNext()}
           >
             <SkipForward className="h-5 w-5" />
           </Button>
@@ -137,7 +137,7 @@ export default function MiniPlayer({
               variant="ghost"
               size="icon"
               className="text-zinc-400 hover:text-white"
-              onClick={handleMuteToggle}
+              onClick={() => handleMuteToggle()}
             >
               {isMuted ? <VolumeX className="h-5 w-5" /> : <Volume2 className="h-5 w-5" />}
             </Button>

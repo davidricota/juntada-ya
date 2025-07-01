@@ -52,19 +52,19 @@ const PlanPage: React.FC = () => {
   const { data: event, isLoading: isEventLoading } = useQuery({
     queryKey: ["event", planId],
     queryFn: () => fetchEvent(planId!),
-    enabled: !!planId && planId !== undefined,
+    enabled: typeof planId === "string" && planId.length > 0,
   });
 
   const { data: participants = [], isLoading: isParticipantsLoading } = useQuery({
     queryKey: ["participants", planId],
     queryFn: () => fetchParticipants(planId!),
-    enabled: !!planId && planId !== undefined,
+    enabled: typeof planId === "string" && planId.length > 0,
   });
 
   const { data: playlist = [], isLoading: isPlaylistLoading } = useQuery({
     queryKey: ["playlist", planId],
     queryFn: () => fetchPlaylist(planId!),
-    enabled: !!planId && planId !== undefined,
+    enabled: typeof planId === "string" && planId.length > 0,
   });
 
   const isHost = typeof event?.host_user_id === "string" && event?.host_user_id === getUserId();
@@ -73,7 +73,13 @@ const PlanPage: React.FC = () => {
 
   // Update current participant when participants change
   useEffect(() => {
-    if (!Array.isArray(participants) || participants.length === 0 || !userIdRef.current) return;
+    if (
+      !Array.isArray(participants) ||
+      participants.length === 0 ||
+      typeof userIdRef.current !== "string" ||
+      userIdRef.current.length === 0
+    )
+      return;
 
     const currentParticipant = participants.find((p) => p.user_id === userIdRef.current);
     if (currentParticipant) {
@@ -83,7 +89,7 @@ const PlanPage: React.FC = () => {
   }, [participants]);
 
   useEffect(() => {
-    if (!planId || typeof planId !== "string" || planId.trim() === "") {
+    if (typeof planId !== "string" || planId.trim().length === 0) {
       navigate("/");
       return;
     }
@@ -92,7 +98,11 @@ const PlanPage: React.FC = () => {
     const userId = getUserId();
     userIdRef.current = userId;
 
-    if (!userStorage || typeof userId !== "string" || userId.trim() === "") {
+    if (
+      typeof userStorage !== "object" ||
+      typeof userId !== "string" ||
+      userId.trim().length === 0
+    ) {
       navigate("/");
       return;
     }
@@ -213,12 +223,16 @@ const PlanPage: React.FC = () => {
               <CardDescription className="text-muted-foreground">
                 <div className="flex items-center gap-2">
                   Código de Acceso:{" "}
-                  <span className="font-semibold text-primary">{event?.access_code}</span>
+                  <span className="font-semibold text-primary">
+                    {typeof event?.access_code === "string" ? event.access_code : ""}
+                  </span>
                   <Button
                     variant="ghost"
                     size="icon"
                     onClick={() => {
-                      const joinUrl = `${window.location.origin}/join/${event?.access_code}`;
+                      const joinUrl = `${window.location.origin}/join/${
+                        typeof event?.access_code === "string" ? event.access_code : ""
+                      }`;
                       navigator.clipboard.writeText(joinUrl);
                       toast.success("Código copiado", {
                         description:
@@ -230,22 +244,23 @@ const PlanPage: React.FC = () => {
                     <Copy className="h-4 w-4" />
                   </Button>
                 </div>
-                {currentParticipantName && (
-                  <>
-                    <div className="text-sm text-muted-foreground">
-                      Conectado como:{" "}
-                      <span className="font-medium text-card-foreground">
-                        {currentParticipantName}
-                      </span>
-                    </div>
-                    <a
-                      onClick={handleLogout}
-                      className="font-bold cursor-pointer flex items-center gap-2 text-red-500"
-                    >
-                      <LogOut className="h-4 w-4" /> Abandonar Evento
-                    </a>
-                  </>
-                )}
+                {typeof currentParticipantName === "string" &&
+                  currentParticipantName.length > 0 && (
+                    <>
+                      <div className="text-sm text-muted-foreground">
+                        Conectado como:{" "}
+                        <span className="font-medium text-card-foreground">
+                          {currentParticipantName}
+                        </span>
+                      </div>
+                      <a
+                        onClick={() => handleLogout()}
+                        className="font-bold cursor-pointer flex items-center gap-2 text-red-500"
+                      >
+                        <LogOut className="h-4 w-4" /> Abandonar Evento
+                      </a>
+                    </>
+                  )}
               </CardDescription>
             </CardHeader>
           </Card>
@@ -322,7 +337,7 @@ const PlanPage: React.FC = () => {
                   participants={participants}
                   playlist={playlist}
                   currentParticipantId={currentParticipantId}
-                  accessCode={event?.access_code || ""}
+                  accessCode={typeof event?.access_code === "string" ? event.access_code : ""}
                   isHost={isHost}
                   isLoading={isLoading}
                   currentTab={currentTab}
@@ -341,7 +356,7 @@ const PlanPage: React.FC = () => {
             </TabsContent>
             <TabsContent value="gastos">
               <Suspense fallback={<div className="text-center p-4">Cargando gastos...</div>}>
-                {currentParticipantId ? (
+                {typeof currentParticipantId === "string" && currentParticipantId.length > 0 ? (
                   <ExpensesTab
                     planId={planId}
                     participants={participants}
@@ -350,7 +365,7 @@ const PlanPage: React.FC = () => {
                   />
                 ) : (
                   <JoinEventCard
-                    accessCode={event?.access_code || ""}
+                    accessCode={typeof event?.access_code === "string" ? event.access_code : ""}
                     message="unirte al evento para ver y agregar gastos"
                   />
                 )}

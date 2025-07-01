@@ -28,7 +28,7 @@ const LoginPage: React.FC = () => {
     mutationFn: async (formattedPhone: string) => {
       // Intentar obtener usuario existente
       const user = await UserService.getUserByWhatsApp(formattedPhone);
-      if (user && user.name && user.name.trim() !== "") {
+      if (user && typeof user.name === "string" && user.name.length > 0) {
         // Si ya existe y tiene nombre, guardar ese nombre
         setParticipant(user.name, formattedPhone);
         return user;

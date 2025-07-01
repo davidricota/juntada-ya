@@ -145,7 +145,12 @@ export const PollForm: React.FC<PollFormProps> = ({
       </div>
       <DialogFooter>
         {onDelete && (
-          <Button type="button" variant="destructive" onClick={onDelete} className="mr-auto">
+          <Button
+            type="button"
+            variant="destructive"
+            onClick={() => onDelete()}
+            className="mr-auto"
+          >
             Eliminar Encuesta
           </Button>
         )}

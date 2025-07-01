@@ -8,7 +8,6 @@ import {
   Dialog,
   DialogContent,
   DialogDescription,
-  DialogFooter,
   DialogHeader,
   DialogTitle,
   DialogTrigger,
@@ -38,6 +37,11 @@ interface PollOptionWithVotes extends PollOption {
   has_voted: boolean;
 }
 
+// Utilidad para chequear strings no vacíos
+function isNonEmptyString(val: unknown): val is string {
+  return typeof val === "string" && val.trim().length > 0;
+}
+
 const PollsTab: React.FC<PollsTabProps> = ({ planId, currentParticipantId, isHost }) => {
   const [polls, setPolls] = useState<PollWithDetails[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -58,7 +62,7 @@ const PollsTab: React.FC<PollsTabProps> = ({ planId, currentParticipantId, isHos
   };
 
   const fetchPolls = useCallback(async () => {
-    if (!planId || typeof planId !== "string" || planId.trim() === "") return;
+    if (!isNonEmptyString(planId)) return;
 
     try {
       const pollsData = await PollService.getPolls(planId);
@@ -74,7 +78,7 @@ const PollsTab: React.FC<PollsTabProps> = ({ planId, currentParticipantId, isHos
 
           const optionsWithVotes: PollOptionWithVotes[] = pollOptions.map((option) => {
             const votesForThisOption = pollVotes.filter((vote) => vote.option_id === option.id);
-            const hasVotedForThisOption = currentParticipantId
+            const hasVotedForThisOption = isNonEmptyString(currentParticipantId)
               ? pollVotes.some(
                   (vote) =>
                     vote.option_id === option.id && vote.participant_id === currentParticipantId
@@ -104,7 +108,7 @@ const PollsTab: React.FC<PollsTabProps> = ({ planId, currentParticipantId, isHos
 
       setPolls(processedPolls);
       setIsLoading(false);
-    } catch (error) {
+    } catch {
       setIsLoading(false);
     }
   }, [planId, currentParticipantId]);
@@ -117,48 +121,50 @@ const PollsTab: React.FC<PollsTabProps> = ({ planId, currentParticipantId, isHos
     if (!planId) return;
 
     // Suscribirse a cambios en las encuestas
-    const pollsSubscription = PollService.subscribeToPolls(planId, async (payload) => {
+    const pollsSubscription = PollService.subscribeToPolls(planId, (payload) => {
       if (payload.eventType === "DELETE") {
         setPolls((prev) => prev.filter((poll) => poll.id !== payload.old.id));
       } else if (payload.eventType === "INSERT" && payload.new) {
         // Agregar nueva encuesta
-        const [pollOptions, pollVotes, creator] = await Promise.all([
-          PollService.getPollOptions(payload.new.id),
-          PollService.getPollVotes(payload.new.id),
-          PollService.getParticipant(payload.new.created_by_participant_id),
-        ]);
+        void (async () => {
+          const [pollOptions, pollVotes, creator] = await Promise.all([
+            PollService.getPollOptions(payload.new.id),
+            PollService.getPollVotes(payload.new.id),
+            PollService.getParticipant(payload.new.created_by_participant_id),
+          ]);
 
-        const optionsWithVotes = pollOptions.map((option) => ({
-          ...option,
-          votes_count: pollVotes.filter((vote) => vote.option_id === option.id).length,
-          has_voted: currentParticipantId
-            ? pollVotes.some(
-                (vote) =>
-                  vote.option_id === option.id && vote.participant_id === currentParticipantId
-              )
-            : false,
-        }));
+          const optionsWithVotes = pollOptions.map((option) => ({
+            ...option,
+            votes_count: pollVotes.filter((vote) => vote.option_id === option.id).length,
+            has_voted: isNonEmptyString(currentParticipantId)
+              ? pollVotes.some(
+                  (vote) =>
+                    vote.option_id === option.id && vote.participant_id === currentParticipantId
+                )
+              : false,
+          }));
 
-        const totalVotes = optionsWithVotes.reduce(
-          (sum, option) => sum + (option.votes_count || 0),
-          0
-        );
+          const totalVotes = optionsWithVotes.reduce(
+            (sum, option) => sum + (option.votes_count || 0),
+            0
+          );
 
-        setPolls((prev) => [
-          {
-            ...payload.new,
-            options: removeDuplicateOptions(optionsWithVotes),
-            total_votes: totalVotes,
-            creator_name: creator?.name || "Anónimo",
-          },
-          ...prev,
-        ]);
+          setPolls((prev) => [
+            {
+              ...payload.new,
+              options: removeDuplicateOptions(optionsWithVotes),
+              total_votes: totalVotes,
+              creator_name: creator?.name || "Anónimo",
+            },
+            ...prev,
+          ]);
+        })();
       }
     });
 
     // Suscribirse a cambios en las opciones de las encuestas
     const pollOptionsSubscriptions = polls.map((poll) =>
-      PollService.subscribeToPollOptions(poll.id, async (payload) => {
+      PollService.subscribeToPollOptions(poll.id, (payload) => {
         if (payload.eventType === "INSERT" && payload.new) {
           setPolls((prev) =>
             prev.map((p) =>
@@ -190,7 +196,7 @@ const PollsTab: React.FC<PollsTabProps> = ({ planId, currentParticipantId, isHos
 
     // Suscribirse a cambios en los votos
     const pollVotesSubscriptions = polls.map((poll) =>
-      PollService.subscribeToPollVotes(poll.id, async () => {
+      PollService.subscribeToPollVotes(poll.id, () => {
         return;
       })
     );
@@ -208,7 +214,7 @@ const PollsTab: React.FC<PollsTabProps> = ({ planId, currentParticipantId, isHos
     allowMultipleVotes: boolean;
     options: string[];
   }) => {
-    if (!currentParticipantId) {
+    if (!isNonEmptyString(currentParticipantId)) {
       toast.error("Debes unirte al evento para crear encuestas.");
       return;
     }
@@ -249,7 +255,7 @@ const PollsTab: React.FC<PollsTabProps> = ({ planId, currentParticipantId, isHos
       // Reset form
       setEditingPoll(null);
       setIsDialogOpen(false);
-    } catch (error) {
+    } catch {
       toast.error("Error", {
         description: "No se pudo crear/actualizar la encuesta. Inténtalo de nuevo.",
       });
@@ -268,7 +274,7 @@ const PollsTab: React.FC<PollsTabProps> = ({ planId, currentParticipantId, isHos
       toast.success("Encuesta eliminada", {
         description: "La encuesta se ha eliminado correctamente.",
       });
-    } catch (error) {
+    } catch {
       toast.error("Error", {
         description: "No se pudo eliminar la encuesta. Inténtalo de nuevo.",
       });
@@ -277,12 +283,14 @@ const PollsTab: React.FC<PollsTabProps> = ({ planId, currentParticipantId, isHos
 
   const canEditPoll = (poll: PollWithDetails) => {
     return (
-      isHost || (currentParticipantId && poll.created_by_participant_id === currentParticipantId)
+      isHost ||
+      (isNonEmptyString(currentParticipantId) &&
+        poll.created_by_participant_id === currentParticipantId)
     );
   };
 
   const handleVote = async (pollId: string, optionId: string, allowMultiple: boolean) => {
-    if (!currentParticipantId) {
+    if (!isNonEmptyString(currentParticipantId)) {
       toast.error("Debes unirte al evento para votar.");
       return;
     }
@@ -339,25 +347,15 @@ const PollsTab: React.FC<PollsTabProps> = ({ planId, currentParticipantId, isHos
       toast.success("¡Voto registrado!", {
         description: "Tu voto se ha registrado correctamente.",
       });
-    } catch (error) {
-      console.error("Error in handleVote:", error);
-      console.error("Error details:", {
-        message: error.message,
-        stack: error.stack,
-        pollId,
-        optionId,
-        participantId: currentParticipantId,
-        allowMultiple,
-      });
-
+    } catch {
       toast.error("Error al registrar voto", {
-        description: `No se pudo registrar tu voto: ${error.message}`,
+        description: `No se pudo registrar tu voto. Inténtalo de nuevo.`,
       });
     }
   };
 
   const removeVote = async (pollId: string, optionId: string) => {
-    if (!currentParticipantId) return;
+    if (!isNonEmptyString(currentParticipantId)) return;
 
     try {
       await PollService.removeVote(pollId, currentParticipantId, optionId);
@@ -393,15 +391,14 @@ const PollsTab: React.FC<PollsTabProps> = ({ planId, currentParticipantId, isHos
       toast.success("Voto eliminado", {
         description: "Tu voto se ha eliminado correctamente.",
       });
-    } catch (error) {
-      console.error("Error removing vote:", error);
+    } catch {
       toast.error("Error al eliminar voto", {
         description: "No se pudo eliminar tu voto. Inténtalo de nuevo.",
       });
     }
   };
 
-  if (isLoading) {
+  if (isLoading === true) {
     return (
       <div className="flex items-center justify-center min-h-[400px]">
         <Loader2 className="h-8 w-8 animate-spin text-primary-foreground" />
@@ -444,7 +441,13 @@ const PollsTab: React.FC<PollsTabProps> = ({ planId, currentParticipantId, isHos
                   : undefined
               }
               onSubmit={handleCreatePoll}
-              onDelete={editingPoll ? () => handleDeletePoll(editingPoll.id) : undefined}
+              onDelete={
+                editingPoll
+                  ? () => {
+                      void handleDeletePoll(editingPoll.id);
+                    }
+                  : undefined
+              }
               isSubmitting={false}
             />
           </DialogContent>
@@ -452,7 +455,7 @@ const PollsTab: React.FC<PollsTabProps> = ({ planId, currentParticipantId, isHos
       </div>
 
       <div className="grid gap-6">
-        {polls.length === 0 ? (
+        {Array.isArray(polls) && polls.length === 0 ? (
           <Card className="bg-card text-card-foreground">
             <CardContent className="flex flex-col items-center justify-center p-6 text-center">
               <div className="text-lg text-muted-foreground">No hay encuestas creadas</div>
@@ -461,122 +464,142 @@ const PollsTab: React.FC<PollsTabProps> = ({ planId, currentParticipantId, isHos
               </div>
             </CardContent>
           </Card>
-        ) : (
-          polls.map((poll) => (
-            <Card key={poll.id} className="bg-card text-card-foreground">
-              <CardHeader className="p-2 md:p-6">
-                <div className="flex items-start justify-between">
-                  <div>
-                    <CardTitle className="text-xl text-primary">{poll.title}</CardTitle>
-                    {poll.description && (
-                      <CardDescription className="text-muted-foreground">
-                        {poll.description}
-                      </CardDescription>
-                    )}
-                    <div className="text-sm text-muted-foreground">
-                      Creada por {poll.creator_name} ·{" "}
-                      {new Date(poll.created_at).toLocaleDateString()}
-                    </div>
-                  </div>
-                  {canEditPoll(poll) && (
-                    <div className="flex gap-2">
-                      <Button variant="ghost" size="icon" onClick={() => handleEditPoll(poll)}>
-                        <svg
-                          xmlns="http://www.w3.org/2000/svg"
-                          width="24"
-                          height="24"
-                          viewBox="0 0 24 24"
-                          fill="none"
-                          stroke="currentColor"
-                          strokeWidth="2"
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                          className="h-4 w-4"
-                        >
-                          <path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z" />
-                          <path d="m15 5 4 4" />
-                        </svg>
-                      </Button>
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        onClick={() => handleDeletePoll(poll.id)}
-                        className="text-destructive hover:text-destructive/90"
-                      >
-                        <svg
-                          xmlns="http://www.w3.org/2000/svg"
-                          width="24"
-                          height="24"
-                          viewBox="0 0 24 24"
-                          fill="none"
-                          stroke="currentColor"
-                          strokeWidth="2"
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                          className="h-4 w-4"
-                        >
-                          <path d="M3 6h18" />
-                          <path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6" />
-                          <path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2" />
-                        </svg>
-                      </Button>
-                    </div>
-                  )}
-                </div>
-              </CardHeader>
-              <CardContent className="p-2 md:p-6">
-                <div className="space-y-4">
-                  {poll.options?.map((option) => {
-                    const percentage = poll.total_votes
-                      ? ((option.votes_count || 0) / poll.total_votes) * 100
-                      : 0;
-                    return (
-                      <div key={`${poll.id}-${option.id}`} className="space-y-2">
-                        <div className="flex items-center justify-between">
-                          <div className="flex items-center gap-2">
-                            <Button
-                              variant={option.has_voted ? "default" : "outline"}
-                              size="sm"
-                              onClick={() =>
-                                option.has_voted
-                                  ? removeVote(poll.id, option.id)
-                                  : handleVote(poll.id, option.id, poll.allow_multiple_votes)
-                              }
-                              className={
-                                option.has_voted
-                                  ? "bg-primary text-primary-foreground"
-                                  : "bg-card text-primary"
-                              }
-                            >
-                              {option.has_voted ? (
-                                <Check className="h-4 w-4 mr-2" />
-                              ) : (
-                                <Vote className="h-4 w-4 mr-2" />
-                              )}
-                              {option.title}
-                            </Button>
-                          </div>
-                          <div className="text-sm text-muted-foreground">
-                            {option.votes_count || 0} votos ({percentage.toFixed(1)}%)
-                          </div>
-                        </div>
-                        <div className="h-2 bg-secondary rounded-full overflow-hidden">
-                          <div
-                            className="h-full bg-primary transition-all duration-500 ease-in-out"
-                            style={{ width: `${percentage}%` }}
-                          />
-                        </div>
+        ) : Array.isArray(polls) && polls.length > 0 ? (
+          <>
+            {polls.map((poll) => (
+              <Card key={poll.id} className="bg-card text-card-foreground">
+                <CardHeader className="p-2 md:p-6">
+                  <div className="flex items-start justify-between">
+                    <div>
+                      <CardTitle className="text-xl text-primary">{poll.title}</CardTitle>
+                      {isNonEmptyString(poll.description) && (
+                        <CardDescription className="text-muted-foreground">
+                          {poll.description}
+                        </CardDescription>
+                      )}
+                      <div className="text-sm text-muted-foreground">
+                        Creada por{" "}
+                        {isNonEmptyString(poll.creator_name) ? poll.creator_name : "Desconocido"}
+                        {" · "}
+                        {isNonEmptyString(poll.created_at)
+                          ? new Date(poll.created_at).toLocaleDateString()
+                          : ""}
                       </div>
-                    );
-                  })}
-                  <div className="text-sm text-muted-foreground text-right">
-                    Total: {poll.total_votes} {poll.total_votes === 1 ? "voto" : "votos"}
+                    </div>
+                    {canEditPoll(poll) && (
+                      <div className="flex gap-2">
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          onClick={() => void handleEditPoll(poll)}
+                        >
+                          <svg
+                            xmlns="http://www.w3.org/2000/svg"
+                            width="24"
+                            height="24"
+                            viewBox="0 0 24 24"
+                            fill="none"
+                            stroke="currentColor"
+                            strokeWidth="2"
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            className="h-4 w-4"
+                          >
+                            <path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z" />
+                            <path d="m15 5 4 4" />
+                          </svg>
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          onClick={() => void handleDeletePoll(poll.id)}
+                          className="text-destructive hover:text-destructive/90"
+                        >
+                          <svg
+                            xmlns="http://www.w3.org/2000/svg"
+                            width="24"
+                            height="24"
+                            viewBox="0 0 24 24"
+                            fill="none"
+                            stroke="currentColor"
+                            strokeWidth="2"
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            className="h-4 w-4"
+                          >
+                            <path d="M3 6h18" />
+                            <path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6" />
+                            <path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2" />
+                          </svg>
+                        </Button>
+                      </div>
+                    )}
                   </div>
-                </div>
-              </CardContent>
-            </Card>
-          ))
-        )}
+                </CardHeader>
+                <CardContent className="p-2 md:p-6">
+                  <div className="space-y-4">
+                    {Array.isArray(poll.options) && poll.options.length > 0 ? (
+                      <>
+                        {poll.options.map((option) => {
+                          const percentage =
+                            typeof poll.total_votes === "number" && poll.total_votes > 0
+                              ? ((option.votes_count || 0) / poll.total_votes) * 100
+                              : 0;
+                          return (
+                            <div key={`${poll.id}-${option.id}`} className="space-y-2">
+                              <div className="flex items-center justify-between">
+                                <div className="flex items-center gap-2">
+                                  <Button
+                                    variant={option.has_voted ? "default" : "outline"}
+                                    size="sm"
+                                    onClick={() =>
+                                      option.has_voted
+                                        ? void removeVote(poll.id, option.id)
+                                        : void handleVote(
+                                            poll.id,
+                                            option.id,
+                                            poll.allow_multiple_votes
+                                          )
+                                    }
+                                    className={
+                                      option.has_voted
+                                        ? "bg-primary text-primary-foreground"
+                                        : "bg-card text-primary"
+                                    }
+                                  >
+                                    {option.has_voted ? (
+                                      <Check className="h-4 w-4 mr-2" />
+                                    ) : (
+                                      <Vote className="h-4 w-4 mr-2" />
+                                    )}
+                                    {option.title}
+                                  </Button>
+                                </div>
+                                <div className="text-sm text-muted-foreground">
+                                  {option.votes_count || 0} votos ({percentage.toFixed(1)}%)
+                                </div>
+                              </div>
+                              <div className="h-2 bg-secondary rounded-full overflow-hidden">
+                                <div
+                                  className="h-full bg-primary transition-all duration-500 ease-in-out"
+                                  style={{ width: `${percentage}%` }}
+                                />
+                              </div>
+                            </div>
+                          );
+                        })}
+                        <div className="text-sm text-muted-foreground text-right">
+                          Total: {typeof poll.total_votes === "number" ? poll.total_votes : 0}{" "}
+                          {poll.total_votes === 1 ? "voto" : "votos"}
+                        </div>
+                      </>
+                    ) : null}
+                  </div>
+                </CardContent>
+              </Card>
+            ))}
+          </>
+        ) : null}
       </div>
     </div>
   );

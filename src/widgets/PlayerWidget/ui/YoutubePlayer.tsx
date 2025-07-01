@@ -464,7 +464,7 @@ export default function YouTubePlayer({
             variant="ghost"
             size="icon"
             className="text-zinc-400 hover:text-white hover:bg-zinc-700"
-            onClick={handleMuteToggle}
+            onClick={() => handleMuteToggle()}
           >
             {isMuted ? <VolumeX className="h-5 w-5" /> : <Volume2 className="h-5 w-5" />}
             <span className="sr-only">{isMuted ? "Unmute" : "Mute"}</span>
@@ -500,7 +500,7 @@ export default function YouTubePlayer({
           variant="ghost"
           size="icon"
           className="text-zinc-400 hover:text-white hover:bg-zinc-700"
-          onClick={handlePrevious}
+          onClick={() => handlePrevious()}
         >
           <SkipBack className="h-6 w-6" />
           <span className="sr-only">Previous</span>
@@ -513,7 +513,7 @@ export default function YouTubePlayer({
             "transition-all duration-300 ease-out transform hover:scale-105",
             isPlaying && "animate-pulse"
           )}
-          onClick={handlePlayPause}
+          onClick={() => handlePlayPause()}
         >
           {isPlaying ? <Pause className="h-6 w-6" /> : <Play className="h-6 w-6 ml-0.5" />}
           <span className="sr-only">{isPlaying ? "Pause" : "Play"}</span>
@@ -522,7 +522,7 @@ export default function YouTubePlayer({
           variant="ghost"
           size="icon"
           className="text-zinc-400 hover:text-white hover:bg-zinc-700"
-          onClick={handleNext}
+          onClick={() => handleNext()}
         >
           <SkipForward className="h-6 w-6" />
           <span className="sr-only">Next</span>

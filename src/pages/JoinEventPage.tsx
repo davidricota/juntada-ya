@@ -44,30 +44,28 @@ const JoinEventPage: React.FC = () => {
 
   const joinEventMutation = useMutation({
     mutationFn: async () => {
-      if (!accessCode || typeof accessCode !== "string" || accessCode.trim() === "") {
+      if (typeof accessCode !== "string" || accessCode.trim().length === 0) {
         throw new Error("El código de acceso no puede estar vacío.");
       }
 
       if (
-        !participantName ||
         typeof participantName !== "string" ||
-        participantName.trim() === "" ||
-        !participantWhatsapp ||
+        participantName.trim().length === 0 ||
         typeof participantWhatsapp !== "string" ||
-        participantWhatsapp.trim() === ""
+        participantWhatsapp.trim().length === 0
       ) {
         throw new Error("Por favor completa tu nombre y número de WhatsApp.");
       }
 
       // Buscar el evento por código de acceso
       const event = await EventService.getEventByAccessCode(accessCode);
-      if (!event || typeof event !== "object") {
+      if (typeof event !== "object" || event === null) {
         throw new Error("Código de acceso inválido.");
       }
 
       // Obtener o crear el usuario
       const user = await UserService.getOrCreateUser(participantWhatsapp, participantName);
-      if (!user || typeof user !== "object") {
+      if (typeof user !== "object" || user === null) {
         throw new Error("No se pudo crear o obtener el usuario.");
       }
 
@@ -83,7 +81,7 @@ const JoinEventPage: React.FC = () => {
         participantWhatsapp,
         participantName
       );
-      if (!participant || typeof participant !== "object") {
+      if (typeof participant !== "object" || participant === null) {
         throw new Error("No se pudo unir al evento.");
       }
 
@@ -137,7 +135,7 @@ const JoinEventPage: React.FC = () => {
               <Input
                 id="accessCode"
                 type="text"
-                value={accessCode ?? ""}
+                value={typeof accessCode === "string" ? accessCode : ""}
                 onChange={(e) => setAccessCode(e.target.value)}
                 placeholder="Ingresa el código de acceso"
                 required
@@ -152,7 +150,7 @@ const JoinEventPage: React.FC = () => {
               <Input
                 id="participantName"
                 type="text"
-                value={participantName ?? ""}
+                value={typeof participantName === "string" ? participantName : ""}
                 onChange={(e) => setParticipantName(e.target.value)}
                 placeholder="Tu nombre"
                 required
@@ -165,7 +163,7 @@ const JoinEventPage: React.FC = () => {
               </Label>
               <PhoneInput
                 country="ar"
-                value={participantWhatsapp ?? ""}
+                value={typeof participantWhatsapp === "string" ? participantWhatsapp : ""}
                 onChange={setParticipantWhatsapp}
                 inputProps={{
                   className: cn(

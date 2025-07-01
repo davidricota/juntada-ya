@@ -54,7 +54,7 @@ export class PlaylistService {
           participant_name:
             typeof item.participant?.name === "string" && item.participant?.name.length > 0
               ? item.participant.name
-              : "Desconocido",
+              : undefined,
         }))
       : [];
 
@@ -109,7 +109,7 @@ export class PlaylistService {
         participant_name:
           typeof data.participant?.name === "string" && data.participant.name.length > 0
             ? data.participant.name
-            : "Desconocido",
+            : undefined,
       };
 
       // Actualizar cache
@@ -177,7 +177,7 @@ export class PlaylistService {
         participant_name:
           typeof item.participant?.name === "string" && item.participant?.name.length > 0
             ? item.participant.name
-            : "Desconocido",
+            : undefined,
       }));
     } catch {
       throw new Error("Error fetching playlist");
@@ -216,7 +216,7 @@ export class PlaylistService {
         participant_name:
           typeof data.participant?.name === "string" && data.participant.name.length > 0
             ? data.participant.name
-            : "Desconocido",
+            : undefined,
       };
     } catch {
       throw new Error("Error in addVideo");
