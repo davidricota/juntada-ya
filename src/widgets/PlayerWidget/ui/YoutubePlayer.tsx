@@ -111,10 +111,7 @@ export default function YouTubePlayer({
   onShuffleToggle,
   isShuffleEnabled = false,
 }: YouTubePlayerProps) {
-  const [isPlayerReady, setIsPlayerReady] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [isBuffering, setIsBuffering] = useState(false);
-  const [isVisualizationActive, setIsVisualizationActive] = useState(false);
   const [isRepeatEnabled, setIsRepeatEnabled] = useState(false);
   const playerRef = useRef<YouTubePlayer | null>(null);
   const playerContainerRef = useRef<HTMLDivElement>(null);
@@ -134,7 +131,7 @@ export default function YouTubePlayer({
 
   const [currentVideoIndex, setCurrentVideoIndex] = useState(initialVideoIndex);
 
-  const currentVideo = playlistItems[currentVideoIndex] || {
+  const currentVideo = playlistItems[currentVideoIndex] ?? {
     id: "",
     youtube_video_id: "",
     title: "No video available",
@@ -187,7 +184,6 @@ export default function YouTubePlayer({
             onReady: (event) => {
               if (!isMounted) return;
               playerRef.current = event.target;
-              setIsPlayerReady(true);
               setDuration(event.target.getDuration());
               onPlayerReady?.(event.target);
 
@@ -207,10 +203,6 @@ export default function YouTubePlayer({
 
               // Update playing state
               setIsPlaying(playerState === window.YT.PlayerState.PLAYING);
-              setIsBuffering(playerState === window.YT.PlayerState.BUFFERING);
-
-              // Update visualization state
-              setIsVisualizationActive(playerState === window.YT.PlayerState.PLAYING);
 
               // Handle video end
               if (playerState === window.YT.PlayerState.ENDED) {
@@ -252,7 +244,7 @@ export default function YouTubePlayer({
         });
 
         playerRef.current = player;
-      } catch (error) {
+      } catch {
         if (!isMounted) return;
         setError("Failed to initialize YouTube player");
       }
@@ -312,7 +304,7 @@ export default function YouTubePlayer({
             }, 100);
           }
           setError(null);
-        } catch (err) {
+        } catch {
           setError("Failed to load video");
         }
       }
@@ -328,7 +320,7 @@ export default function YouTubePlayer({
       } else {
         playerRef.current.playVideo();
       }
-    } catch (err) {
+    } catch {
       setError("Failed to control playback");
     }
   };
@@ -427,20 +419,22 @@ export default function YouTubePlayer({
       <div className="flex items-center gap-4 mb-4 w-full">
         <img
           src={
-            currentVideo.thumbnail_url ||
+            currentVideo.thumbnail_url ??
             `https://img.youtube.com/vi/${currentVideo.youtube_video_id}/maxresdefault.jpg`
           }
           alt={`${currentVideo.title} thumbnail`}
           className="w-16 h-16 rounded-lg object-cover bg-zinc-900 flex-shrink-0"
           onError={(e) => {
             const target = e.target as HTMLImageElement;
-            target.src = `https://img.youtube.com/vi/${currentVideo.youtube_video_id}/hqdefault.jpg`;
+            if (currentVideo.youtube_video_id && currentVideo.youtube_video_id.length > 0) {
+              target.src = `https://img.youtube.com/vi/${currentVideo.youtube_video_id}/hqdefault.jpg`;
+            }
           }}
         />
         <div className="flex flex-col flex-1 min-w-0 overflow-hidden w-0">
           <h2 className="text-white text-lg font-bold truncate w-full">{currentVideo.title}</h2>
           <p className="text-zinc-400 truncate w-full">
-            {currentVideo.channel_title || "Unknown Channel"}
+            {currentVideo.channel_title ?? "Unknown Channel"}
           </p>
         </div>
       </div>

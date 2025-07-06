@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/shared/ui/card";
 import { Loader2 } from "lucide-react";
 import { ExpenseService } from "../api/expenseService";
@@ -33,7 +33,7 @@ const ExpensesTab: React.FC<ExpensesTabProps> = ({
   const [extraName, setExtraName] = useState("");
   const [isAddingExtra, setIsAddingExtra] = useState(false);
 
-  const loadExpenses = async () => {
+  const loadExpenses = useCallback(async () => {
     try {
       const [expensesData, summaryData] = await Promise.all([
         ExpenseService.getExpenses(planId),
@@ -47,7 +47,7 @@ const ExpensesTab: React.FC<ExpensesTabProps> = ({
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [planId]);
 
   useEffect(() => {
     void loadExpenses();
@@ -68,7 +68,7 @@ const ExpensesTab: React.FC<ExpensesTabProps> = ({
     return () => {
       ExpenseService.unsubscribeFromExpenses(subscription);
     };
-  }, [planId]);
+  }, [planId, loadExpenses]);
 
   const handleAddExpense = async (title: string, amount: number, paidBy: string) => {
     try {
