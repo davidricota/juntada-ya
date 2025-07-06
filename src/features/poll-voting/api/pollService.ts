@@ -90,7 +90,7 @@ export class PollService {
       throw new Error("Error al verificar el participante");
     }
 
-    if (!eventParticipant) {
+    if (eventParticipant === null || eventParticipant === undefined) {
       throw new Error("No eres participante de este evento");
     }
 
@@ -309,14 +309,14 @@ export class PollService {
   }
 
   static unsubscribeFromPolls(subscription: ReturnType<typeof supabase.channel>) {
-    supabase.removeChannel(subscription);
+    void supabase.removeChannel(subscription);
   }
 
   static unsubscribeFromPollOptions(subscription: ReturnType<typeof supabase.channel>) {
-    supabase.removeChannel(subscription);
+    void supabase.removeChannel(subscription);
   }
 
   static unsubscribeFromPollVotes(subscription: ReturnType<typeof supabase.channel>) {
-    supabase.removeChannel(subscription);
+    void supabase.removeChannel(subscription);
   }
 }

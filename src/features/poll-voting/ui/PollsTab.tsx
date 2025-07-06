@@ -78,12 +78,13 @@ const PollsTab: React.FC<PollsTabProps> = ({ planId, currentParticipantId, isHos
 
           const optionsWithVotes: PollOptionWithVotes[] = pollOptions.map((option) => {
             const votesForThisOption = pollVotes.filter((vote) => vote.option_id === option.id);
-            const hasVotedForThisOption = isNonEmptyString(currentParticipantId)
-              ? pollVotes.some(
-                  (vote) =>
-                    vote.option_id === option.id && vote.participant_id === currentParticipantId
-                )
-              : false;
+            const hasVotedForThisOption =
+              typeof currentParticipantId === "string" && currentParticipantId.trim().length > 0
+                ? pollVotes.some(
+                    (vote) =>
+                      vote.option_id === option.id && vote.participant_id === currentParticipantId
+                  )
+                : false;
 
             return {
               ...option,
@@ -125,7 +126,6 @@ const PollsTab: React.FC<PollsTabProps> = ({ planId, currentParticipantId, isHos
       if (payload.eventType === "DELETE") {
         setPolls((prev) => prev.filter((poll) => poll.id !== payload.old.id));
       } else if (payload.eventType === "INSERT" && payload.new) {
-        // Agregar nueva encuesta
         void (async () => {
           const [pollOptions, pollVotes, creator] = await Promise.all([
             PollService.getPollOptions(payload.new.id),
@@ -136,12 +136,13 @@ const PollsTab: React.FC<PollsTabProps> = ({ planId, currentParticipantId, isHos
           const optionsWithVotes = pollOptions.map((option) => ({
             ...option,
             votes_count: pollVotes.filter((vote) => vote.option_id === option.id).length,
-            has_voted: isNonEmptyString(currentParticipantId)
-              ? pollVotes.some(
-                  (vote) =>
-                    vote.option_id === option.id && vote.participant_id === currentParticipantId
-                )
-              : false,
+            has_voted:
+              typeof currentParticipantId === "string" && currentParticipantId.trim().length > 0
+                ? pollVotes.some(
+                    (vote) =>
+                      vote.option_id === option.id && vote.participant_id === currentParticipantId
+                  )
+                : false,
           }));
 
           const totalVotes = optionsWithVotes.reduce(
@@ -154,7 +155,13 @@ const PollsTab: React.FC<PollsTabProps> = ({ planId, currentParticipantId, isHos
               ...payload.new,
               options: removeDuplicateOptions(optionsWithVotes),
               total_votes: totalVotes,
-              creator_name: creator?.name || "Anónimo",
+              creator_name:
+                creator !== null &&
+                creator !== undefined &&
+                typeof creator.name === "string" &&
+                creator.name.length > 0
+                  ? creator.name
+                  : "Anónimo",
             },
             ...prev,
           ]);
@@ -165,7 +172,7 @@ const PollsTab: React.FC<PollsTabProps> = ({ planId, currentParticipantId, isHos
     // Suscribirse a cambios en las opciones de las encuestas
     const pollOptionsSubscriptions = polls.map((poll) =>
       PollService.subscribeToPollOptions(poll.id, (payload) => {
-        if (payload.eventType === "INSERT" && payload.new) {
+        if (payload.eventType === "INSERT" && payload.new !== null && payload.new !== undefined) {
           setPolls((prev) =>
             prev.map((p) =>
               p.id === poll.id
@@ -179,7 +186,11 @@ const PollsTab: React.FC<PollsTabProps> = ({ planId, currentParticipantId, isHos
                 : p
             )
           );
-        } else if (payload.eventType === "DELETE" && payload.old) {
+        } else if (
+          payload.eventType === "DELETE" &&
+          payload.old !== null &&
+          payload.old !== undefined
+        ) {
           setPolls((prev) =>
             prev.map((p) =>
               p.id === poll.id
@@ -203,8 +214,8 @@ const PollsTab: React.FC<PollsTabProps> = ({ planId, currentParticipantId, isHos
 
     return () => {
       PollService.unsubscribeFromPolls(pollsSubscription);
-      pollOptionsSubscriptions.forEach((sub) => PollService.unsubscribeFromPollOptions(sub));
-      pollVotesSubscriptions.forEach((sub) => PollService.unsubscribeFromPollVotes(sub));
+      pollOptionsSubscriptions.forEach((sub) => void PollService.unsubscribeFromPollOptions(sub));
+      pollVotesSubscriptions.forEach((sub) => void PollService.unsubscribeFromPollVotes(sub));
     };
   }, [planId, currentParticipantId, polls.length]);
 
@@ -214,7 +225,7 @@ const PollsTab: React.FC<PollsTabProps> = ({ planId, currentParticipantId, isHos
     allowMultipleVotes: boolean;
     options: string[];
   }) => {
-    if (!isNonEmptyString(currentParticipantId)) {
+    if (!(typeof currentParticipantId === "string" && currentParticipantId.trim().length > 0)) {
       toast.error("Debes unirte al evento para crear encuestas.");
       return;
     }
@@ -231,7 +242,7 @@ const PollsTab: React.FC<PollsTabProps> = ({ planId, currentParticipantId, isHos
           formData.allowMultipleVotes
         );
 
-        await queryClient.invalidateQueries({ queryKey: ["polls", planId] });
+        void queryClient.invalidateQueries({ queryKey: ["polls", planId] });
         toast.success("¡Encuesta actualizada!", {
           description: "La encuesta se ha actualizado exitosamente.",
         });
@@ -246,7 +257,7 @@ const PollsTab: React.FC<PollsTabProps> = ({ planId, currentParticipantId, isHos
           formData.allowMultipleVotes
         );
 
-        await queryClient.invalidateQueries({ queryKey: ["polls", planId] });
+        void queryClient.invalidateQueries({ queryKey: ["polls", planId] });
         toast.success("¡Encuesta creada!", {
           description: "La encuesta se ha creado exitosamente.",
         });
@@ -270,7 +281,7 @@ const PollsTab: React.FC<PollsTabProps> = ({ planId, currentParticipantId, isHos
   const handleDeletePoll = async (pollId: string) => {
     try {
       await PollService.deletePoll(pollId);
-      await queryClient.invalidateQueries({ queryKey: ["polls", planId] });
+      void queryClient.invalidateQueries({ queryKey: ["polls", planId] });
       toast.success("Encuesta eliminada", {
         description: "La encuesta se ha eliminado correctamente.",
       });
@@ -284,13 +295,14 @@ const PollsTab: React.FC<PollsTabProps> = ({ planId, currentParticipantId, isHos
   const canEditPoll = (poll: PollWithDetails) => {
     return (
       isHost ||
-      (isNonEmptyString(currentParticipantId) &&
+      (typeof currentParticipantId === "string" &&
+        currentParticipantId.trim().length > 0 &&
         poll.created_by_participant_id === currentParticipantId)
     );
   };
 
   const handleVote = async (pollId: string, optionId: string, allowMultiple: boolean) => {
-    if (!isNonEmptyString(currentParticipantId)) {
+    if (!(typeof currentParticipantId === "string" && currentParticipantId.trim().length > 0)) {
       toast.error("Debes unirte al evento para votar.");
       return;
     }
@@ -355,7 +367,8 @@ const PollsTab: React.FC<PollsTabProps> = ({ planId, currentParticipantId, isHos
   };
 
   const removeVote = async (pollId: string, optionId: string) => {
-    if (!isNonEmptyString(currentParticipantId)) return;
+    if (!(typeof currentParticipantId === "string" && currentParticipantId.trim().length > 0))
+      return;
 
     try {
       await PollService.removeVote(pollId, currentParticipantId, optionId);
@@ -472,16 +485,20 @@ const PollsTab: React.FC<PollsTabProps> = ({ planId, currentParticipantId, isHos
                   <div className="flex items-start justify-between">
                     <div>
                       <CardTitle className="text-xl text-primary">{poll.title}</CardTitle>
-                      {isNonEmptyString(poll.description) && (
-                        <CardDescription className="text-muted-foreground">
-                          {poll.description}
-                        </CardDescription>
-                      )}
+                      {typeof poll.description === "string" &&
+                        poll.description.trim().length > 0 && (
+                          <CardDescription className="text-muted-foreground">
+                            {poll.description}
+                          </CardDescription>
+                        )}
                       <div className="text-sm text-muted-foreground">
                         Creada por{" "}
-                        {isNonEmptyString(poll.creator_name) ? poll.creator_name : "Desconocido"}
+                        {typeof poll.creator_name === "string" &&
+                        poll.creator_name.trim().length > 0
+                          ? poll.creator_name
+                          : "Desconocido"}
                         {" · "}
-                        {isNonEmptyString(poll.created_at)
+                        {typeof poll.created_at === "string" && poll.created_at.trim().length > 0
                           ? new Date(poll.created_at).toLocaleDateString()
                           : ""}
                       </div>

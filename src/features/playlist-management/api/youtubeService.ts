@@ -29,7 +29,12 @@ export class YouTubeService {
 
       const data = (await response.json()) as { error?: string; results?: YouTubeVideo[] };
 
-      if (data && typeof data.error === "string" && data.error.length > 0) {
+      if (
+        data !== null &&
+        data !== undefined &&
+        typeof data.error === "string" &&
+        data.error.length > 0
+      ) {
         throw new Error(data.error);
       }
 
@@ -59,22 +64,24 @@ export class YouTubeService {
   // Fallback method using Supabase client (for reference)
   static async searchVideosWithSupabaseClient(searchTerm: string): Promise<YouTubeVideo[]> {
     try {
-      const {
-        data,
-        error,
-      }: {
-        data: { error?: string; results?: YouTubeVideo[] } | null;
-        error: { message?: string } | null;
-      } = await supabase.functions.invoke("youtube-search", {
+      const result = await supabase.functions.invoke("youtube-search", {
         body: { searchTerm },
       });
+
+      const data = result.data as { error?: string; results?: YouTubeVideo[] } | null;
+      const error = result.error as { message?: string } | null;
 
       if (error && typeof error.message === "string" && error.message.length > 0) {
         console.error("Supabase function error:", error);
         throw new Error(`Error calling YouTube search function: ${error.message}`);
       }
 
-      if (data && typeof data.error === "string" && data.error.length > 0) {
+      if (
+        data !== null &&
+        data !== undefined &&
+        typeof data.error === "string" &&
+        data.error.length > 0
+      ) {
         console.error("Function returned error:", data.error);
         throw new Error(data.error);
       }

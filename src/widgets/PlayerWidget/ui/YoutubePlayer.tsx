@@ -424,22 +424,24 @@ export default function YouTubePlayer({
       <div ref={playerContainerRef} className="hidden" />
 
       {/* Top: Image + Info */}
-      <div className="flex items-center gap-4 mb-4">
+      <div className="flex items-center gap-4 mb-4 w-full">
         <img
           src={
             currentVideo.thumbnail_url ||
             `https://img.youtube.com/vi/${currentVideo.youtube_video_id}/maxresdefault.jpg`
           }
           alt={`${currentVideo.title} thumbnail`}
-          className="w-16 h-16 rounded-lg object-cover bg-zinc-900"
+          className="w-16 h-16 rounded-lg object-cover bg-zinc-900 flex-shrink-0"
           onError={(e) => {
             const target = e.target as HTMLImageElement;
             target.src = `https://img.youtube.com/vi/${currentVideo.youtube_video_id}/hqdefault.jpg`;
           }}
         />
-        <div className="flex flex-col flex-1 min-w-0">
-          <h2 className="text-white text-lg font-bold truncate">{currentVideo.title}</h2>
-          <p className="text-zinc-400 truncate">{currentVideo.channel_title}</p>
+        <div className="flex flex-col flex-1 min-w-0 overflow-hidden w-0">
+          <h2 className="text-white text-lg font-bold truncate w-full">{currentVideo.title}</h2>
+          <p className="text-zinc-400 truncate w-full">
+            {currentVideo.channel_title || "Unknown Channel"}
+          </p>
         </div>
       </div>
 

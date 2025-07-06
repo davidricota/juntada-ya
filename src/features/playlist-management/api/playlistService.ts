@@ -139,7 +139,12 @@ export class PlaylistService {
     if (error) throw error;
 
     // Actualizar cache
-    if (item?.event_id) {
+    if (
+      item !== null &&
+      item !== undefined &&
+      item.event_id !== null &&
+      item.event_id !== undefined
+    ) {
       const cached = playlistCache.get(item.event_id);
       if (cached) {
         playlistCache.set(item.event_id, {
@@ -227,7 +232,7 @@ export class PlaylistService {
     try {
       const { error } = await supabase.from("playlist_items").delete().eq("id", videoId);
       if (error) throw error;
-    } catch (error) {
+    } catch {
       throw new Error("Error removing video from playlist");
     }
   }

@@ -33,6 +33,22 @@ const ExpensesTab: React.FC<ExpensesTabProps> = ({
   const [extraName, setExtraName] = useState("");
   const [isAddingExtra, setIsAddingExtra] = useState(false);
 
+  const loadExpenses = async () => {
+    try {
+      const [expensesData, summaryData] = await Promise.all([
+        ExpenseService.getExpenses(planId),
+        ExpenseService.getExpenseSummary(planId),
+      ]);
+
+      setExpenses(expensesData);
+      setSummary(summaryData);
+    } catch {
+      toast.error("No se pudieron cargar los gastos.");
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   useEffect(() => {
     void loadExpenses();
     const subscription = ExpenseService.subscribeToExpenses(
@@ -54,22 +70,6 @@ const ExpensesTab: React.FC<ExpensesTabProps> = ({
     };
   }, [planId]);
 
-  const loadExpenses = async () => {
-    try {
-      const [expensesData, summaryData] = await Promise.all([
-        ExpenseService.getExpenses(planId),
-        ExpenseService.getExpenseSummary(planId),
-      ]);
-
-      setExpenses(expensesData);
-      setSummary(summaryData);
-    } catch {
-      toast.error("No se pudieron cargar los gastos.");
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
   const handleAddExpense = async (title: string, amount: number, paidBy: string) => {
     try {
       const newExpense = await ExpenseService.addExpense(planId, paidBy, title, amount);
@@ -79,7 +79,12 @@ const ExpensesTab: React.FC<ExpensesTabProps> = ({
       setExpenses((prev) => [
         {
           ...newExpense,
-          participant_name: paidByParticipant?.name || "Desconocido",
+          participant_name:
+            paidByParticipant?.name !== null &&
+            paidByParticipant?.name !== undefined &&
+            paidByParticipant.name.length > 0
+              ? paidByParticipant.name
+              : "Desconocido",
         },
         ...prev,
       ]);
@@ -112,7 +117,12 @@ const ExpensesTab: React.FC<ExpensesTabProps> = ({
   };
 
   const handleAddExtra = async () => {
-    if (typeof extraName === "string" && extraName.trim().length > 0) {
+    if (
+      typeof extraName === "string" &&
+      extraName !== null &&
+      extraName !== undefined &&
+      extraName.trim().length > 0
+    ) {
       setIsAddingExtra(true);
       try {
         await ExpenseService.addExtraParticipant(planId, extraName);

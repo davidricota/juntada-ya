@@ -32,6 +32,7 @@ export const useEventSessionStore = create(
       getSession: (planId) => get().sessions[planId],
       clearSession: (planId) =>
         set((state) => {
+          // eslint-disable-next-line @typescript-eslint/no-unused-vars
           const { [planId]: _, ...rest } = state.sessions;
           return { sessions: rest };
         }),

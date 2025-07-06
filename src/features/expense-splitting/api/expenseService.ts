@@ -87,7 +87,12 @@ export class ExpenseService {
 
     if (error) throw error instanceof Error ? error : new Error(String(error));
 
-    if (!Array.isArray(participants) || participants.length === 0) {
+    if (
+      participants === null ||
+      participants === undefined ||
+      !Array.isArray(participants) ||
+      participants.length === 0
+    ) {
       return {
         total: 0,
         perPerson: 0,
@@ -135,7 +140,7 @@ export class ExpenseService {
           filter: `event_id=eq.${planId}`,
         },
         (payload) => {
-          callback(payload as unknown as ExpenseChangePayload);
+          callback(payload as ExpenseChangePayload);
         }
       )
       .subscribe();

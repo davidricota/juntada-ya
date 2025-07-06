@@ -110,7 +110,13 @@ export default function PlaylistTab({
 
   // Función para cargar video de forma segura
   const loadVideoSafely = (videoIndex: number) => {
-    if (!playerRef.current || !isPlayerReady || !displayPlaylist[videoIndex]) {
+    if (
+      !playerRef.current ||
+      !isPlayerReady ||
+      !displayPlaylist ||
+      !Array.isArray(displayPlaylist) ||
+      !displayPlaylist[videoIndex]
+    ) {
       // Si el reproductor no está listo, guardar el índice pendiente
       pendingVideoIndexRef.current = videoIndex;
       return;
@@ -142,7 +148,11 @@ export default function PlaylistTab({
 
   // Efecto para procesar videos pendientes cuando el reproductor esté listo
   useEffect(() => {
-    if (isPlayerReady && pendingVideoIndexRef.current !== null) {
+    if (
+      isPlayerReady &&
+      pendingVideoIndexRef.current !== null &&
+      pendingVideoIndexRef.current !== undefined
+    ) {
       loadVideoSafely(pendingVideoIndexRef.current);
     }
   }, [isPlayerReady]);
@@ -180,12 +190,17 @@ export default function PlaylistTab({
           // Si el video está cerca del final, asumimos que está por cambiar
           if (videoDuration - currentTime < 1) {
             const nextIndex =
+              typeof currentVideoIndexRef.current === "number" &&
               currentVideoIndexRef.current === displayPlaylist.length - 1
                 ? 0
-                : currentVideoIndexRef.current + 1;
+                : (currentVideoIndexRef.current ?? 0) + 1;
 
             // Solo cambiar al siguiente video si no es el último o si el loop está activado
-            if (currentVideoIndexRef.current < displayPlaylist.length - 1 || isRepeatEnabled) {
+            if (
+              (typeof currentVideoIndexRef.current === "number" &&
+                currentVideoIndexRef.current < displayPlaylist.length - 1) ||
+              isRepeatEnabled
+            ) {
               // Marcar que el usuario ha interactuado (porque el video se está reproduciendo)
               markUserInteraction();
               setCurrentVideoIndex(nextIndex);
@@ -224,11 +239,9 @@ export default function PlaylistTab({
   useEffect(() => {
     const subscription = PlaylistService.subscribeToPlaylist(planId, async (payload) => {
       if (payload.eventType === "INSERT" && payload.new) {
-        // Invalidate and refetch
-        await queryClient.invalidateQueries({ queryKey: ["playlist", planId] });
+        void queryClient.invalidateQueries({ queryKey: ["playlist", planId] });
       } else if (payload.eventType === "DELETE" && payload.old) {
-        // Invalidate and refetch
-        await queryClient.invalidateQueries({ queryKey: ["playlist", planId] });
+        void queryClient.invalidateQueries({ queryKey: ["playlist", planId] });
       }
     });
 
@@ -374,7 +387,7 @@ export default function PlaylistTab({
       console.log("Song added successfully:", result);
 
       // Invalidate and refetch
-      await queryClient.invalidateQueries({ queryKey: ["playlist", planId] });
+      void queryClient.invalidateQueries({ queryKey: ["playlist", planId] });
       toast({ title: "¡Canción Agregada!", description: `${song.title} se añadió a la playlist.` });
     } catch (error) {
       console.error("Error adding song to playlist:", error);

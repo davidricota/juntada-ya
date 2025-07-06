@@ -148,7 +148,7 @@ export default function EventInfoTab({ planId, isHost, initialData }: EventInfoT
 
   // Actualizar estados cuando cambia eventInfo
   useEffect(() => {
-    if (isEventInfo(eventInfo)) {
+    if (eventInfo !== null && eventInfo !== undefined && isEventInfo(eventInfo)) {
       setAddress(eventInfo.address.length > 0 ? eventInfo.address : "");
       setDate(eventInfo.date.length > 0 ? stringToDate(eventInfo.date) : undefined);
       setTime(eventInfo.time.length > 0 ? eventInfo.time : "");

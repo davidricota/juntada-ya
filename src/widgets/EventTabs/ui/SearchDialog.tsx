@@ -31,7 +31,7 @@ export function SearchDialog({ isOpen, onClose, onSongSelected }: SearchDialogPr
     try {
       const results = await YouTubeService.searchVideos(searchQuery);
       setSearchResults(results);
-    } catch (error) {
+    } catch {
       toast.error("No se pudieron buscar los videos. Inténtalo de nuevo.");
     } finally {
       setIsSearching(false);

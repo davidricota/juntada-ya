@@ -91,7 +91,7 @@ export class EventService {
       access_code: data.access_code,
       host_user_id: data.host_user_id,
       created_at: data.created_at,
-      participants: data.participants || [],
+      participants: Array.isArray(data.participants) ? data.participants : [],
     };
 
     // Guardar en cache
