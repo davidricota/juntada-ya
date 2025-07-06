@@ -1,0 +1,22 @@
+# Build outputs
+dist/
+build/
+.next/
+
+# Dependencies
+node_modules/
+
+# Generated files
+src/components/ui/**
+
+# Supabase functions (separate TypeScript project)
+supabase/functions/**
+
+# Config files
+tailwind.config.ts
+vite.config.ts
+tsconfig.*.json
+
+# Other
+*.min.js
+*.bundle.js 

@@ -153,7 +153,7 @@ export default function YouTubePlayer({
 
     const loadYouTubeAPI = async () => {
       try {
-        if (!window.YT) {
+        if (typeof window.YT === "undefined") {
           const tag = document.createElement("script");
           tag.src = "https://www.youtube.com/iframe_api";
           const firstScriptTag = document.getElementsByTagName("script")[0];
@@ -227,7 +227,7 @@ export default function YouTubePlayer({
 
               // Update duration when it becomes available
               if (playerState === window.YT.PlayerState.PLAYING) {
-                const newDuration = playerRef.current?.getDuration() || 30;
+                const newDuration = playerRef.current?.getDuration() ?? 30;
                 setDuration(newDuration);
               }
             },
@@ -250,7 +250,7 @@ export default function YouTubePlayer({
       }
     };
 
-    loadYouTubeAPI();
+    void loadYouTubeAPI();
 
     return () => {
       isMounted = false;
@@ -403,7 +403,7 @@ export default function YouTubePlayer({
 
   return (
     <div className="w-full bg-zinc-800/90 backdrop-blur-md rounded-xl overflow-hidden shadow-2xl p-4">
-      {error && (
+      {error && error.length > 0 && (
         <Alert
           variant="destructive"
           className="rounded-none border-x-0 border-t-0 border-b border-red-500/50 mb-2"

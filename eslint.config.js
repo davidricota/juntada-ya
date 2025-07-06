@@ -6,7 +6,16 @@ import typescript from "@typescript-eslint/eslint-plugin";
 import tseslint from "typescript-eslint";
 export default tseslint.config(
   {
-    ignores: ["dist", "build", ".next", "node_modules", "src/components/ui/**"],
+    ignores: [
+      "dist",
+      "build",
+      ".next",
+      "node_modules",
+      "src/components/ui/**",
+      "supabase/functions/**",
+      "tailwind.config.ts",
+      "vite.config.ts",
+    ],
   },
   {
     extends: [
