@@ -9,9 +9,7 @@ const HomePage: React.FC = () => {
     <div className="flex flex-col items-center justify-center p-4">
       <header className="text-center mb-12">
         <h1 className="text-5xl font-bold text-foreground mb-4">Plancito!</h1>
-        <p className="text-xl text-muted-foreground">
-          Tu plataforma para organizar eventos y playlists colaborativas.
-        </p>
+        <p className="text-xl text-muted-foreground">Tu plataforma para organizar eventos.</p>
       </header>
 
       <div className="grid md:grid-cols-2 gap-8 w-full max-w-2xl">
